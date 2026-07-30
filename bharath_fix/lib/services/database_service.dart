@@ -728,6 +728,51 @@ class DatabaseService {
     }
   }
 
+  /// Submit rating, review comment, tags, and optional technician tip
+  Future<bool> submitBookingRatingAndTip({
+    required String bookingId,
+    required String providerId,
+    required double ratingStars,
+    required List<String> tags,
+    required String comment,
+    required double tipAmount,
+  }) async {
+    try {
+      final ratingData = {
+        'bookingId': bookingId,
+        'providerId': providerId,
+        'ratingStars': ratingStars,
+        'tags': tags,
+        'comment': comment,
+        'tipAmount': tipAmount,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      if (_isFirebaseAvailable) {
+        await FirebaseFirestore.instance.collection('ratings').add(ratingData);
+        if (bookingId.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({
+            'ratingStars': ratingStars,
+            'reviewComment': comment,
+            'isRated': true,
+          });
+        }
+      }
+
+      if (tipAmount > 0) {
+        await debitWallet(
+          amount: tipAmount,
+          description: 'Technician Tip for Booking #$bookingId',
+          bookingId: bookingId,
+        );
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error submitting rating and tip: $e');
+      return false;
+    }
+  }
+
   Future<void> seedDefaultData() async {
     debugPrint("Firestore database service ready.");
   }

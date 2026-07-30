@@ -6,6 +6,8 @@ import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../ui/widgets/common_button.dart';
 
+import '../../ui/widgets/rating_review_dialog.dart';
+
 class BookingSuccessScreen extends StatefulWidget {
   const BookingSuccessScreen({super.key});
 
@@ -148,14 +150,43 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                     CommonButton(
                       label: 'Track Booking',
                       onPressed: () {
-                        // Redirect directly to the My Bookings tracking stack
                         Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false, arguments: 1);
                       },
                     ),
-                    const SizedBox(height: AppSpacing.medium),
+                    const SizedBox(height: AppSpacing.small),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => RatingReviewDialog(
+                            bookingId: booking.id,
+                            providerName: booking.providerName,
+                            providerId: booking.providerPhone,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                      label: const Text(
+                        'Rate & Tip Technician ⭐',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.title,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFF8E1),
+                        minimumSize: const Size(double.infinity, 48),
+                        elevation: 0,
+                        side: const BorderSide(color: Color(0xFFFFD54F)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.button),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.small),
                     OutlinedButton(
                       onPressed: () {
-                        // Route back to the home screen
                         Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false, arguments: 0);
                       },
                       style: OutlinedButton.styleFrom(
