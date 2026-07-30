@@ -14,6 +14,9 @@ import '../../services/database_service.dart';
 import '../../models/UserModel.dart';
 import '../../utils/LocalStorage.dart';
 import '../../utils/app_routes.dart';
+import '../../services/theme_service.dart';
+import '../../services/language_service.dart';
+import '../../utils/app_translations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -250,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildNavigationRow(
                 Icons.info_outline_rounded,
-                'About BharathFix',
+                LanguageService().translate('about'),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -258,6 +261,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
               ),
+              _buildThemeSwitchTile(),
+              _buildLanguageSelectorTile(),
               const SizedBox(height: AppSpacing.large),
               TextButton(
                 onPressed: () async {
@@ -444,6 +449,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildThemeSwitchTile() {
+    final themeService = ThemeService();
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeService.themeModeNotifier,
+      builder: (context, mode, child) {
+        final isDark = mode == ThemeMode.dark;
+        return Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+              color: isDark ? Colors.amber : Colors.black87,
+              size: 22,
+            ),
+            title: Text(
+              LanguageService().translate('app_theme'),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: AppColors.title,
+              ),
+            ),
+            trailing: Switch.adaptive(
+              value: isDark,
+              activeColor: AppColors.primary,
+              onChanged: (val) => themeService.toggleTheme(val),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageSelectorTile() {
+    final langService = LanguageService();
+    return ValueListenableBuilder<String>(
+      valueListenable: langService.currentLangNotifier,
+      builder: (context, langCode, child) {
+        final langDisplay = langCode == 'kn' ? 'ಕನ್ನಡ (Kannada)' : 'English';
+
+        return Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
+          ),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.translate_rounded, color: AppColors.primary, size: 22),
+            title: Text(
+              LanguageService().translate('language'),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: AppColors.title,
+              ),
+            ),
+            subtitle: Text(
+              langDisplay,
+              style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+            onTap: () => _showLanguageSelectionModal(context),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLanguageSelectionModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                LanguageService().translate('select_language'),
+                style: AppTextStyle.sectionHeader,
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
+                title: const Text('English (Default)', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold)),
+                trailing: LanguageService().currentLanguage == 'en' ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                onTap: () async {
+                  await LanguageService().setLanguage('en');
+                  if (context.mounted) Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
+                title: const Text('ಕನ್ನಡ (Kannada)', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold)),
+                subtitle: const Text('ಹಾಸನ & ಬೆಳಗಾವಿ ಸ್ಥಳೀಯ ಭಾಷೆ', style: TextStyle(fontSize: 12)),
+                trailing: LanguageService().currentLanguage == 'kn' ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                onTap: () async {
+                  await LanguageService().setLanguage('kn');
+                  if (context.mounted) Navigator.pop(context);
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

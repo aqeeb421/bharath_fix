@@ -1,6 +1,7 @@
 // lib/Home/checkout_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart'; // Import official package
 import '../../models/BookingEntry.dart';
 import '../../models/job_status.dart';
@@ -365,24 +366,90 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Set<String> _bookedTimeSlots = {};
+
+  Future<void> _fetchBookedSlotsForSelectedDate() async {
+    final selectedDateNum = _dates[_selectedDateIndex]['num'];
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .get();
+      
+      final Set<String> bookedSlots = {};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final dt = data['dateTime'] as String? ?? '';
+        final status = data['status'] as String? ?? '';
+        if (status != 'CANCELLED' && dt.contains(selectedDateNum!)) {
+          for (final slot in _timeSlots) {
+            if (dt.contains(slot)) {
+              bookedSlots.add(slot);
+            }
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _bookedTimeSlots = bookedSlots;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching booked slots: $e');
+    }
+  }
+
   Widget _buildTimeGrid() {
     return Wrap(
       spacing: AppSpacing.small,
       runSpacing: AppSpacing.small,
       children: List.generate(_timeSlots.length, (index) {
+        final slot = _timeSlots[index];
         final isSelected = _selectedTimeIndex == index;
+        final isBooked = _bookedTimeSlots.contains(slot);
+
         return GestureDetector(
-          onTap: () => setState(() => _selectedTimeIndex = index),
+          onTap: isBooked ? null : () => setState(() => _selectedTimeIndex = index),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : AppColors.background,
+              color: isBooked
+                  ? Colors.grey.shade200
+                  : (isSelected ? AppColors.primary : AppColors.background),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+              border: Border.all(
+                color: isBooked
+                    ? Colors.grey.shade300
+                    : (isSelected ? AppColors.primary : AppColors.border),
+              ),
             ),
-            child: Text(
-              _timeSlots[index],
-              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Colors.white : AppColors.title),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  slot,
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isBooked
+                        ? Colors.grey.shade500
+                        : (isSelected ? Colors.white : AppColors.title),
+                    decoration: isBooked ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (isBooked) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '(Full)',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade400,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         );

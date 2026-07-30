@@ -15,9 +15,12 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   late Razorpay _razorpay;
-  final TextEditingController _amountController = TextEditingController(text: '500');
+  final TextEditingController _amountController = TextEditingController(
+    text: '500',
+  );
   double _pendingTopUpAmount = 500.0;
   bool _isProcessing = false;
+  String _selectedTxFilter = 'ALL'; // 'ALL', 'CREDIT', 'DEBIT'
 
   final List<double> _quickChips = [100, 500, 1000, 2000];
 
@@ -44,12 +47,27 @@ class _WalletScreenState extends State<WalletScreen> {
       razorpayPaymentId: response.paymentId,
     );
 
+    if (_pendingTopUpAmount >= 500) {
+      await DatabaseService().creditWallet(
+        amount: 50.0,
+        description: '₹50 Automated Cashback Reward 🎉',
+      );
+    }
+
     if (mounted) {
       setState(() => _isProcessing = false);
       if (success) {
-        _showSuccessSnackBar('Successfully added ₹${_pendingTopUpAmount.toStringAsFixed(0)} to your wallet!');
+        if (_pendingTopUpAmount >= 500) {
+          _showGPayScratchCardDialog(context, 50.0);
+        } else {
+          _showSuccessSnackBar(
+            'Successfully added ₹${_pendingTopUpAmount.toStringAsFixed(0)} to your wallet!',
+          );
+        }
       } else {
-        _showErrorSnackBar('Failed to update wallet balance. Please contact support.');
+        _showErrorSnackBar(
+          'Failed to update wallet balance. Please contact support.',
+        );
       }
     }
   }
@@ -57,7 +75,9 @@ class _WalletScreenState extends State<WalletScreen> {
   void _handleRazorpayError(PaymentFailureResponse response) {
     if (mounted) {
       setState(() => _isProcessing = false);
-      _showErrorSnackBar('Top-up failed: ${response.message ?? "Transaction cancelled"}');
+      _showErrorSnackBar(
+        'Top-up failed: ${response.message ?? "Transaction cancelled"}',
+      );
     }
   }
 
@@ -88,13 +108,8 @@ class _WalletScreenState extends State<WalletScreen> {
       'name': 'BharathFix Wallet',
       'description': 'Add ₹${amount.toStringAsFixed(0)} to Wallet',
       'timeout': 300,
-      'prefill': {
-        'contact': '',
-        'email': 'customer@bharathfix.in',
-      },
-      'theme': {
-        'color': '#000062',
-      }
+      'prefill': {'contact': '', 'email': 'customer@bharathfix.in'},
+      'theme': {'color': '#000062'},
     };
 
     try {
@@ -120,14 +135,260 @@ class _WalletScreenState extends State<WalletScreen> {
       description: 'Instant Wallet Add (Test Payment)',
     );
 
+    if (amount >= 500) {
+      await DatabaseService().creditWallet(
+        amount: 50.0,
+        description: '₹50 Automated Cashback Reward 🎉',
+      );
+    }
+
     if (mounted) {
       setState(() => _isProcessing = false);
       if (success) {
-        _showSuccessSnackBar('Added ₹${amount.toStringAsFixed(0)} to BharathFix Wallet!');
+        if (amount >= 500) {
+          _showGPayScratchCardDialog(context, 50.0);
+        } else {
+          _showSuccessSnackBar(
+            'Added ₹${amount.toStringAsFixed(0)} to BharathFix Wallet!',
+          );
+        }
       } else {
         _showErrorSnackBar('Failed to update wallet.');
       }
     }
+  }
+
+  void _showGPayScratchCardDialog(BuildContext context, double bonusAmount) {
+    bool isScratched = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF4A148C),
+                      Color(0xFF7B1FA2),
+                      Color(0xFF311B92),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withValues(alpha: 0.5),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(
+                          Icons.auto_awesome,
+                          color: Color(0xFFFFD54F),
+                          size: 24,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Google Pay Rewards',
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.auto_awesome,
+                          color: Color(0xFFFFD54F),
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'You unlocked a Cashback Scratch Card! 🎉',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Scratch Card Box
+                    GestureDetector(
+                      onTap: () {
+                        if (!isScratched) {
+                          setModalState(() {
+                            isScratched = true;
+                          });
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeInOutBack,
+                        width: 220,
+                        height: 220,
+                        decoration: BoxDecoration(
+                          gradient: isScratched
+                              ? const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFF8E1),
+                                    Color(0xFFFFECB3),
+                                  ],
+                                )
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFD54F),
+                                    Color(0xFFFFB300),
+                                    Color(0xFFFF8F00),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isScratched
+                                ? const Color(0xFFFFD54F)
+                                : Colors.white,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: isScratched
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.emoji_events_rounded,
+                                    size: 56,
+                                    color: Color(0xFFFF8F00),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'YOU WON!',
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF5D4037),
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${bonusAmount.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 38,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Cashback Balance',
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 12,
+                                      color: Color(0xFF795548),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(
+                                    Icons.touch_app_rounded,
+                                    size: 48,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'TAP TO SCRATCH',
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Guaranteed Reward Inside',
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 11,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        if (isScratched) {
+                          _showSuccessSnackBar(
+                            'Claimed ₹${bonusAmount.toStringAsFixed(0)} cashback reward!',
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFD54F),
+                        foregroundColor: const Color(0xFF3E2723),
+                        elevation: 4,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        isScratched
+                            ? 'Claim Reward & Add to Wallet'
+                            : 'Scratch Later',
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showSuccessSnackBar(String msg) {
@@ -137,7 +398,15 @@ class _WalletScreenState extends State<WalletScreen> {
           children: [
             const Icon(Icons.check_circle_rounded, color: Colors.white),
             const SizedBox(width: 10),
-            Expanded(child: Text(msg, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600))),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF2E7D32),
@@ -151,7 +420,10 @@ class _WalletScreenState extends State<WalletScreen> {
   void _showErrorSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(fontFamily: 'Plus Jakarta Sans')),
+        content: Text(
+          msg,
+          style: const TextStyle(fontFamily: 'Plus Jakarta Sans'),
+        ),
         backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
@@ -168,10 +440,17 @@ class _WalletScreenState extends State<WalletScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.title,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('BharathFix Wallet', style: AppTextStyle.sectionHeader),
+        title: const Text(
+          'BharathFix Wallet',
+          style: AppTextStyle.sectionHeader,
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -185,7 +464,10 @@ class _WalletScreenState extends State<WalletScreen> {
             const SizedBox(height: AppSpacing.large),
 
             // 2. Add Money Section
-            const Text('Add Money to Wallet', style: AppTextStyle.sectionHeader),
+            const Text(
+              'Add Money to Wallet',
+              style: AppTextStyle.sectionHeader,
+            ),
             const SizedBox(height: AppSpacing.small),
             Text(
               'Use your wallet balance for instant 1-tap checkout on all home services & spare parts.',
@@ -208,7 +490,11 @@ class _WalletScreenState extends State<WalletScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
                 Text('Transaction History', style: AppTextStyle.sectionHeader),
-                Icon(Icons.history_rounded, color: AppColors.subtitle, size: 20),
+                Icon(
+                  Icons.history_rounded,
+                  color: AppColors.subtitle,
+                  size: 20,
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.medium),
@@ -235,11 +521,7 @@ class _WalletScreenState extends State<WalletScreen> {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF000062),
-                Color(0xFF1A1A80),
-                Color(0xFF000040),
-              ],
+              colors: [Color(0xFF000062), Color(0xFF1A1A80), Color(0xFF000040)],
             ),
             boxShadow: const [
               BoxShadow(
@@ -263,7 +545,11 @@ class _WalletScreenState extends State<WalletScreen> {
                           color: Colors.white.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
@@ -279,16 +565,26 @@ class _WalletScreenState extends State<WalletScreen> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFD700).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFFD700), width: 1),
+                      border: Border.all(
+                        color: const Color(0xFFFFD700),
+                        width: 1,
+                      ),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 14),
+                        Icon(
+                          Icons.stars_rounded,
+                          color: Color(0xFFFFD700),
+                          size: 14,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'PREMIUM',
@@ -331,7 +627,11 @@ class _WalletScreenState extends State<WalletScreen> {
                 children: const [
                   Text(
                     'Instant 1-Tap Checkout Active',
-                    style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white60, fontSize: 11),
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
                   ),
                   Icon(Icons.nfc_rounded, color: Colors.white54, size: 24),
                 ],
@@ -357,13 +657,29 @@ class _WalletScreenState extends State<WalletScreen> {
           TextField(
             controller: _amountController,
             keyboardType: TextInputType.number,
-            style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.title),
+            style: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.title,
+            ),
             decoration: InputDecoration(
               prefixIcon: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Text('₹', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                child: Text(
+                  '₹',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 0,
+                minHeight: 0,
+              ),
               hintText: 'Enter amount',
               filled: true,
               fillColor: AppColors.card,
@@ -373,7 +689,10 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.medium),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -385,7 +704,8 @@ class _WalletScreenState extends State<WalletScreen> {
             physics: const BouncingScrollPhysics(),
             child: Row(
               children: _quickChips.map((val) {
-                final isSelected = _amountController.text == val.toInt().toString();
+                final isSelected =
+                    _amountController.text == val.toInt().toString();
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: ChoiceChip(
@@ -400,11 +720,15 @@ class _WalletScreenState extends State<WalletScreen> {
                     backgroundColor: AppColors.card,
                     labelStyle: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w600,
                       color: isSelected ? AppColors.primary : AppColors.title,
                       fontSize: 13,
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 );
               }).toList(),
@@ -420,14 +744,34 @@ class _WalletScreenState extends State<WalletScreen> {
                 flex: 2,
                 child: ElevatedButton.icon(
                   onPressed: _isProcessing ? null : _initiateRazorpayTopUp,
-                  icon: const Icon(Icons.payment_rounded, color: Colors.white, size: 18),
+                  icon: const Icon(
+                    Icons.payment_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                   label: _isProcessing
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Add Money (Razorpay)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Add Money (Razorpay)',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -438,9 +782,18 @@ class _WalletScreenState extends State<WalletScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Instant Test', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: const Text(
+                    'Instant Test',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -468,16 +821,35 @@ class _WalletScreenState extends State<WalletScreen> {
               color: Color(0xFFFFB300),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.card_giftcard_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: AppSpacing.medium),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Scratch & Win Cashbacks! 🎉', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF5D4037))),
+                Text(
+                  'Scratch & Win Cashbacks! 🎉',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF5D4037),
+                  ),
+                ),
                 SizedBox(height: 2),
-                Text('Get up to ₹500 guaranteed cashback added to your wallet on top-ups above ₹500.', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: Color(0xFF795548))),
+                Text(
+                  'Get up to ₹500 guaranteed cashback added to your wallet on top-ups above ₹500.',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 11,
+                    color: Color(0xFF795548),
+                  ),
+                ),
               ],
             ),
           ),
@@ -486,101 +858,439 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  Widget _buildTransactionHistoryFeed() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService().walletTransactionsStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-        }
+  void _showTransactionReceiptModal(
+    BuildContext context,
+    Map<String, dynamic> tx,
+  ) {
+    final bool isCredit = tx['type'] == 'CREDIT';
+    final double amount = (tx['amount'] as num? ?? 0).toDouble();
+    final String desc =
+        tx['description'] ?? (isCredit ? 'Wallet Credit' : 'Service Payment');
+    final String timeStr = tx['timestamp'] ?? DateTime.now().toString();
+    final String txId =
+        tx['id'] ??
+        tx['razorpayPaymentId'] ??
+        'TXN${DateTime.now().millisecondsSinceEpoch}';
 
-        final txs = snapshot.data ?? [];
-        if (txs.isEmpty) {
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.large),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: AppColors.border),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.medium),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            child: const Column(
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.account_balance_wallet_outlined, size: 40, color: AppColors.subtitle),
-                SizedBox(height: 8),
-                Text('No Wallet Transactions Yet', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: AppColors.title)),
-                SizedBox(height: 4),
-                Text('Add money to get started with instant bookings.', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+                const Icon(
+                  Icons.receipt_long_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'BharathFix Digital Tax Invoice',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.title,
+                  ),
+                ),
               ],
             ),
-          );
-        }
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: txs.length,
-          itemBuilder: (context, index) {
-            final tx = txs[index];
-            final bool isCredit = tx['type'] == 'CREDIT';
-            final double amount = (tx['amount'] as num? ?? 0).toDouble();
-            final String desc = tx['description'] ?? (isCredit ? 'Wallet Credit' : 'Service Payment');
-            final String timeStr = tx['timestamp'] ?? '';
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.small),
-              padding: const EdgeInsets.all(AppSpacing.medium),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppRadius.medium),
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isCredit ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                      color: isCredit ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.medium),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          desc,
-                          style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.title),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Transaction Reference:',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 12,
+                          color: Colors.grey,
                         ),
-                        const SizedBox(height: 2),
+                      ),
+                      Text(
+                        txId,
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Description:',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 13,
+                          color: AppColors.subtitle,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          desc,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Date & Time:',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 13,
+                          color: AppColors.subtitle,
+                        ),
+                      ),
+                      Text(
+                        timeStr.length > 19
+                            ? timeStr.substring(0, 19)
+                            : timeStr,
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 12,
+                          color: AppColors.title,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Payment Status:',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 13,
+                          color: AppColors.subtitle,
+                        ),
+                      ),
+                      const Text(
+                        'SUCCESSFUL ✅',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Color(0xFF2E7D32),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total Amount:',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.title,
+                        ),
+                      ),
+                      Text(
+                        '${isCredit ? "+" : "-"}₹${amount.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: isCredit
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFC62828),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Downloading Tax Receipt PDF for $txId...'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.download_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: const Text(
+                'Download Receipt / PDF',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionHistoryFeed() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Transaction History',
+              style: AppTextStyle.sectionHeader,
+            ),
+            Row(
+              children: [
+                _buildFilterChip('All', 'ALL'),
+                const SizedBox(width: 4),
+                _buildFilterChip('Credits', 'CREDIT'),
+                const SizedBox(width: 4),
+                _buildFilterChip('Debits', 'DEBIT'),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.medium),
+        StreamBuilder<List<Map<String, dynamic>>>(
+          stream: DatabaseService().walletTransactionsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
+            }
+
+            final rawTxs = snapshot.data ?? [];
+            final txs = rawTxs.where((tx) {
+              if (_selectedTxFilter == 'CREDIT') return tx['type'] == 'CREDIT';
+              if (_selectedTxFilter == 'DEBIT') return tx['type'] == 'DEBIT';
+              return true;
+            }).toList();
+
+            if (txs.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.large),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 40,
+                      color: AppColors.subtitle,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'No Matching Transactions',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.title,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'No transactions found for the selected filter.',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 12,
+                        color: AppColors.subtitle,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: txs.length,
+              itemBuilder: (context, index) {
+                final tx = txs[index];
+                final bool isCredit = tx['type'] == 'CREDIT';
+                final double amount = (tx['amount'] as num? ?? 0).toDouble();
+                final String desc =
+                    tx['description'] ??
+                    (isCredit ? 'Wallet Credit' : 'Service Payment');
+                final String timeStr = tx['timestamp'] ?? '';
+
+                return InkWell(
+                  onTap: () => _showTransactionReceiptModal(context, tx),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.small),
+                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isCredit
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFFFEBEE),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isCredit
+                                ? Icons.arrow_downward_rounded
+                                : Icons.arrow_upward_rounded,
+                            color: isCredit
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFC62828),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.medium),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                desc,
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: AppColors.title,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Text(
+                                    timeStr.length > 10
+                                        ? timeStr.substring(0, 10)
+                                        : timeStr,
+                                    style: AppTextStyle.subtitle.copyWith(
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    '• Receipt',
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 11,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                         Text(
-                          timeStr.length > 10 ? timeStr.substring(0, 10) : timeStr,
-                          style: AppTextStyle.subtitle.copyWith(fontSize: 11),
+                          '${isCredit ? "+" : "-"}₹${amount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: isCredit
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFC62828),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Text(
-                    '${isCredit ? "+" : "-"}₹${amount.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: isCredit ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value) {
+    final isSelected = _selectedTxFilter == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTxFilter = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.subtitle,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_text_style.dart';
+import '../../ui/widgets/floating_cart_bar.dart';
 import '../../services/database_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -223,6 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: const FloatingCartBar(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -433,6 +435,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showAISearchBottomSheet() {
     final searchController = TextEditingController();
+    final List<Map<String, String>> defaultSuggestions = [
+      {'title': 'AC Service & Repair', 'catId': 'm4'},
+      {'title': 'AC Installation & Uninstallation', 'catId': 'm4'},
+      {'title': 'AC Gas Leakage Check', 'catId': 'm4'},
+      {'title': 'Water Purifier Service', 'catId': 'm2'},
+      {'title': 'Washing Machine Repair', 'catId': 'm3'},
+      {'title': 'Refrigerator Repair', 'catId': 'm1'},
+    ];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -443,88 +454,113 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.medium),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'AI Diagnostics Assistant',
-                  style: AppTextStyle.sectionHeader,
-                ),
-                const SizedBox(height: AppSpacing.small),
-                Text(
-                  'Describe your appliance issue below:',
-                  style: AppTextStyle.subtitle,
-                ),
-                const SizedBox(height: AppSpacing.medium),
-                TextField(
-                  controller: searchController,
-                  autofocus: true,
-                  maxLines: 3,
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    color: AppColors.title,
-                  ),
-                  decoration: InputDecoration(
-                    hintText:
-                        'e.g. My refrigerator is leaking water and not cooling.',
-                    hintStyle: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 13,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final text = searchController.text.toLowerCase().trim();
+            final matches = defaultSuggestions.where((item) {
+              if (text.isEmpty) return true;
+              return item['title']!.toLowerCase().contains(text);
+            }).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.medium),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Search & Instant AI Suggestions',
+                          style: AppTextStyle.sectionHeader,
+                        ),
+                      ],
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.medium),
-                      borderSide: const BorderSide(color: AppColors.border),
+                    const SizedBox(height: AppSpacing.small),
+                    TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      style: const TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        color: AppColors.title,
+                      ),
+                      onChanged: (val) => setModalState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Search service e.g. "AC", "Purifier", "Fridge"...',
+                        hintStyle: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.medium),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.medium),
+                          borderSide: const BorderSide(color: AppColors.primary),
+                        ),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.medium),
-                      borderSide: const BorderSide(color: AppColors.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.medium),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      final query = searchController.text.toLowerCase();
-                      Navigator.pop(context); // Close bottom sheet
-                      _handleAISearchDiagnostics(query);
-                    },
-                    icon: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    label: const Text(
-                      'Diagnose Issue',
+                    const SizedBox(height: AppSpacing.medium),
+                    const Text(
+                      'Matching Services:',
                       style: TextStyle(
-                        color: Colors.white,
+                        fontFamily: 'Plus Jakarta Sans',
                         fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.subtitle,
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: matches.length,
+                        itemBuilder: (context, idx) {
+                          final match = matches[idx];
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.build_circle_outlined, color: AppColors.primary, size: 22),
+                            title: Text(
+                              match['title']!,
+                              style: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                            onTap: () {
+                              Navigator.pop(context);
+                              final category = _categoriesList.firstWhere(
+                                (cat) => cat.id == match['catId'],
+                                orElse: () => _categoriesList.isNotEmpty ? _categoriesList.first : MainCategoryModel(id: 'm1', name: 'Service', iconData: Icons.build, assetPath: '', subCategories: []),
+                              );
+                              if (_categoriesList.isNotEmpty) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SubCategorySelectionScreen(mainCategory: category),
+                                  ),
+                                );
+                              }
+                            },
+                          );
+                        },
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.medium),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

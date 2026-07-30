@@ -5,6 +5,20 @@ class CouponService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   static const Map<String, Map<String, dynamic>> _staticCoupons = {
+    'FIRST50': {
+      'isActive': true,
+      'minOrderValue': 149.0,
+      'discountType': 'percentage',
+      'discountValue': 50.0,
+      'maxDiscount': 150.0,
+    },
+    'BF20': {
+      'isActive': true,
+      'minOrderValue': 199.0,
+      'discountType': 'percentage',
+      'discountValue': 20.0,
+      'maxDiscount': 100.0,
+    },
     'BHARATH20': {
       'isActive': true,
       'minOrderValue': 149.0,
@@ -25,20 +39,6 @@ class CouponService {
       'discountType': 'percentage',
       'discountValue': 50.0,
       'maxDiscount': 200.0,
-    },
-    'FESTIVE25': {
-      'isActive': true,
-      'minOrderValue': 399.0,
-      'discountType': 'percentage',
-      'discountValue': 25.0,
-      'maxDiscount': 120.0,
-    },
-    'PURIFIER20': {
-      'isActive': true,
-      'minOrderValue': 499.0,
-      'discountType': 'percentage',
-      'discountValue': 20.0,
-      'maxDiscount': 300.0,
     },
   };
 
