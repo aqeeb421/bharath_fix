@@ -44,7 +44,8 @@ class TechnicianApp extends StatelessWidget {
                 }
                 final data = snapshot.data?.data() ?? {};
                 final status = data['status'] ?? 'pending_verification';
-                if (status == 'pending_verification') {
+                final statusStr = status.toString().toLowerCase();
+                if (statusStr == 'pending_verification' || statusStr == 'pending') {
                   return const PendingVerificationScreen();
                 }
                 return const DashboardScreen();

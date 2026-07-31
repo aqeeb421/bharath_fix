@@ -56,7 +56,7 @@ class PendingVerificationScreen extends StatelessWidget {
           final skills = (data['skills'] as List<dynamic>?) ?? [];
 
           // Auto-redirect if Admin has activated the partner account!
-          if (status == 'Active') {
+          if (status.toString().toLowerCase() == 'active') {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.pushReplacement(
                 context,
