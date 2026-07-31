@@ -140,24 +140,33 @@ class PendingVerificationScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: AppTextStyle.subtitle),
-          Row(
-            children: [
-              Icon(
-                isVerified ? Icons.check_circle_rounded : Icons.pending_rounded,
-                size: 16,
-                color: isVerified ? AppColors.success : Colors.amber,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                val,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isVerified ? AppColors.title : Colors.amber,
+          Expanded(
+            child: Text(title, style: AppTextStyle.subtitle),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isVerified ? Icons.check_circle_rounded : Icons.pending_rounded,
+                  size: 16,
+                  color: isVerified ? AppColors.success : Colors.amber,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    val,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isVerified ? AppColors.title : Colors.amber,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
