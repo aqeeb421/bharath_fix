@@ -35,9 +35,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final profile = await _authService.fetchTechnicianProfile();
     if (profile != null && mounted) {
       setState(() {
-        _techName = profile['name'] ?? "Technician";
-        _techCategory = profile['category'] ?? "Appliance Repair Specialist";
-        _isOnline = profile['isOnline'] ?? true;
+        _techName = profile.name;
+        _techCategory = profile.category;
+        _isOnline = profile.isOnline;
       });
 
       final techId = _authService.currentUser?.uid;

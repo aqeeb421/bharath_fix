@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../models/technician_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,44 +34,61 @@ class AuthService {
       rethrow;
     }
 
-    final user = credential?.user;
-    if (user != null) {
+    if (credential != null && credential.user != null) {
+      final user = credential.user!;
       final uid = user.uid;
       final doc = await _db.collection('providers').doc(uid).get();
       if (!doc.exists) {
-        await _db.collection('providers').doc(uid).set({
-          'id': uid,
-          'name': email.split('@').first,
-          'email': email.trim(),
-          'phone': '+91 9876543210',
-          'category': 'All Appliances Specialist',
-          'status': 'Active',
-          'isOnline': true,
-          'earnings': 0.0,
-          'completedJobs': 0,
-          'rating': 5.0,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        final newModel = TechnicianModel(
+          uid: uid,
+          name: email.split('@').first,
+          email: email.trim(),
+          phone: '+91 9876543210',
+          category: 'All Appliances Specialist',
+          status: 'active',
+          isOnline: true,
+          earnings: 0.0,
+          completedJobs: 0,
+          rating: 5.0,
+        );
+        await _db.collection('providers').doc(uid).set(newModel.toMap(), SetOptions(merge: true));
       }
     }
 
     return credential;
   }
 
-  Future<Map<String, dynamic>?> fetchTechnicianProfile() async {
+  Future<TechnicianModel?> fetchTechnicianProfile() async {
     final uid = currentUser?.uid;
     if (uid == null) return null;
     try {
       final doc = await _db.collection('providers').doc(uid).get();
-      return doc.data();
+      if (doc.exists && doc.data() != null) {
+        return TechnicianModel.fromMap(doc.data()!, doc.id);
+      }
     } catch (e) {
       debugPrint("Error fetching technician profile: $e");
-      return null;
+    }
+    return null;
+  }
+
+  Future<void> saveTechnicianProfile(TechnicianModel model) async {
+    final uid = currentUser?.uid ?? model.uid;
+    try {
+      await _db.collection('providers').doc(uid).set(model.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("Error saving technician profile: $e");
+    }
+  }
+
+  Future<void> setOnlineStatus(bool isOnline) async {
+    final uid = currentUser?.uid;
+    if (uid != null) {
+      await _db.collection('providers').doc(uid).update({'isOnline': isOnline});
     }
   }
 
   Future<void> signOut() async {
-    // Set offline before signing out
     final uid = currentUser?.uid;
     if (uid != null) {
       await _db.collection('providers').doc(uid).update({'isOnline': false});
