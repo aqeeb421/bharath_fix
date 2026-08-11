@@ -10,52 +10,16 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   Future<UserCredential?> signInWithEmailAndPassword(String email, String password) async {
-    UserCredential? credential;
     try {
-      credential = await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'channel-error') {
-        try {
-          credential = await _auth.createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password,
-          );
-        } catch (_) {
-          rethrow;
-        }
-      } else {
-        rethrow;
-      }
+      return credential;
     } catch (e) {
       debugPrint("Error signing in technician: $e");
       rethrow;
     }
-
-    if (credential != null && credential.user != null) {
-      final user = credential.user!;
-      final uid = user.uid;
-      final doc = await _db.collection('providers').doc(uid).get();
-      if (!doc.exists) {
-        final newModel = TechnicianModel(
-          uid: uid,
-          name: email.split('@').first,
-          email: email.trim(),
-          phone: '+91 9876543210',
-          category: 'All Appliances Specialist',
-          status: 'active',
-          isOnline: true,
-          earnings: 0.0,
-          completedJobs: 0,
-          rating: 5.0,
-        );
-        await _db.collection('providers').doc(uid).set(newModel.toMap(), SetOptions(merge: true));
-      }
-    }
-
-    return credential;
   }
 
   Future<TechnicianModel?> fetchTechnicianProfile() async {

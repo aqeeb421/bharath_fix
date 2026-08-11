@@ -6,6 +6,7 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_style.dart';
 import 'pending_verification_screen.dart';
+import '../services/job_matching_service.dart';
 
 class RegisterPartnerScreen extends StatefulWidget {
   const RegisterPartnerScreen({super.key});
@@ -98,15 +99,24 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
       final uid = credential.user!.uid;
 
+      final expText = _expController.text.trim();
+      final cityText = _cityController.text.trim();
+
       // 2. Save complete KYC & Partner profile to Firestore providers collection
       await FirebaseFirestore.instance.collection('providers').doc(uid).set({
         'id': uid,
+        'uid': uid,
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'city': _cityController.text.trim(),
+        'address': cityText,
+        'city': cityText,
         'status': 'pending_verification', // Locked until Admin approves
         'isOnline': false,
+        'category': JobMatchingService.getCategoryDisplayLabel(
+          selectedSkills,
+          selectedSkills.isNotEmpty ? selectedSkills.first : '',
+        ),
         'kyc': {
           'aadhaarNumber': _aadhaarController.text.trim(),
           'panNumber': _panController.text.trim().toUpperCase(),
@@ -116,16 +126,20 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         'bankDetails': {
           'bankName': _bankNameController.text.trim(),
           'accountHolder': _accountNameController.text.trim(),
+          'accountNo': _accountNoController.text.trim(),
           'accountNumber': _accountNoController.text.trim(),
+          'ifsc': _ifscController.text.trim().toUpperCase(),
           'ifscCode': _ifscController.text.trim().toUpperCase(),
         },
         'skills': selectedSkills,
-        'experienceYears': int.tryParse(_expController.text) ?? 3,
+        'experience': expText.isNotEmpty ? expText : '3',
+        'experienceYears': int.tryParse(expText) ?? 3,
         'operatingRadiusKm': _operatingRadiusKm,
         'earnings': 0.0,
         'completedJobs': 0,
         'rating': 5.0,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {

@@ -8,18 +8,16 @@ class LocationService {
   StreamSubscription<Position>? _positionStreamSub;
   String? _activeBookingId;
   String? _currentTechId;
+  DateTime? _lastLocationUpdate;
 
   Future<bool> checkAndRequestPermissions() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       debugPrint('Location services are disabled.');
       return false;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
@@ -37,6 +35,12 @@ class LocationService {
   }
 
   void startLiveTracking(String techId, {String? activeBookingId}) async {
+    // Prevent duplicate restart if tracking is already active for this techId
+    if (_positionStreamSub != null && _currentTechId == techId) {
+      _activeBookingId = activeBookingId;
+      return;
+    }
+
     _currentTechId = techId;
     _activeBookingId = activeBookingId;
 
@@ -44,26 +48,47 @@ class LocationService {
     if (!hasPermission) return;
 
     await stopLiveTracking();
+    _currentTechId = techId;
+    _activeBookingId = activeBookingId;
+
+    try {
+      final initialPosition = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
+      _sendLocationUpdate(techId, initialPosition.latitude, initialPosition.longitude, force: true);
+    } catch (e) {
+      debugPrint("Initial position fetch error: $e");
+    }
 
     const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
+      accuracy: LocationAccuracy.medium,
+      distanceFilter: 15, // Only trigger on moving 15 meters
     );
 
     _positionStreamSub = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
       (Position position) {
         if (_currentTechId != null) {
-          _firestoreService.updateLiveLocation(
-            _currentTechId!,
-            _activeBookingId,
-            position.latitude,
-            position.longitude,
-          );
+          _sendLocationUpdate(_currentTechId!, position.latitude, position.longitude);
         }
       },
       onError: (e) {
         debugPrint("Location tracking error: $e");
       },
+    );
+  }
+
+  void _sendLocationUpdate(String techId, double lat, double lng, {bool force = false}) {
+    final now = DateTime.now();
+    if (!force && _lastLocationUpdate != null && now.difference(_lastLocationUpdate!).inSeconds < 10) {
+      return; // Throttled: write to Firestore at most once every 10 seconds
+    }
+    _lastLocationUpdate = now;
+
+    _firestoreService.updateLiveLocation(
+      techId,
+      _activeBookingId,
+      lat,
+      lng,
     );
   }
 
@@ -74,5 +99,7 @@ class LocationService {
   Future<void> stopLiveTracking() async {
     await _positionStreamSub?.cancel();
     _positionStreamSub = null;
+    _currentTechId = null;
+    _lastLocationUpdate = null;
   }
 }

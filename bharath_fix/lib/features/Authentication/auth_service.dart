@@ -62,18 +62,18 @@ class AuthService {
   }
 
   // Sign in as test user fallback if phone SMS verification is in test mode
-  Future<UserCredential> signInAsTestUser(String phoneNumber) async {
+  Future<UserCredential?> signInAsTestUser(String phoneNumber) async {
     try {
       if (_auth.currentUser != null) {
         return UserCredentialMock(_auth.currentUser!);
       }
-      final cred = await _auth.signInAnonymously();
-      return cred;
+      return await _auth.signInAnonymously();
     } catch (e) {
-      debugPrint("Test user sign in fallback exception: $e");
-      rethrow;
+      debugPrint("Test user sign in fallback exception handled safely: $e");
+      return null;
     }
   }
+
 
   // Sign out
   Future<void> signOut() async {

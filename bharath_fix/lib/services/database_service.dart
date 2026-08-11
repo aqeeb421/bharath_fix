@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/BookingEntry.dart';
 import '../models/UserModel.dart';
+import 'notification_service.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -36,7 +37,6 @@ class DatabaseService {
   // Get Firebase availability status
   bool get isFirebaseAvailable => _isFirebaseAvailable;
 
-
   // Dynamic user UID resolution based on active FirebaseAuth session
   String get _currentUserUid {
     final user = FirebaseAuth.instance.currentUser;
@@ -52,7 +52,7 @@ class DatabaseService {
 
     final uid = user.uid;
     final db = await database;
-    
+
     final List<Map<String, dynamic>> maps = await db.query(
       'user_profile',
       where: 'uid = ? AND isLoggedIn = 1',
@@ -72,19 +72,18 @@ class DatabaseService {
     // Try fetching from Firestore users/{uid} document directly
     if (_isFirebaseAvailable) {
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
         if (doc.exists && doc.data() != null) {
           final data = doc.data()!;
           final name = data['name'] as String? ?? 'User';
           final phone = data['phone'] as String? ?? '';
           final email = data['email'] as String? ?? '';
-          
+
           await saveProfile(name, phone, email);
-          return {
-            'name': name,
-            'phone': phone,
-            'email': email,
-          };
+          return {'name': name, 'phone': phone, 'email': email};
         }
       } catch (e) {
         debugPrint('Firebase fetch by UID failed: $e');
@@ -96,11 +95,7 @@ class DatabaseService {
     final phone = user.phoneNumber ?? '';
     if (name.isNotEmpty || phone.isNotEmpty) {
       await saveProfile(name, phone, email);
-      return {
-        'name': name,
-        'phone': phone,
-        'email': email,
-      };
+      return {'name': name, 'phone': phone, 'email': email};
     }
     return null;
   }
@@ -217,10 +212,14 @@ class DatabaseService {
 
     final scopedBooking = booking.copyWith(
       customerId: booking.customerId.isNotEmpty ? booking.customerId : uid,
-      customerName: booking.customerName.isNotEmpty ? booking.customerName : (profile?['name'] ?? 'Customer'),
-      customerPhone: booking.customerPhone.isNotEmpty ? booking.customerPhone : (profile?['phone'] ?? ''),
+      customerName: booking.customerName.isNotEmpty
+          ? booking.customerName
+          : (profile?['name'] ?? 'Customer'),
+      customerPhone: booking.customerPhone.isNotEmpty
+          ? booking.customerPhone
+          : (profile?['phone'] ?? ''),
     );
-    
+
     // Ensure all columns exist before inserting
     await _ensureBookingColumns(db);
 
@@ -232,7 +231,9 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
-      debugPrint('SQLite full insert failed ($e). Falling back to basic legacy columns.');
+      debugPrint(
+        'SQLite full insert failed ($e). Falling back to basic legacy columns.',
+      );
       final legacyMap = {
         'id': scopedBooking.id,
         'title': scopedBooking.title,
@@ -262,7 +263,7 @@ class DatabaseService {
         };
 
         final batch = FirebaseFirestore.instance.batch();
-        
+
         // 1. Subcollection path: users/{uid}/bookings/{id}
         final userDoc = FirebaseFirestore.instance
             .collection('users')
@@ -278,6 +279,23 @@ class DatabaseService {
         batch.set(rootDoc, bookingData, SetOptions(merge: true));
 
         await batch.commit();
+
+        // Dispatch workflow notifications
+        try {
+          NotificationService.sendNotificationToUser(
+            userId: uid,
+            title: 'Booking Confirmed! 🎯',
+            body:
+                'Order #${scopedBooking.id} for ${scopedBooking.title} placed. Searching for nearby technician...',
+            data: {'bookingId': scopedBooking.id, 'type': 'BOOKING_CONFIRMED'},
+          );
+          NotificationService.sendNotificationToAdmin(
+            title: 'New Booking Received 📊',
+            body:
+                'Booking #${scopedBooking.id} placed by ${scopedBooking.customerName} (${scopedBooking.customerPhone}).',
+            data: {'bookingId': scopedBooking.id, 'type': 'NEW_BOOKING'},
+          );
+        } catch (_) {}
 
         // Update local status to synced
         await db.update(
@@ -351,11 +369,7 @@ class DatabaseService {
             .doc(_currentUserUid)
             .collection('addresses')
             .doc(id)
-            .set({
-              'id': id,
-              'details': details,
-              'tag': tag,
-            });
+            .set({'id': id, 'details': details, 'tag': tag});
 
         await db.update(
           'addresses',
@@ -372,7 +386,7 @@ class DatabaseService {
   Future<List<Map<String, String>>> fetchAddresses() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('addresses');
-    
+
     if (maps.isEmpty) {
       return [];
     }
@@ -389,7 +403,7 @@ class DatabaseService {
   Future<void> deleteAddress(String id) async {
     final db = await database;
     await db.delete('addresses', where: 'id = ?', whereArgs: [id]);
-    
+
     if (_isFirebaseAvailable) {
       try {
         await FirebaseFirestore.instance
@@ -420,7 +434,10 @@ class DatabaseService {
         limit: 1,
       );
       if (maps.isNotEmpty) {
-        return UserModel.fromMap(maps.first, docId: uid);
+        final model = UserModel.fromMap(maps.first, docId: uid);
+        if (model.name.trim().isNotEmpty) {
+          return model;
+        }
       }
     } catch (e) {
       debugPrint('Local SQLite user query failed: $e');
@@ -428,12 +445,53 @@ class DatabaseService {
 
     if (_isFirebaseAvailable) {
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
         if (doc.exists && doc.data() != null) {
           final model = UserModel.fromMap(doc.data()!, docId: uid);
-          if (model.name.isNotEmpty) {
+          if (model.name.trim().isNotEmpty) {
             await saveUserProfile(model);
             return model;
+          }
+        }
+
+        final rawPhone = (user?.phoneNumber ?? uidParam ?? '').trim();
+        final cleanDigits = rawPhone.replaceAll(RegExp(r'\D'), '');
+
+        if (cleanDigits.isNotEmpty) {
+          final phoneVariants = {
+            rawPhone,
+            cleanDigits,
+            '+91$cleanDigits',
+            '+91 $cleanDigits',
+            if (cleanDigits.length >= 10)
+              cleanDigits.substring(cleanDigits.length - 10),
+            if (cleanDigits.length >= 10)
+              '+91${cleanDigits.substring(cleanDigits.length - 10)}',
+            if (cleanDigits.length >= 10)
+              '+91 ${cleanDigits.substring(cleanDigits.length - 10)}',
+          };
+
+          for (final variant in phoneVariants) {
+            if (variant.isEmpty) continue;
+            final snap = await FirebaseFirestore.instance
+                .collection('users')
+                .where('phone', isEqualTo: variant)
+                .limit(1)
+                .get();
+            if (snap.docs.isNotEmpty) {
+              final foundDoc = snap.docs.first;
+              final model = UserModel.fromMap(
+                foundDoc.data(),
+                docId: foundDoc.id,
+              );
+              if (model.name.trim().isNotEmpty) {
+                await saveUserProfile(model);
+                return model;
+              }
+            }
           }
         }
       } catch (e) {
@@ -441,28 +499,13 @@ class DatabaseService {
       }
     }
 
-    if (user != null) {
-      final name = user.displayName ?? '';
-      final phone = user.phoneNumber ?? '';
-      final email = user.email ?? '';
-      if (name.isNotEmpty || phone.isNotEmpty) {
-        final model = UserModel(
-          uid: uid,
-          name: name,
-          phone: phone,
-          email: email,
-        );
-        await saveUserProfile(model);
-        return model;
-      }
-    }
     return null;
   }
 
   Future<void> saveUserProfile(UserModel userModel) async {
     final db = await database;
     final uid = userModel.uid.isNotEmpty ? userModel.uid : _currentUserUid;
-    
+
     final profileMap = {
       'uid': uid,
       'phone': userModel.phone,
@@ -500,6 +543,16 @@ class DatabaseService {
     await saveUserProfile(userModel);
   }
 
+  Future<void> logoutUser() async {
+    try {
+      final db = await database;
+      await db.update('user_profile', {'isLoggedIn': 0});
+      await db.delete('user_profile');
+    } catch (e) {
+      debugPrint('Error logging out in local DB: $e');
+    }
+  }
+
   Future<void> clearProfile() async {
     final db = await database;
     await db.delete('user_profile');
@@ -511,7 +564,7 @@ class DatabaseService {
 
   Future<void> syncPendingData() async {
     if (!_isFirebaseAvailable) return;
-    
+
     final db = await database;
     final uid = _currentUserUid;
 
@@ -535,7 +588,11 @@ class DatabaseService {
 
         final batch = FirebaseFirestore.instance.batch();
         batch.set(
-          FirebaseFirestore.instance.collection('users').doc(uid).collection('bookings').doc(booking.id),
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('bookings')
+              .doc(booking.id),
           bookingData,
           SetOptions(merge: true),
         );
@@ -573,11 +630,7 @@ class DatabaseService {
             .doc(uid)
             .collection('addresses')
             .doc(id)
-            .set({
-              'id': id,
-              'details': details,
-              'tag': tag,
-            });
+            .set({'id': id, 'details': details, 'tag': tag});
 
         await db.update(
           'addresses',
@@ -604,15 +657,15 @@ class DatabaseService {
         .doc(uid)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data()!;
-        if (data.containsKey('walletBalance')) {
-          final val = data['walletBalance'];
-          if (val is num) return val.toDouble();
-        }
-      }
-      return 0.0;
-    });
+          if (snapshot.exists && snapshot.data() != null) {
+            final data = snapshot.data()!;
+            if (data.containsKey('walletBalance')) {
+              final val = data['walletBalance'];
+              if (val is num) return val.toDouble();
+            }
+          }
+          return 0.0;
+        });
   }
 
   /// Fetch user's current wallet balance
@@ -620,7 +673,10 @@ class DatabaseService {
     final uid = _currentUserUid;
     if (uid == 'guest_user') return 0.0;
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         if (data.containsKey('walletBalance')) {
@@ -644,12 +700,12 @@ class DatabaseService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        });
   }
 
   /// Credit money to wallet (Top-Up, Cashback, Refund)
@@ -676,7 +732,9 @@ class DatabaseService {
         'type': 'CREDIT',
         'description': description,
         'timestamp': timestamp,
-        'paymentId': razorpayPaymentId ?? 'razorpay_${DateTime.now().millisecondsSinceEpoch}',
+        'paymentId':
+            razorpayPaymentId ??
+            'razorpay_${DateTime.now().millisecondsSinceEpoch}',
         'status': 'SUCCESS',
       });
 
@@ -751,11 +809,14 @@ class DatabaseService {
       if (_isFirebaseAvailable) {
         await FirebaseFirestore.instance.collection('ratings').add(ratingData);
         if (bookingId.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update({
-            'ratingStars': ratingStars,
-            'reviewComment': comment,
-            'isRated': true,
-          });
+          await FirebaseFirestore.instance
+              .collection('bookings')
+              .doc(bookingId)
+              .update({
+                'ratingStars': ratingStars,
+                'reviewComment': comment,
+                'isRated': true,
+              });
         }
       }
 

@@ -22,20 +22,21 @@ class LiveTrackingScreen extends StatelessWidget {
   }
 
   Future<void> _makeMaskedCall(BuildContext context, String phone) async {
-    final targetPhone = phone.isNotEmpty ? phone : '+919148699386';
-    final Uri url = Uri.parse('tel:$targetPhone');
+    final rawPhone = phone.isNotEmpty ? phone : '+919148699386';
+    final cleanPhone = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    final Uri url = Uri.parse('tel:$cleanPhone');
     try {
-      if (await canLaunchUrl(url)) {
+      final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched) {
         await launchUrl(url);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Calling $targetPhone...')),
-          );
-        }
       }
     } catch (e) {
       debugPrint('Error launching phone dialer: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Dialing $cleanPhone...')),
+        );
+      }
     }
   }
 
@@ -83,8 +84,17 @@ class LiveTrackingScreen extends StatelessWidget {
           final maskedPhone = _maskPhoneNumber(rawProviderPhone);
           final statusStr = data['status'] as String? ?? booking.status.code;
           final startOtp = data['startOtp'] as String? ?? (booking.startOtp.isNotEmpty ? booking.startOtp : '4829');
-          final providerLat = (data['providerLat'] as num?)?.toDouble() ?? booking.latitude ?? 12.9716;
-          final providerLng = (data['providerLng'] as num?)?.toDouble() ?? booking.longitude ?? 77.5946;
+          final techLoc = data['technicianLocation'] as Map<String, dynamic>?;
+          final providerLat = (data['providerLat'] as num?)?.toDouble() ??
+              (techLoc?['latitude'] as num?)?.toDouble() ??
+              (data['latitude'] as num?)?.toDouble() ??
+              booking.latitude ??
+              12.9716;
+          final providerLng = (data['providerLng'] as num?)?.toDouble() ??
+              (techLoc?['longitude'] as num?)?.toDouble() ??
+              (data['longitude'] as num?)?.toDouble() ??
+              booking.longitude ??
+              77.5946;
           final etaMinutes = (data['etaMinutes'] as num?)?.toInt() ?? 12;
 
           return Stack(

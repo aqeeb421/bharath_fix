@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notification_service.dart';
 
 class TechnicianFirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -11,12 +12,9 @@ class TechnicianFirestoreService {
         .snapshots();
   }
 
-  // Stream of open unassigned pending jobs for active technicians to claim
+  // Stream of open unassigned jobs for active technicians to claim
   Stream<QuerySnapshot<Map<String, dynamic>>> getAvailableOpenJobsStream() {
-    return _db
-        .collection('bookings')
-        .where('status', whereIn: ['pending', 'Pending'])
-        .snapshots();
+    return _db.collection('bookings').snapshots();
   }
 
   // Stream of completed jobs for earnings history
@@ -24,7 +22,6 @@ class TechnicianFirestoreService {
     return _db
         .collection('bookings')
         .where('providerId', isEqualTo: techId)
-        .where('status', isEqualTo: 'completed')
         .snapshots();
   }
 
@@ -70,6 +67,24 @@ class TechnicianFirestoreService {
       'startOtp': startOtp,
       'completionOtp': completionOtp,
     });
+
+    try {
+      final doc = await _db.collection('bookings').doc(bookingId).get();
+      final userId = doc.data()?['userId']?.toString();
+      if (userId != null && userId.isNotEmpty) {
+        await NotificationService.sendNotificationToUser(
+          userId: userId,
+          title: 'Technician Assigned! 👨‍🔧',
+          body: '$techName ($techPhone) has accepted your booking.',
+          data: {'bookingId': bookingId, 'type': 'JOB_CLAIMED'},
+        );
+      }
+      await NotificationService.sendNotificationToAdmin(
+        title: 'Job Claimed 🤝',
+        body: 'Booking #$bookingId claimed by partner $techName.',
+        data: {'bookingId': bookingId, 'type': 'JOB_CLAIMED'},
+      );
+    } catch (_) {}
   }
 
   // Accept or update job status
@@ -82,6 +97,35 @@ class TechnicianFirestoreService {
       data['completedAt'] = FieldValue.serverTimestamp();
     }
     await _updateBookingDual(bookingId, data);
+
+    try {
+      final doc = await _db.collection('bookings').doc(bookingId).get();
+      final userId = doc.data()?['userId']?.toString();
+      if (userId != null && userId.isNotEmpty) {
+        if (status == 'on_the_way') {
+          await NotificationService.sendNotificationToUser(
+            userId: userId,
+            title: 'Technician On The Way! 🛵',
+            body: 'Your service partner is heading to your address. Tap to track live GPS.',
+            data: {'bookingId': bookingId, 'type': 'ON_THE_WAY'},
+          );
+        } else if (status == 'in_progress') {
+          await NotificationService.sendNotificationToUser(
+            userId: userId,
+            title: 'Service Started! ⏱',
+            body: 'Inspection & service is now in progress.',
+            data: {'bookingId': bookingId, 'type': 'IN_PROGRESS'},
+          );
+        } else if (status == 'completed') {
+          await NotificationService.sendNotificationToUser(
+            userId: userId,
+            title: 'Service Completed! 🎉',
+            body: 'Work finished successfully. Tap to rate your technician 5-Stars ⭐',
+            data: {'bookingId': bookingId, 'type': 'COMPLETED'},
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   // Verify Start OTP entered by technician from customer
@@ -135,10 +179,23 @@ class TechnicianFirestoreService {
         'items': items,
         'totalAmount': totalQuotationAmount,
         'submittedAt': FieldValue.serverTimestamp(),
-        'isApprovedByCustomer': true, // Auto-approved or pending customer confirmation
+        'isApprovedByCustomer': true,
       },
       'additionalCost': totalQuotationAmount,
     });
+
+    try {
+      final doc = await _db.collection('bookings').doc(bookingId).get();
+      final userId = doc.data()?['userId']?.toString();
+      if (userId != null && userId.isNotEmpty) {
+        await NotificationService.sendNotificationToUser(
+          userId: userId,
+          title: 'New Estimate Submitted! 📋',
+          body: 'Estimate of ₹${totalQuotationAmount.toStringAsFixed(0)} added for spare parts/labor.',
+          data: {'bookingId': bookingId, 'type': 'QUOTATION_SUBMITTED'},
+        );
+      }
+    } catch (_) {}
   }
 
   // Toggle Online/Offline technician availability
@@ -153,24 +210,29 @@ class TechnicianFirestoreService {
     final batch = _db.batch();
 
     final techRef = _db.collection('providers').doc(techId);
-    batch.update(techRef, {
+    batch.set(techRef, {
       'currentLocation': {
         'latitude': lat,
         'longitude': lng,
         'updatedAt': FieldValue.serverTimestamp(),
       }
-    });
-
-    await batch.commit();
+    }, SetOptions(merge: true));
 
     if (activeBookingId != null && activeBookingId.isNotEmpty) {
-      await _updateBookingDual(activeBookingId, {
+      final bookingRef = _db.collection('bookings').doc(activeBookingId);
+      batch.set(bookingRef, {
+        'providerLat': lat,
+        'providerLng': lng,
+        'latitude': lat,
+        'longitude': lng,
         'technicianLocation': {
           'latitude': lat,
           'longitude': lng,
           'updatedAt': FieldValue.serverTimestamp(),
         }
-      });
+      }, SetOptions(merge: true));
     }
+
+    await batch.commit();
   }
 }

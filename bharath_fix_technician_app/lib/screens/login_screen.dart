@@ -25,32 +25,54 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingSession();
+  }
+
+  void _checkExistingSession() async {
+    final user = _authService.currentUser;
+    if (user != null && mounted) {
+      final doc = await FirebaseFirestore.instance.collection('providers').doc(user.uid).get();
+      if (!mounted) return;
+      final statusRaw = (doc.data()?['status'] ?? 'pending_verification').toString().trim().toLowerCase();
+      final bool isApproved = statusRaw == 'active' || statusRaw == 'approved' || statusRaw == 'verified';
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => isApproved ? const DashboardScreen() : const PendingVerificationScreen(),
+        ),
+      );
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final user = await _authService.signInWithEmailAndPassword(
+      final credential = await _authService.signInWithEmailAndPassword(
         _emailController.text,
         _passwordController.text,
       );
 
-      if (user?.user != null && mounted) {
-        final doc = await FirebaseFirestore.instance.collection('providers').doc(user!.user!.uid).get();
-        final status = doc.data()?['status']?.toString().toLowerCase() ?? 'pending_verification';
+      final loggedInUser = credential?.user;
 
-        if (status == 'pending_verification' || status == 'pending') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const PendingVerificationScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-          );
-        }
+      if (loggedInUser != null && mounted) {
+        final doc = await FirebaseFirestore.instance.collection('providers').doc(loggedInUser.uid).get();
+        if (!mounted) return;
+        final statusRaw = (doc.data()?['status'] ?? 'pending_verification').toString().trim().toLowerCase();
+        final bool isApproved = statusRaw == 'active' || statusRaw == 'approved' || statusRaw == 'verified';
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => isApproved ? const DashboardScreen() : const PendingVerificationScreen(),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -66,11 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _fillDemoCredentials() {
-    _emailController.text = "tech@bharathfix.com";
-    _passwordController.text = "tech123";
   }
 
   @override
@@ -201,19 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : Text("Log In as Partner", style: AppTextStyle.buttonText),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _fillDemoCredentials,
-                    icon: const Icon(Icons.flash_on_rounded, color: AppColors.primary, size: 18),
-                    label: const Text(
-                      "Fill Partner Credentials (demo)",
-                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 Center(
                   child: OutlinedButton.icon(
                     onPressed: () {

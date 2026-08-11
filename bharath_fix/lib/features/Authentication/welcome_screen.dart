@@ -1,13 +1,43 @@
-// lib/Authentication/welcome_screen.dart
 import 'package:flutter/material.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../ui/theme/app_colors.dart';
+
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/widgets/common_button.dart';
+import '../../utils/app_routes.dart';
+import '../../services/database_service.dart';
 import '../Authentication/login_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingSession();
+  }
+
+  Future<void> _checkExistingSession() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final profile = await DatabaseService().fetchUserProfile();
+      if (profile != null && profile.name.trim().isNotEmpty && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.dashboard,
+            (route) => false,
+          );
+        });
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

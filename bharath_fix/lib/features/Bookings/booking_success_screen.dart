@@ -6,8 +6,6 @@ import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../ui/widgets/common_button.dart';
 
-import '../../ui/widgets/rating_review_dialog.dart';
-
 class BookingSuccessScreen extends StatefulWidget {
   const BookingSuccessScreen({super.key});
 
@@ -15,7 +13,8 @@ class BookingSuccessScreen extends StatefulWidget {
   State<BookingSuccessScreen> createState() => _BookingSuccessScreenState();
 }
 
-class _BookingSuccessScreenState extends State<BookingSuccessScreen> with SingleTickerProviderStateMixin {
+class _BookingSuccessScreenState extends State<BookingSuccessScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -59,12 +58,15 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.large, vertical: AppSpacing.medium),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.large,
+            vertical: AppSpacing.medium,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              
+
               // Animated Success Check Circle
               ScaleTransition(
                 scale: _scaleAnimation,
@@ -83,7 +85,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                 ),
               ),
               const SizedBox(height: AppSpacing.large),
-              
+
               ScaleTransition(
                 scale: _scaleAnimation,
                 child: const Text(
@@ -98,14 +100,14 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                 ),
               ),
               const SizedBox(height: AppSpacing.small),
-              
+
               Text(
                 'We have logged your order. A background-verified professional is being assigned.',
                 style: AppTextStyle.subtitle,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.extraLarge),
-              
+
               // Detailed Bill Details Receipt Card
               FadeTransition(
                 opacity: _fadeAnimation,
@@ -120,17 +122,34 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Booking ID: ${booking.id}', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: AppColors.subtitle, fontWeight: FontWeight.bold)),
+                      Text(
+                        'Booking ID: ${booking.id}',
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 11,
+                          color: AppColors.subtitle,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       const Divider(color: AppColors.border, height: 1),
                       const SizedBox(height: 12),
-                      
-                      _buildReceiptRow('Service / Product', booking.title, isBold: true),
+
+                      _buildReceiptRow(
+                        'Service / Product',
+                        booking.title,
+                        isBold: true,
+                      ),
                       const SizedBox(height: AppSpacing.small),
                       _buildReceiptRow('Schedule Date', booking.dateTime),
                       const SizedBox(height: AppSpacing.small),
-                      _buildReceiptRow('Total Paid', booking.cost, valueColor: AppColors.primary, isBold: true),
-                      
+                      _buildReceiptRow(
+                        'Total Paid',
+                        booking.cost,
+                        valueColor: AppColors.primary,
+                        isBold: true,
+                      ),
+
                       if (booking.address.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.small),
                         _buildReceiptRow('Location', booking.address),
@@ -139,9 +158,9 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                   ),
                 ),
               ),
-              
+
               const Spacer(),
-              
+
               // Sticky bottom action buttons
               FadeTransition(
                 opacity: _fadeAnimation,
@@ -150,48 +169,31 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
                     CommonButton(
                       label: 'Track Booking',
                       onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false, arguments: 1);
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.small),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => RatingReviewDialog(
-                            bookingId: booking.id,
-                            providerName: booking.providerName,
-                            providerId: booking.providerPhone,
-                          ),
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/dashboard',
+                          (route) => false,
+                          arguments: 1,
                         );
                       },
-                      icon: const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
-                      label: const Text(
-                        'Rate & Tip Technician ⭐',
-                        style: TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.title,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFF8E1),
-                        minimumSize: const Size(double.infinity, 48),
-                        elevation: 0,
-                        side: const BorderSide(color: Color(0xFFFFD54F)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.button),
-                        ),
-                      ),
                     ),
+
                     const SizedBox(height: AppSpacing.small),
                     OutlinedButton(
                       onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false, arguments: 0);
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/dashboard',
+                          (route) => false,
+                          arguments: 0,
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 54),
-                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        side: const BorderSide(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadius.button),
                         ),
@@ -216,7 +218,12 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen> with Single
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {Color? valueColor, bool isBold = false}) {
+  Widget _buildReceiptRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool isBold = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

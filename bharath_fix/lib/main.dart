@@ -2,11 +2,15 @@ import 'package:bharath_fix/ui/theme/app_theme.dart';
 import 'package:bharath_fix/utils/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+
 import 'package:bharath_fix/services/database_service.dart';
+import 'package:bharath_fix/services/notification_service.dart';
 import 'package:bharath_fix/services/theme_service.dart';
 import 'package:bharath_fix/services/language_service.dart';
 
+
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   await ThemeService().init();
@@ -16,6 +20,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     firebaseAvailable = true;
+    await NotificationService.initialize();
   } catch (e) {
     debugPrint("Firebase initialization failed: $e. Operating in SQLite offline mode.");
   }
@@ -26,12 +31,16 @@ void main() async {
   if (firebaseAvailable) {
     await dbService.seedFirebaseIfEmpty();
   }
-  
   // Prefetch profile to load the current session if user is already logged in
+
   await dbService.fetchProfile();
 
   runApp(const MyApp());
 }
+
+
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

@@ -12,8 +12,12 @@ class TechnicianModel {
   final int completedJobs;
   final double rating;
   final String? photoUrl;
-  final String? experience;
-  final String? address;
+  final String experience;
+  final String address;
+  final double operatingRadiusKm;
+  final List<String> skills;
+  final Map<String, dynamic> bankDetails;
+  final Map<String, dynamic> kyc;
   final DateTime? createdAt;
 
   TechnicianModel({
@@ -21,15 +25,19 @@ class TechnicianModel {
     required this.name,
     required this.email,
     required this.phone,
-    this.category = 'All Appliances Specialist',
+    this.category = 'Appliance Specialist',
     this.status = 'active',
     this.isOnline = true,
     this.earnings = 0.0,
     this.completedJobs = 0,
     this.rating = 5.0,
     this.photoUrl,
-    this.experience,
-    this.address,
+    this.experience = '3',
+    this.address = '',
+    this.operatingRadiusKm = 15.0,
+    this.skills = const [],
+    this.bankDetails = const {},
+    this.kyc = const {},
     this.createdAt,
   });
 
@@ -47,8 +55,16 @@ class TechnicianModel {
       'completedJobs': completedJobs,
       'rating': rating,
       'photoUrl': photoUrl ?? '',
-      'experience': experience ?? '',
-      'address': address ?? '',
+      // Uniform experience keys
+      'experience': experience,
+      'experienceYears': int.tryParse(experience) ?? 3,
+      // Uniform address keys
+      'address': address,
+      'city': address,
+      'operatingRadiusKm': operatingRadiusKm,
+      'skills': skills,
+      'bankDetails': bankDetails,
+      'kyc': kyc,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -61,20 +77,28 @@ class TechnicianModel {
       return null;
     }
 
+    final rawExp = map['experience'] ?? map['experienceYears'];
+    final rawAddr = map['address'] ?? map['city'];
+    final skillsRaw = map['skills'] as List<dynamic>? ?? [];
+
     return TechnicianModel(
       uid: map['uid'] as String? ?? map['id'] as String? ?? docId,
       name: map['name'] as String? ?? 'Technician',
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
-      category: map['category'] as String? ?? 'All Appliances Specialist',
+      category: map['category'] as String? ?? 'Appliance Specialist',
       status: map['status'] as String? ?? 'active',
       isOnline: map['isOnline'] as bool? ?? true,
       earnings: (map['earnings'] as num? ?? 0.0).toDouble(),
       completedJobs: (map['completedJobs'] as num? ?? 0).toInt(),
       rating: (map['rating'] as num? ?? 5.0).toDouble(),
       photoUrl: map['photoUrl'] as String?,
-      experience: map['experience'] as String?,
-      address: map['address'] as String?,
+      experience: rawExp != null ? rawExp.toString() : '3',
+      address: rawAddr != null ? rawAddr.toString() : '',
+      operatingRadiusKm: (map['operatingRadiusKm'] as num? ?? 15.0).toDouble(),
+      skills: skillsRaw.map((e) => e.toString()).toList(),
+      bankDetails: (map['bankDetails'] as Map<String, dynamic>?) ?? {},
+      kyc: (map['kyc'] as Map<String, dynamic>?) ?? {},
       createdAt: parseDate(map['createdAt']),
     );
   }

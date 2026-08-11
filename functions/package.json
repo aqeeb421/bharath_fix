@@ -18,7 +18,9 @@
     "firebase-functions": "^4.3.1"
   },
   "devDependencies": {
-    "typescript": "^4.9.5"
+    "typescript": "^5.3.3",
+    "@types/node": "^18.18.0"
   },
+
   "private": true
 }

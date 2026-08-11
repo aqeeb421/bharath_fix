@@ -73,10 +73,11 @@ export const updateJobStatus = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const updates: Record<String, any> = {
+  const updates: Record<string, any> = {
     status: targetStatus,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
 
   // Specific Business Rules per State Transition
   if (targetStatus === 'INSPECTION_IN_PROGRESS') {
@@ -110,5 +111,55 @@ export const updateJobStatus = functions.https.onCall(async (data, context) => {
   }
 
   await jobRef.update(updates);
+
+  // Dispatch push notifications to Customer and/or Technician based on new status
+  const customerId = currentJob.customerId;
+  const providerId = currentJob.providerId;
+  const jobTitle = currentJob.title || 'Service Request';
+
+  const statusMessages: Record<string, { title: string; body: string }> = {
+    ACCEPTED: { title: 'Technician Assigned', body: `A technician has accepted your ${jobTitle} request.` },
+    IN_TRANSIT: { title: 'Technician En Route', body: 'Your technician is on the way.' },
+    ARRIVED: { title: 'Technician Arrived', body: 'Your technician has arrived at your location.' },
+    INSPECTION_IN_PROGRESS: { title: 'Inspection Started', body: 'Technician has started inspecting your appliance.' },
+    QUOTATION_PENDING_APPROVAL: { title: 'Quotation Ready', body: `Quotation submitted for ₹${updates.quoteTotal || currentJob.quoteTotal || 0}. Please review.` },
+    WORK_IN_PROGRESS: { title: 'Work Started', body: 'Technician has started the repair work.' },
+    WORK_COMPLETED: { title: 'Work Completed', body: 'Repair work completed. Please review and complete payment.' },
+    PAID_AND_CLOSED: { title: 'Job Completed & Paid', body: 'Thank you! Your service job is closed.' },
+    CANCELLED_BY_CUSTOMER: { title: 'Job Cancelled', body: `Service request for ${jobTitle} was cancelled.` },
+    CANCELLED_BY_TECHNICIAN: { title: 'Job Re-broadcasting', body: 'Assigned technician cancelled. Finding a new provider for you.' },
+  };
+
+  const msg = statusMessages[targetStatus];
+  if (msg) {
+    const timestamp = Date.now();
+    if (customerId) {
+      const notifId = `notif_u_${timestamp}`;
+      await db.collection('users').doc(customerId).collection('notifications').doc(notifId).set({
+        id: notifId,
+        userId: customerId,
+        title: msg.title,
+        body: msg.body,
+        data: { jobId, type: 'JOB_STATUS_UPDATE', status: targetStatus },
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (providerId && targetStatus !== 'CANCELLED_BY_TECHNICIAN') {
+      const notifId = `notif_t_${timestamp}`;
+      await db.collection('providers').doc(providerId).collection('notifications').doc(notifId).set({
+        id: notifId,
+        techId: providerId,
+        title: msg.title,
+        body: msg.body,
+        data: { jobId, type: 'JOB_STATUS_UPDATE', status: targetStatus },
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
   return { success: true, newStatus: targetStatus };
 });
+

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'fcm_direct_service.dart';
 
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -74,7 +75,8 @@ class FirebaseService {
     final docSnap = await docRef.get();
     if (docSnap.exists) {
       final docId = docSnap.id;
-      final userId = docSnap.data()?['userId']?.toString();
+      final userId = docSnap.data()?['userId']?.toString() ?? docSnap.data()?['customerId']?.toString();
+      final providerId = docSnap.data()?['providerId']?.toString();
 
       if (path.startsWith('users/')) {
         final rootRef = _db.collection('bookings').doc(docId);
@@ -83,10 +85,47 @@ class FirebaseService {
         final userSubRef = _db.collection('users').doc(userId).collection('bookings').doc(docId);
         batch.set(userSubRef, {'status': newStatus, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
       }
+
+      // Direct FCM Push to Customer
+      if (userId != null && userId.isNotEmpty) {
+        try {
+          final userDoc = await _db.collection('users').doc(userId).get();
+          final fcmToken = userDoc.data()?['fcmToken'] as String?;
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            await FcmDirectService.sendPushNotification(
+              targetToken: fcmToken,
+              title: 'Status Updated: $newStatus',
+              body: 'Your service request status is now $newStatus.',
+              data: {'jobId': docId, 'status': newStatus, 'type': 'JOB_STATUS_UPDATE'},
+            );
+          }
+        } catch (e) {
+          print('Admin FCM push error: $e');
+        }
+      }
+
+      // Direct FCM Push to Provider
+      if (providerId != null && providerId.isNotEmpty) {
+        try {
+          final providerDoc = await _db.collection('providers').doc(providerId).get();
+          final fcmToken = providerDoc.data()?['fcmToken'] as String?;
+          if (fcmToken != null && fcmToken.isNotEmpty) {
+            await FcmDirectService.sendPushNotification(
+              targetToken: fcmToken,
+              title: 'Job Update: $newStatus',
+              body: 'Assigned job #$docId status updated to $newStatus.',
+              data: {'jobId': docId, 'status': newStatus, 'type': 'JOB_STATUS_UPDATE'},
+            );
+          }
+        } catch (e) {
+          print('Admin FCM push to tech error: $e');
+        }
+      }
     }
 
     await batch.commit();
   }
+
 
   // ==================== USERS COLLECTION ====================
 
@@ -124,7 +163,28 @@ class FirebaseService {
   }
 
   Future<void> updateProviderStatus(String id, String newStatus) async {
-    await _db.collection('providers').doc(id).update({'status': newStatus});
+    final normStatus = newStatus.trim().toLowerCase();
+    final isActivating = normStatus == 'active' || normStatus == 'approved' || normStatus == 'verified';
+    await _db.collection('providers').doc(id).set({
+      'status': normStatus,
+      'isOnline': isActivating,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (isActivating) {
+      try {
+        final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
+        await _db.collection('providers').doc(id).collection('notifications').doc(notifId).set({
+          'id': notifId,
+          'techId': id,
+          'title': 'Account Activated! 🎉',
+          'body': 'Your KYC has been approved by Admin. Toggle ONLINE to start receiving jobs.',
+          'data': {'type': 'ACCOUNT_ACTIVATED'},
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
   }
 
   Future<void> deleteProvider(String id) async {
@@ -337,4 +397,14 @@ class FirebaseService {
       await _db.collection('products').doc(id).set(prod);
     }
   }
+
+  // ==================== ADMIN NOTIFICATIONS ====================
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getAdminNotificationsStream() {
+    return _db
+        .collection('admin_notifications')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
 }
+

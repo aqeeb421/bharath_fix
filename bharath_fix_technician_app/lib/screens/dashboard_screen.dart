@@ -7,6 +7,12 @@ import '../theme/app_text_style.dart';
 import 'tabs/jobs_tab.dart';
 import 'tabs/earnings_tab.dart';
 import 'tabs/profile_tab.dart';
+import '../services/job_matching_service.dart';
+import 'chat/technician_chat_screen.dart';
+
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isOnline = true;
   String _techName = "Technician";
   String _techCategory = "Appliance Repair Specialist";
+  StreamSubscription? _notifSub;
 
   final _authService = AuthService();
   final _firestoreService = TechnicianFirestoreService();
@@ -29,21 +36,123 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadProfileData();
+    _setupNotificationListener();
   }
 
-  Future<void> _loadProfileData() async {
-    final profile = await _authService.fetchTechnicianProfile();
-    if (profile != null && mounted) {
-      setState(() {
-        _techName = profile.name;
-        _techCategory = profile.category;
-        _isOnline = profile.isOnline;
-      });
+  void _setupNotificationListener() {
+    final techId = _authService.currentUser?.uid;
+    if (techId != null) {
+      bool isInitial = true;
+      _notifSub = NotificationService.getTechNotificationsStream(techId).listen(
+        (snapshot) {
+          if (isInitial) {
+            isInitial = false;
+            return;
+          }
+          for (var change in snapshot.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              final data = change.doc.data();
+              if (data != null) {
+                final title = data['title'] as String? ?? 'BharatFix Alert';
+                final body = data['body'] as String? ?? '';
+                _showNotificationAlert(title, body);
+              }
+            }
+          }
+        },
+      );
+    }
+  }
 
-      final techId = _authService.currentUser?.uid;
-      if (techId != null && _isOnline) {
-        _locationService.startLiveTracking(techId);
+  void _showNotificationAlert(String title, String body) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF000062),
+        content: Row(
+          children: [
+            const Icon(
+              Icons.notifications_active,
+              color: Colors.amber,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    body,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  StreamSubscription? _profileSub;
+
+  Future<void> _loadProfileData() async {
+    final techId = _authService.currentUser?.uid;
+    if (techId == null) return;
+
+    _profileSub?.cancel();
+    _profileSub = FirebaseFirestore.instance
+        .collection('providers')
+        .doc(techId)
+        .snapshots()
+        .listen((snap) {
+      if (snap.exists && snap.data() != null && mounted) {
+        _updateProfileFromDoc(snap.data()!);
+      } else {
+        FirebaseFirestore.instance
+            .collection('providers')
+            .doc(techId)
+            .get()
+            .then((techSnap) {
+          if (techSnap.exists && techSnap.data() != null && mounted) {
+            _updateProfileFromDoc(techSnap.data()!);
+          }
+        });
       }
+    });
+
+    if (_isOnline) {
+      _locationService.startLiveTracking(techId);
+    }
+  }
+
+  void _updateProfileFromDoc(Map<String, dynamic> data) {
+    final List<dynamic> skillsRaw = data['skills'] as List<dynamic>? ?? [];
+    final List<String> skills = skillsRaw.map((e) => e.toString()).toList();
+    final String rawCategory = (data['category'] as String?) ?? '';
+    final String computedCategory = JobMatchingService.getCategoryDisplayLabel(skills, rawCategory);
+
+    if (mounted) {
+      setState(() {
+        _techName = data['name'] ?? 'Technician';
+        _techCategory = computedCategory;
+        _isOnline = data['isOnline'] ?? true;
+      });
     }
   }
 
@@ -62,6 +171,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    _profileSub?.cancel();
+    _notifSub?.cancel();
     _locationService.stopLiveTracking();
     super.dispose();
   }
@@ -73,7 +184,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pages = [
       JobsTab(techId: techId, isOnline: _isOnline),
       EarningsTab(techId: techId),
-      ProfileTab(techName: _techName, techCategory: _techCategory, isOnline: _isOnline),
+      ProfileTab(
+        techName: _techName,
+        techCategory: _techCategory,
+        isOnline: _isOnline,
+      ),
     ];
 
     return Scaffold(
@@ -85,9 +200,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_techName, style: AppTextStyle.mainTitle.copyWith(fontSize: 18)),
+            Text(
+              _techName,
+              style: AppTextStyle.mainTitle.copyWith(fontSize: 18),
+            ),
             const SizedBox(height: 2),
-            Text(_techCategory, style: AppTextStyle.subtitle.copyWith(fontSize: 12)),
+            Text(
+              _techCategory,
+              style: AppTextStyle.subtitle.copyWith(fontSize: 12),
+            ),
           ],
         ),
         actions: [
@@ -95,7 +216,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _isOnline ? AppColors.success.withOpacity(0.12) : Colors.grey.withOpacity(0.12),
+              color: _isOnline
+                  ? AppColors.success.withOpacity(0.12)
+                  : Colors.grey.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: _isOnline ? AppColors.success : Colors.grey,
@@ -119,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 4),
                 Switch(
                   value: _isOnline,
-                  activeColor: AppColors.success,
+                  activeThumbColor: AppColors.success,
                   onChanged: _handleOnlineToggle,
                 ),
               ],
@@ -127,16 +250,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         backgroundColor: AppColors.background,
         type: BottomNavigationBarType.fixed,

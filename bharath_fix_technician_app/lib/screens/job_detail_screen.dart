@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_style.dart';
+import 'chat/technician_chat_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String bookingId;
@@ -57,12 +58,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
-  Future<void> _launchCall(String phone) async {
-    final url = Uri.parse("tel:$phone");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+  Future<void> _launchCall(String rawPhone) async {
+    final cleanPhone = rawPhone.replaceAll(RegExp(r'[^\d+]'), '');
+    if (cleanPhone.isEmpty) return;
+    final Uri url = Uri(scheme: 'tel', path: cleanPhone);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        await launchUrl(url);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not launch phone dialer for $cleanPhone")),
+        );
+      }
     }
   }
+
 
   void _showStartOtpDialog() {
     showDialog(
@@ -459,7 +471,26 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(customerName, style: AppTextStyle.cardTitle.copyWith(fontSize: 16)),
+                          Expanded(
+                            child: Text(customerName, style: AppTextStyle.cardTitle.copyWith(fontSize: 16)),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TechnicianChatDetailScreen(
+                                    bookingId: widget.bookingId,
+                                    customerName: customerName,
+                                    customerPhone: customerPhone,
+                                    serviceTitle: category,
+                                    status: status,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                          ),
                           IconButton(
                             onPressed: () => _launchCall(customerPhone),
                             icon: const Icon(Icons.phone_in_talk_rounded, color: AppColors.primary),
@@ -564,7 +595,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 const SizedBox(height: 32),
 
                 // Status Action Buttons
-                if (status == 'accepted')
+                if (status.toLowerCase() == 'accepted')
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -584,7 +615,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ),
                   ),
 
-                if (status == 'on_the_way')
+                if (status.toLowerCase() == 'on_the_way' || status.toLowerCase() == 'in_transit')
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -596,7 +627,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ),
                   ),
 
-                if (status == 'in_progress')
+                if (status.toLowerCase() == 'in_progress' || status.toLowerCase() == 'work_in_progress')
                   SizedBox(
                     width: double.infinity,
                     height: 50,

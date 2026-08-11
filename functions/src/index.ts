@@ -6,3 +6,5 @@ export { updateJobStatus } from './jobStateMachine';
 export { onJobBooked } from './broadcastEngine';
 export { handlePaymentWebhook } from './paymentWebhook';
 export { onJobCompleted } from './walletEngine';
+export { onUserNotificationCreated, onTechNotificationCreated } from './notificationsEngine';
+

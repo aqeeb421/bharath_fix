@@ -21,7 +21,7 @@ class PayoutRequest {
 }
 
 class PayoutsTab extends StatefulWidget {
-  const PayoutsTab({Key? key}) : super(key: key);
+  const PayoutsTab({super.key});
 
   @override
   State<PayoutsTab> createState() => _PayoutsTabState();
@@ -92,7 +92,10 @@ class _PayoutsTabState extends State<PayoutsTab> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade900,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
             ],
@@ -101,71 +104,149 @@ class _PayoutsTabState extends State<PayoutsTab> {
           Expanded(
             child: Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: SingleChildScrollView(
                 child: DataTable(
                   columns: const [
-                    DataColumn(label: Text('Payout ID', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Technician', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Bank Details', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Requested Amount', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Requested Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(
+                      label: Text(
+                        'Payout ID',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Technician',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Bank Details',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Requested Amount',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Requested Date',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Status',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Text(
+                        'Actions',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ],
                   rows: List.generate(_payouts.length, (index) {
                     final item = _payouts[index];
-                    return DataRow(cells: [
-                      DataCell(Text(item.id, style: const TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(Text(item.providerName)),
-                      DataCell(Text('${item.bankAccount} (${item.ifscCode})', style: const TextStyle(fontSize: 12))),
-                      DataCell(Text('₹${item.amount.toStringAsFixed(0)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))),
-                      DataCell(Text(item.requestedAt, style: const TextStyle(fontSize: 12))),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: item.status == 'APPROVED'
-                                ? Colors.green.shade50
-                                : item.status == 'REJECTED'
-                                    ? Colors.red.shade50
-                                    : Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Text(
+                            item.id,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          child: Text(
-                            item.status,
-                            style: TextStyle(
-                              fontSize: 12,
+                        ),
+                        DataCell(Text(item.providerName)),
+                        DataCell(
+                          Text(
+                            '${item.bankAccount} (${item.ifscCode})',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            '₹${item.amount.toStringAsFixed(0)}',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: item.status == 'APPROVED'
-                                  ? Colors.green
-                                  : item.status == 'REJECTED'
-                                      ? Colors.red
-                                      : Colors.orange.shade800,
+                              color: Colors.green,
                             ),
                           ),
                         ),
-                      ),
-                      DataCell(
-                        item.status == 'PENDING'
-                            ? Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.check_circle_rounded, color: Colors.green),
-                                    tooltip: 'Approve Payout',
-                                    onPressed: () => _updateStatus(index, 'APPROVED'),
+                        DataCell(
+                          Text(
+                            item.requestedAt,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        DataCell(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: item.status == 'APPROVED'
+                                  ? Colors.green.shade50
+                                  : item.status == 'REJECTED'
+                                  ? Colors.red.shade50
+                                  : Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              item.status,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: item.status == 'APPROVED'
+                                    ? Colors.green
+                                    : item.status == 'REJECTED'
+                                    ? Colors.red
+                                    : Colors.orange.shade800,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          item.status == 'PENDING'
+                              ? Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Colors.green,
+                                      ),
+                                      tooltip: 'Approve Payout',
+                                      onPressed: () =>
+                                          _updateStatus(index, 'APPROVED'),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.cancel_rounded,
+                                        color: Colors.red,
+                                      ),
+                                      tooltip: 'Reject Payout',
+                                      onPressed: () =>
+                                          _updateStatus(index, 'REJECTED'),
+                                    ),
+                                  ],
+                                )
+                              : const Text(
+                                  'Settled',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.cancel_rounded, color: Colors.red),
-                                    tooltip: 'Reject Payout',
-                                    onPressed: () => _updateStatus(index, 'REJECTED'),
-                                  ),
-                                ],
-                              )
-                            : const Text('Settled', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      ),
-                    ]);
+                                ),
+                        ),
+                      ],
+                    );
                   }),
                 ),
               ),

@@ -7,11 +7,11 @@ class QuotationApprovalDialog extends StatelessWidget {
   final VoidCallback onReject;
 
   const QuotationApprovalDialog({
-    Key? key,
+    super.key,
     required this.booking,
     required this.onApprove,
     required this.onReject,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +31,19 @@ class QuotationApprovalDialog extends StatelessWidget {
                     color: Colors.amber.shade100,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.request_quote_rounded, color: Colors.amber, size: 28),
+                  child: const Icon(
+                    Icons.request_quote_rounded,
+                    color: Colors.amber,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Itemized Service Quote',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -57,45 +63,62 @@ class QuotationApprovalDialog extends StatelessWidget {
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(12),
-                itemCount: booking.quoteItems.length,
-                separatorBuilder: (_, __) => const Divider(height: 12),
-                itemBuilder: (context, index) {
-                  final item = booking.quoteItems[index];
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            item.isSparePart ? Icons.extension_rounded : Icons.build_rounded,
-                            size: 16,
-                            color: Colors.blueGrey,
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: booking.quoteItems.length,
+                  separatorBuilder: (_, __) => const Divider(height: 12),
+                  itemBuilder: (context, index) {
+                    final item = booking.quoteItems[index];
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              item.isSparePart
+                                  ? Icons.extension_rounded
+                                  : Icons.build_rounded,
+                              size: 16,
+                              color: Colors.blueGrey,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '₹${item.price.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            item.title,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '₹${item.price.toStringAsFixed(0)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                    ],
-                  );
-                },
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-          ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Visiting Fee Paid:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('- ₹${booking.visitingFee.toStringAsFixed(0)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Visiting Fee Paid:',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+                Text(
+                  '- ₹${booking.visitingFee.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const Divider(height: 16),
@@ -108,7 +131,11 @@ class QuotationApprovalDialog extends StatelessWidget {
                 ),
                 Text(
                   '₹${booking.quoteTotal.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.blue,
+                  ),
                 ),
               ],
             ),
@@ -122,7 +149,9 @@ class QuotationApprovalDialog extends StatelessWidget {
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: const Text('Decline Quote'),
                   ),
@@ -134,9 +163,17 @@ class QuotationApprovalDialog extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                    child: const Text('Approve & Start', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Approve & Start',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],

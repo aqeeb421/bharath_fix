@@ -42,7 +42,10 @@ class CouponService {
     },
   };
 
-  Future<Map<String, dynamic>> validateAndApplyCoupon(String rawCode, double cartTotalAmount) async {
+  Future<Map<String, dynamic>> validateAndApplyCoupon(
+    String rawCode,
+    double cartTotalAmount,
+  ) async {
     final code = rawCode.trim().toUpperCase();
     if (code.isEmpty) {
       return {'success': false, 'message': 'Please enter a coupon code.'};
@@ -66,22 +69,22 @@ class CouponService {
         data = _staticCoupons[code];
       }
 
-      if (data == null) {
-        // Generic custom code fallback (₹40 discount)
-        data = {
-          'isActive': true,
-          'minOrderValue': 0.0,
-          'discountType': 'fixed',
-          'discountValue': 40.0,
-          'maxDiscount': 40.0,
-        };
-      }
+      data ??= {
+        'isActive': true,
+        'minOrderValue': 0.0,
+        'discountType': 'fixed',
+        'discountValue': 40.0,
+        'maxDiscount': 40.0,
+      };
 
       final bool isActive = data['isActive'] ?? true;
-      final double minOrderValue = (data['minOrderValue'] as num?)?.toDouble() ?? 0.0;
+      final double minOrderValue =
+          (data['minOrderValue'] as num?)?.toDouble() ?? 0.0;
       final String discountType = data['discountType'] ?? 'percentage';
-      final double discountVal = (data['discountValue'] as num?)?.toDouble() ?? 0.0;
-      final double maxDiscount = (data['maxDiscount'] as num?)?.toDouble() ?? discountVal;
+      final double discountVal =
+          (data['discountValue'] as num?)?.toDouble() ?? 0.0;
+      final double maxDiscount =
+          (data['maxDiscount'] as num?)?.toDouble() ?? discountVal;
 
       if (!isActive) {
         return {'success': false, 'message': 'This coupon code has expired.'};
@@ -90,7 +93,8 @@ class CouponService {
       if (cartTotalAmount < minOrderValue) {
         return {
           'success': false,
-          'message': 'Minimum order amount for $code is ₹${minOrderValue.toInt()}.'
+          'message':
+              'Minimum order amount for $code is ₹${minOrderValue.toInt()}.',
         };
       }
 
@@ -113,7 +117,8 @@ class CouponService {
         'code': code,
         'discountAmount': discountAmount,
         'finalTotal': finalTotal < 0 ? 0.0 : finalTotal,
-        'message': 'Coupon $code applied! You saved ₹${discountAmount.toStringAsFixed(0)}.',
+        'message':
+            'Coupon $code applied! You saved ₹${discountAmount.toStringAsFixed(0)}.',
       };
     } catch (e) {
       debugPrint("Error validating coupon code: $e");

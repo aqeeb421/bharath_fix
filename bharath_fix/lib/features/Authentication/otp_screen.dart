@@ -5,6 +5,7 @@ import 'package:bharath_fix/ui/theme/app_text_style.dart';
 import 'package:bharath_fix/ui/widgets/common_appbar.dart';
 import 'package:bharath_fix/ui/widgets/page_padding.dart';
 import 'package:bharath_fix/utils/app_strings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../utils/app_routes.dart';
@@ -67,72 +68,50 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() => _isVerifying = true);
 
     try {
+      UserCredential? userCred;
+
       if (_verificationId == 'test_id_billing_bypass' ||
           _verificationId.startsWith('test_')) {
-        await AuthService().signInAsTestUser(_phone);
-        final userModel = await DatabaseService().fetchUserProfile();
-        LocalStorage local = await LocalStorage.getInstance();
-        await local.setString(LocalStorage.firstUse, "false");
-
-        if (mounted) {
+        if (smsCode != '000000') {
           setState(() => _isVerifying = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Phone Authentication Successful! 🎉"),
+              content: Text("Invalid Test OTP. Please enter '000000'."),
+              backgroundColor: Colors.redAccent,
             ),
           );
-
-          if (userModel == null || userModel.name.trim().isEmpty) {
-            Navigator.pushReplacementNamed(
-              context,
-              AppRoutes.register,
-              arguments: {'phone': _phone},
-            );
-          } else {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRoutes.dashboard,
-              (route) => false,
-            );
-          }
+          return;
         }
-        return;
+        userCred = await AuthService().signInAsTestUser(_phone);
+      } else {
+        userCred = await AuthService().signInWithPhoneCredential(
+          verificationId: _verificationId,
+          smsCode: smsCode,
+        );
       }
 
-      final userCred = await AuthService().signInWithPhoneCredential(
-        verificationId: _verificationId,
-        smsCode: smsCode,
-      );
+      final userModel = await DatabaseService().fetchUserProfile(_phone);
+      LocalStorage local = await LocalStorage.getInstance();
+      await local.setString(LocalStorage.firstUse, "false");
 
-      if (userCred.user != null) {
-        final userModel = await DatabaseService().fetchUserProfile();
+      if (mounted) {
+        setState(() => _isVerifying = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Phone Authentication Successful! 🎉")),
+        );
 
-        // Update local storage
-        LocalStorage local = await LocalStorage.getInstance();
-        await local.setString(LocalStorage.firstUse, "false");
-
-        if (mounted) {
-          setState(() => _isVerifying = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Phone Authentication Successful! 🎉"),
-            ),
+        if (userModel == null || userModel.name.trim().isEmpty) {
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.register,
+            arguments: {'phone': _phone.isNotEmpty ? _phone : ''},
           );
-
-          if (userModel == null || userModel.name.trim().isEmpty) {
-            // New user, redirect to profile setup
-            Navigator.pushReplacementNamed(
-              context,
-              AppRoutes.register,
-              arguments: {'phone': _phone},
-            );
-          } else {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRoutes.dashboard,
-              (route) => false,
-            );
-          }
+        } else {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.dashboard,
+            (route) => false,
+          );
         }
       }
     } catch (e) {
@@ -140,8 +119,8 @@ class _OtpScreenState extends State<OtpScreen> {
         setState(() => _isVerifying = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            content: Text("Authentication Failed: ${e.toString()}"),
             backgroundColor: Colors.redAccent,
-            content: Text("Verification Failed: ${e.toString()}"),
           ),
         );
       }
@@ -157,6 +136,9 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cleanPhone = _phone.replaceAll('+91', '').trim();
+    final displayPhone = cleanPhone.isNotEmpty ? '+91 $cleanPhone' : _phone;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: const CommonAppBar(),
@@ -168,7 +150,7 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: AppSpacing.lg),
               Text(AppStrings.otpTitle, style: AppTextStyle.heading),
               const SizedBox(height: AppSpacing.sm),
-              Text("Code sent to +91 $_phone", style: AppTextStyle.subtitle),
+              Text("Code sent to $displayPhone", style: AppTextStyle.subtitle),
               const SizedBox(height: AppSpacing.xl),
               PinCodeTextField(
                 appContext: context,

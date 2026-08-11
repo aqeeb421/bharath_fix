@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/technician_firestore_service.dart';
+import '../../services/job_matching_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -25,15 +27,67 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _firestoreService = TechnicianFirestoreService();
 
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _assignedJobsStream;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _openJobsStream;
+
+  StreamSubscription? _techSub;
+  Map<String, dynamic> _techData = {};
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initStreams();
+    _subscribeTechProfile();
+  }
+
+  void _initStreams() {
+    _assignedJobsStream = _firestoreService.getAssignedJobsStream(widget.techId);
+    _openJobsStream = _firestoreService.getAvailableOpenJobsStream();
+  }
+
+  void _subscribeTechProfile() {
+    _techSub?.cancel();
+    if (widget.techId.isNotEmpty) {
+      _techSub = FirebaseFirestore.instance
+          .collection('providers')
+          .doc(widget.techId)
+          .snapshots()
+          .listen((snap) {
+        if (snap.exists && snap.data() != null && mounted) {
+          setState(() {
+            _techData = snap.data()!;
+          });
+        } else {
+          FirebaseFirestore.instance
+              .collection('providers')
+              .doc(widget.techId)
+              .get()
+              .then((techSnap) {
+            if (techSnap.exists && techSnap.data() != null && mounted) {
+              setState(() {
+                _techData = techSnap.data()!;
+              });
+            }
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(JobsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.techId != widget.techId) {
+      _initStreams();
+      _subscribeTechProfile();
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _techSub?.cancel();
     super.dispose();
   }
 
@@ -68,9 +122,9 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
 
   Widget _buildAssignedJobsList() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestoreService.getAssignedJobsStream(widget.techId),
+      stream: _assignedJobsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
 
@@ -122,34 +176,53 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
     }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestoreService.getAvailableOpenJobsStream(),
+      stream: _openJobsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
 
         final docs = snapshot.data?.docs ?? [];
+        final openDocs = docs.where((doc) {
+          final data = doc.data();
+          final providerId = (data['providerId'] ?? '').toString().trim();
+          final status = (data['status'] ?? '').toString().toLowerCase().trim();
+          final isUnassigned = providerId.isEmpty || providerId == 'null' || providerId == 'none';
+          final isClosed = status == 'completed' || status == 'cancelled' || status == 'paid_and_closed' || status == 'cancelled_by_customer' || status == 'cancelled_by_technician';
 
-        if (docs.isEmpty) {
+          if (!isUnassigned || isClosed) return false;
+
+          // STRICT SKILL MATCHING RULE: Job must match technician's active skills array
+          return JobMatchingService.isTechnicianExpertForJob(_techData, data);
+        }).toList();
+
+        if (openDocs.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.search_off_rounded, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text("No open jobs available", style: AppTextStyle.sectionHeader),
-                const SizedBox(height: 4),
-                Text("New service requests will appear here in real-time.", style: AppTextStyle.subtitle),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.medium),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.verified_user_outlined, size: 64, color: AppColors.primary),
+                  const SizedBox(height: 16),
+                  Text("No matching open jobs", style: AppTextStyle.sectionHeader),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Jobs in the open pool are filtered strictly based on your enabled skills. New requests matching your skill categories will appear here in real-time.",
+                    textAlign: TextAlign.center,
+                    style: AppTextStyle.subtitle,
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.medium),
-          itemCount: docs.length,
+          itemCount: openDocs.length,
           itemBuilder: (context, index) {
-            final doc = docs[index];
+            final doc = openDocs[index];
             final data = doc.data();
             return _buildJobCard(doc.id, data, isClaimable: true);
           },
@@ -246,11 +319,21 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(context);
+                    String techName = "Technician Partner";
+                    String techPhone = "+91 9876543210";
+                    try {
+                      final doc = await FirebaseFirestore.instance.collection('providers').doc(widget.techId).get();
+                      if (doc.exists && doc.data() != null) {
+                        techName = doc.data()?['name'] as String? ?? techName;
+                        techPhone = doc.data()?['phone'] as String? ?? techPhone;
+                      }
+                    } catch (_) {}
+
                     await _firestoreService.claimJob(
                       bookingId,
                       widget.techId,
-                      "Technician Partner",
-                      "+91 9876543210",
+                      techName,
+                      techPhone,
                     );
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -308,17 +391,18 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
 
   Widget _buildJobCard(String bookingId, Map<String, dynamic> data, {required bool isClaimable}) {
     final title = data['title'] ?? (data['categoryName'] != null ? "${data['categoryName']} • ${data['subCategoryName'] ?? 'General'}" : 'Appliance Repair Service');
-    final cost = data['cost'] ?? '₹499';
+    final cost = data['cost'] ?? (data['visitingFee'] != null ? "₹${data['visitingFee']}" : '₹199');
     final customerName = data['userName'] ?? data['customerName'] ?? 'Customer';
     final address = data['address'] ?? data['fullAddress'] ?? 'Hassan, Karnataka';
     final date = data['dateTime'] ?? data['date'] ?? 'Scheduled Slot';
-    final status = data['status'] ?? 'pending';
+    final status = (data['status'] ?? 'pending').toString();
 
     Color statusColor = AppColors.primary;
-    if (status == 'pending') statusColor = Colors.amber.shade800;
-    if (status == 'accepted') statusColor = Colors.blue;
-    if (status == 'in_progress') statusColor = Colors.orange;
-    if (status == 'completed') statusColor = Colors.green;
+    final stLower = status.toLowerCase();
+    if (stLower == 'pending' || stLower == 'booked') statusColor = Colors.amber.shade800;
+    if (stLower == 'accepted') statusColor = Colors.blue;
+    if (stLower == 'in_progress' || stLower == 'in_transit' || stLower == 'arrived') statusColor = Colors.orange;
+    if (stLower == 'completed' || stLower == 'paid_and_closed') statusColor = Colors.green;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.medium),

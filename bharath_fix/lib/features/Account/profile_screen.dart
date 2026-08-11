@@ -3,7 +3,9 @@ import 'package:bharath_fix/features/Support/support_screen.dart';
 import 'package:bharath_fix/features/Support/about_screen.dart';
 import 'offers_screen.dart';
 import 'wallet_screen.dart';
+import 'edit_profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
@@ -11,12 +13,10 @@ import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../Address/address_list_screen.dart';
 import '../../services/database_service.dart';
-import '../../models/UserModel.dart';
 import '../../utils/LocalStorage.dart';
 import '../../utils/app_routes.dart';
 import '../../services/theme_service.dart';
 import '../../services/language_service.dart';
-import '../../utils/app_translations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -50,8 +50,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (userModel != null && currentUser != null && mounted) {
       final name = userModel.name.isNotEmpty ? userModel.name : "User";
-      final phone = userModel.phone.isNotEmpty ? userModel.phone : (currentUser.phoneNumber ?? "");
-      final email = userModel.email.isNotEmpty ? userModel.email : "user@bharathfix.in";
+      final phone = userModel.phone.isNotEmpty
+          ? userModel.phone
+          : (currentUser.phoneNumber ?? "");
+      final email = userModel.email.isNotEmpty
+          ? userModel.email
+          : "user@bharathfix.in";
 
       setState(() {
         _userName = name;
@@ -102,7 +106,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Edit Profile Details', style: AppTextStyle.sectionHeader),
+                  const Text(
+                    'Edit Profile Details',
+                    style: AppTextStyle.sectionHeader,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.pop(context),
@@ -149,21 +156,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     final newPhone = _phoneController.text.trim();
 
                     if (newName.isNotEmpty) {
-                      await DatabaseService().saveProfile(newName, newPhone, newEmail);
+                      await DatabaseService().saveProfile(
+                        newName,
+                        newPhone,
+                        newEmail,
+                      );
                       if (context.mounted) {
                         Navigator.pop(context);
                         _loadProfileDetails();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile updated successfully!')),
+                          const SnackBar(
+                            content: Text('Profile updated successfully!'),
+                          ),
                         );
                       }
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: const Text('Save Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'Save Profile',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -201,14 +223,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildNavigationRow(
                 Icons.person_outline_rounded,
                 _isGuest ? 'Login / Create Account' : 'Edit Profile Details',
-                onTap: () {
+                onTap: () async {
                   if (_isGuest) {
                     Navigator.pushNamed(context, AppRoutes.login);
                   } else {
-                    _showEditProfileModal();
+                    final currentModel = await DatabaseService()
+                        .fetchUserProfile();
+                    if (!mounted) return;
+                    final updated = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            EditProfileScreen(initialProfile: currentModel),
+                      ),
+                    );
+                    if (updated == true && mounted) {
+                      _loadProfileDetails();
+                    }
                   }
                 },
               ),
+
               if (!_isGuest) ...[
                 _buildNavigationRow(
                   Icons.account_balance_wallet_outlined,
@@ -216,7 +251,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const WalletScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const WalletScreen(),
+                      ),
                     );
                   },
                 ),
@@ -226,7 +263,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const OffersScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const OffersScreen(),
+                      ),
                     );
                   },
                 ),
@@ -237,7 +276,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AddressListScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const AddressListScreen(),
+                    ),
                   );
                 },
               ),
@@ -247,7 +288,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SupportScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const SupportScreen(),
+                    ),
                   );
                 },
               ),
@@ -257,7 +300,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AboutScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const AboutScreen(),
+                    ),
                   );
                 },
               ),
@@ -266,9 +311,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: AppSpacing.large),
               TextButton(
                 onPressed: () async {
+                  try {
+                    await FirebaseAuth.instance.signOut();
+                  } catch (e) {
+                    debugPrint('FirebaseAuth signOut error: $e');
+                  }
                   LocalStorage local = await LocalStorage.getInstance();
                   await local.clear();
-                  await DatabaseService().clearProfile();
+                  await DatabaseService().logoutUser();
 
                   if (mounted) {
                     Navigator.pushNamedAndRemoveUntil(
@@ -278,6 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   }
                 },
+
                 child: Text(
                   _isGuest ? 'Sign In' : 'Log out',
                   style: const TextStyle(
@@ -309,7 +360,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         CircleAvatar(
           radius: 30,
           backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-          backgroundImage: localPhotoFile != null ? FileImage(localPhotoFile) : null,
+          backgroundImage: localPhotoFile != null
+              ? FileImage(localPhotoFile)
+              : null,
           child: localPhotoFile == null
               ? Text(
                   _profileLetter,
@@ -394,7 +447,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -460,7 +516,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final isDark = mode == ThemeMode.dark;
         return Container(
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
+            border: Border(
+              bottom: BorderSide(color: AppColors.border, width: 0.8),
+            ),
           ),
           child: ListTile(
             contentPadding: EdgeInsets.zero,
@@ -498,11 +556,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return Container(
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.border, width: 0.8)),
+            border: Border(
+              bottom: BorderSide(color: AppColors.border, width: 0.8),
+            ),
           ),
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.translate_rounded, color: AppColors.primary, size: 22),
+            leading: const Icon(
+              Icons.translate_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
             title: Text(
               LanguageService().translate('language'),
               style: const TextStyle(
@@ -514,9 +578,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             subtitle: Text(
               langDisplay,
-              style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 12,
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+            trailing: const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 12,
+              color: Colors.grey,
+            ),
             onTap: () => _showLanguageSelectionModal(context),
           ),
         );
@@ -544,8 +617,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               ListTile(
                 leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
-                title: const Text('English (Default)', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold)),
-                trailing: LanguageService().currentLanguage == 'en' ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                title: const Text(
+                  'English (Default)',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                trailing: LanguageService().currentLanguage == 'en'
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : null,
                 onTap: () async {
                   await LanguageService().setLanguage('en');
                   if (context.mounted) Navigator.pop(context);
@@ -555,9 +639,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Divider(),
               ListTile(
                 leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
-                title: const Text('ಕನ್ನಡ (Kannada)', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold)),
-                subtitle: const Text('ಹಾಸನ & ಬೆಳಗಾವಿ ಸ್ಥಳೀಯ ಭಾಷೆ', style: TextStyle(fontSize: 12)),
-                trailing: LanguageService().currentLanguage == 'kn' ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                title: const Text(
+                  'ಕನ್ನಡ (Kannada)',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  'ಹಾಸನ & ಬೆಳಗಾವಿ ಸ್ಥಳೀಯ ಭಾಷೆ',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: LanguageService().currentLanguage == 'kn'
+                    ? const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                      )
+                    : null,
                 onTap: () async {
                   await LanguageService().setLanguage('kn');
                   if (context.mounted) Navigator.pop(context);

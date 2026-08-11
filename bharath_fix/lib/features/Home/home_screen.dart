@@ -15,6 +15,10 @@ import '../../ui/theme/app_text_style.dart';
 import '../../ui/widgets/floating_cart_bar.dart';
 import '../../services/database_service.dart';
 
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/notification_service.dart';
+
 class HomeScreen extends StatefulWidget {
   final String detectedLocation;
   final bool isServiceable;
@@ -43,13 +47,81 @@ class _HomeScreenState extends State<HomeScreen> {
   List<ProductSaleModel> _productsList = [];
 
   bool _isLoadingFirestore = true;
+  StreamSubscription? _notifSub;
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
     _loadFirestoreHomeData();
+    _setupNotificationListener();
   }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  void _setupNotificationListener() {
+    NotificationService.onNotificationReceived = (message) {
+      _showNotificationAlert(
+        message.notification?.title ?? 'Notification',
+        message.notification?.body ?? '',
+      );
+    };
+
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid ?? 'guest_user';
+    _notifSub = NotificationService.listenForInAppNotifications(
+      userId: uid,
+      onNewNotification: (title, body) {
+        _showNotificationAlert(title, body);
+      },
+    );
+  }
+
+  void _showNotificationAlert(String title, String body) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF000062),
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_active, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    body,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Future<void> _loadUserProfile() async {
     final profile = await DatabaseService().fetchProfile();

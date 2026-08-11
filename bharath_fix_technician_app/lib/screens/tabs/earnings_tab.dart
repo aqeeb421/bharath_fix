@@ -6,27 +6,60 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_text_style.dart';
 
-class EarningsTab extends StatelessWidget {
+class EarningsTab extends StatefulWidget {
   final String techId;
-  final _firestoreService = TechnicianFirestoreService();
 
-  EarningsTab({super.key, required this.techId});
+  const EarningsTab({super.key, required this.techId});
+
+  @override
+  State<EarningsTab> createState() => _EarningsTabState();
+}
+
+class _EarningsTabState extends State<EarningsTab> {
+  final _firestoreService = TechnicianFirestoreService();
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _earningsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initStream();
+  }
+
+  void _initStream() {
+    _earningsStream = _firestoreService.getCompletedJobsStream(widget.techId);
+  }
+
+  @override
+  void didUpdateWidget(EarningsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.techId != widget.techId) {
+      _initStream();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestoreService.getCompletedJobsStream(techId),
+      stream: _earningsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final allDocs = snapshot.data?.docs ?? [];
+        final docs = allDocs.where((doc) {
+          final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
+          return status == 'completed' || status == 'paid_and_closed';
+        }).toList();
+
         double totalEarnings = 0.0;
 
         for (var doc in docs) {
           final data = doc.data();
-          final amount = (data['amount'] as num?)?.toDouble() ?? (data['totalAmount'] as num?)?.toDouble() ?? 499.0;
+          final amount = (data['amount'] as num?)?.toDouble() ??
+              (data['totalAmount'] as num?)?.toDouble() ??
+              (data['cost'] as num?)?.toDouble() ??
+              499.0;
           final addCost = (data['additionalCost'] as num?)?.toDouble() ?? 0.0;
           totalEarnings += (amount + addCost);
         }
@@ -44,7 +77,10 @@ class EarningsTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Total Net Earnings", style: AppTextStyle.subtitle.copyWith(color: Colors.white70)),
+                  Text(
+                    "Total Net Earnings",
+                    style: AppTextStyle.subtitle.copyWith(color: Colors.white70),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     "₹${totalEarnings.toStringAsFixed(2)}",
@@ -59,7 +95,6 @@ class EarningsTab extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildMiniStat("Completed Jobs", "${docs.length}"),
-                      _buildMiniStat("Partner Rating", "5.0 ★"),
                       _buildMiniStat("Payout Status", "Weekly Direct"),
                     ],
                   ),
@@ -90,9 +125,14 @@ class EarningsTab extends StatelessWidget {
                 itemCount: docs.length,
                 itemBuilder: (context, index) {
                   final data = docs[index].data();
-                  final category = data['categoryName'] ?? data['applianceType'] ?? 'Appliance Repair';
+                  final category = data['title'] ??
+                      data['categoryName'] ??
+                      data['applianceType'] ??
+                      'Appliance Repair';
                   final customer = data['userName'] ?? data['customerName'] ?? 'Customer';
-                  final basePrice = (data['amount'] as num?)?.toDouble() ?? 499.0;
+                  final basePrice = (data['amount'] as num?)?.toDouble() ??
+                      (data['totalAmount'] as num?)?.toDouble() ??
+                      499.0;
                   final extraPrice = (data['additionalCost'] as num?)?.toDouble() ?? 0.0;
                   final totalJobVal = basePrice + extraPrice;
 

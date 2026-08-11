@@ -49,21 +49,13 @@ class PendingVerificationScreen extends StatelessWidget {
           }
 
           final data = snapshot.data?.data() ?? {};
-          final status = data['status'] ?? 'pending_verification';
+          final statusRaw = (data['status'] ?? 'pending_verification').toString().trim().toLowerCase();
           final name = data['name'] ?? 'Partner';
           final kyc = data['kyc'] as Map<String, dynamic>? ?? {};
           final bank = data['bankDetails'] as Map<String, dynamic>? ?? {};
           final skills = (data['skills'] as List<dynamic>?) ?? [];
 
-          // Auto-redirect if Admin has activated the partner account!
-          if (status.toString().toLowerCase() == 'active') {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
-              );
-            });
-          }
+          final bool isApproved = statusRaw == 'active' || statusRaw == 'approved' || statusRaw == 'verified';
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -75,21 +67,26 @@ class PendingVerificationScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.12),
+                      color: isApproved ? AppColors.success.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.amber, width: 2),
+                      border: Border.all(color: isApproved ? AppColors.success : Colors.amber, width: 2),
                     ),
-                    child: const Icon(
-                      Icons.verified_user_rounded,
+                    child: Icon(
+                      isApproved ? Icons.check_circle_rounded : Icons.verified_user_rounded,
                       size: 64,
-                      color: Colors.amber,
+                      color: isApproved ? AppColors.success : Colors.amber,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text("Verification Under Review", style: AppTextStyle.mainTitle.copyWith(fontSize: 22)),
+                  Text(
+                    isApproved ? "Account Activated 🎉" : "Verification Under Review",
+                    style: AppTextStyle.mainTitle.copyWith(fontSize: 22),
+                  ),
                   const SizedBox(height: 8),
                   Text(
-                    "Hello $name, your partner registration & KYC documents have been submitted and are under review by the BharathFix Admin team.",
+                    isApproved
+                        ? "Congratulations $name! Your partner account has been approved and activated. Tap below to access open jobs and start earning."
+                        : "Hello $name, your partner registration & KYC documents have been submitted and are under review by the BharathFix Admin team.",
                     textAlign: TextAlign.center,
                     style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4),
                   ),
@@ -112,19 +109,48 @@ class PendingVerificationScreen extends StatelessWidget {
                         _buildStatusRow("PAN Card Verification", kyc['panNumber'] ?? "Submitted", true),
                         _buildStatusRow("Bank Payout Info", bank['bankName'] ?? "Submitted", true),
                         _buildStatusRow("Service Skills", skills.join(', '), true),
-                        _buildStatusRow("Admin Activation", "Pending Approval", false),
+                        _buildStatusRow(
+                          "Admin Activation",
+                          isApproved ? "Active & Approved" : "Pending Approval",
+                          isApproved,
+                        ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 32),
-                  const CircularProgressIndicator(color: AppColors.primary),
-                  const SizedBox(height: 12),
-                  Text(
-                    "This screen will automatically update as soon as your account is approved.",
-                    textAlign: TextAlign.center,
-                    style: AppTextStyle.subtitle.copyWith(fontSize: 12),
-                  ),
+
+                  if (isApproved) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                        label: const Text(
+                          "Enter Dashboard & Jobs",
+                          style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    const CircularProgressIndicator(color: AppColors.primary),
+                    const SizedBox(height: 12),
+                    Text(
+                      "This screen will automatically update as soon as your account is approved.",
+                      textAlign: TextAlign.center,
+                      style: AppTextStyle.subtitle.copyWith(fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),

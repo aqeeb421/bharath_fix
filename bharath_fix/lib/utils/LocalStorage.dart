@@ -15,7 +15,6 @@ class LocalStorage {
   static const String termsURL = "termsURL";
   static const String allowed_features = "allowed_features";
 
-
   static const String AUTH = "AUTH";
   static const String LOCAL_PASSWORD = "LOCAL_PASSWORD";
   static const String CHANGE_DB_PASSWORD = "CHANGE_DB_PASSWORD";
@@ -37,12 +36,11 @@ class LocalStorage {
   static const String MOBILE = "MOBILE";
   static const String SERVER_PUBLIC_KEY = "SERVER_PUBLIC_KEY";
   static const String IS_POLICE_OFFICER = "IS_POLICE_OFFICER";
-  static const String SERVER_STATUS  = "SERVER_STATUS ";
+  static const String SERVER_STATUS = "SERVER_STATUS ";
 
   static const String biometric_enabled = "biometric_enabled";
   static const String user_pin = "user_pin";
   static const String pin_enabled = "pin_enabled";
-
 
   static const String SELECTED_YEAR = "SELECTED_YEAR";
   static const String DATA_DOWNLOADED_YEARS = "DATA_DOWNLOADED_YEARS";
@@ -63,64 +61,72 @@ class LocalStorage {
   /// Initialize default values
   Future<void> _initializeDefaults() async {
     // Helper to check if a key already exists
-    Future<bool> _hasKey(String key) async {
+    Future<bool> hasKey(String key) async {
       return _prefs!.containsKey(key);
     }
 
-    if (!await _hasKey(firstUse)) {
+    if (!await hasKey(firstUse)) {
       await setString(firstUse, "true");
     }
 
-  if (!await _hasKey(biometric_enabled)) {
+    if (!await hasKey(biometric_enabled)) {
       await setBool(biometric_enabled, false);
     }
 
-  if (!await _hasKey(user_pin)) {
+    if (!await hasKey(user_pin)) {
       await setString(user_pin, "");
     }
 
-  if (!await _hasKey(SELECTED_YEAR)) {
+    if (!await hasKey(SELECTED_YEAR)) {
       await setString(SELECTED_YEAR, "");
     }
 
-  if (!await _hasKey(DATA_DOWNLOADED_YEARS)) {
+    if (!await hasKey(DATA_DOWNLOADED_YEARS)) {
       await setString(DATA_DOWNLOADED_YEARS, "");
     }
 
-  if (!await _hasKey(pin_enabled)) {
+    if (!await hasKey(pin_enabled)) {
       await setBool(pin_enabled, false);
     }
 
-  if (!await _hasKey(SERVER_STATUS)) {
+    if (!await hasKey(SERVER_STATUS)) {
       await setBool(SERVER_STATUS, false);
     }
 
     // only set defaults if not already stored
-    if (!await _hasKey(userData)) await setString(userData, "");
-    if (!await _hasKey(LANGUAGE)) await setString(LANGUAGE, "");
-    if (!await _hasKey(termsURL)) await setString(termsURL, "");
-    if (!await _hasKey(eLostReport)) await setString(eLostReport, "");
-    if (!await _hasKey(eLostArticles)) await setString(eLostArticles, "");
-    if (!await _hasKey(RSA_PUBLIC_KEY)) await setString(RSA_PUBLIC_KEY, "");
-    if (!await _hasKey(RSA_PRIVATE_KEY)) await setString(RSA_PRIVATE_KEY, "");
-    if (!await _hasKey(JWT)) await setString(JWT, "");
-    if (!await _hasKey(MOBILE)) await setString(MOBILE, "");
-    if (!await _hasKey(SERVER_PUBLIC_KEY)) await setString(SERVER_PUBLIC_KEY, "");
-    if (!await _hasKey(AUTH)) await setString(AUTH, "");
-    if (!await _hasKey(LOCAL_PASSWORD)) await setString(LOCAL_PASSWORD, "");
-    if (!await _hasKey(CHANGE_DB_PASSWORD)) await setString(CHANGE_DB_PASSWORD, "");
-    if (!await _hasKey(DATABASE_PASSWORD)) await setString(DATABASE_PASSWORD, "");
-    if (!await _hasKey(IS_OTP_CHECK)) await setString(IS_OTP_CHECK, "false");
-    if (!await _hasKey(SMS_RETRIVER_FLAG)) await setString(SMS_RETRIVER_FLAG, "false");
-    if (!await _hasKey(ENCRYPTED_VALUE)) await setString(ENCRYPTED_VALUE, "");
-    if (!await _hasKey(DISTRICT)) await setString(DISTRICT, "");
-    if (!await _hasKey(USER_JURISDICTION)) await setString(USER_JURISDICTION, "");
-    if (!await _hasKey(DATA_INITIALIZED)) await setString(DATA_INITIALIZED, "false");
-    if (!await _hasKey(V24_INIT)) await setString(V24_INIT, "false");
-    if (!await _hasKey(DATA_VERSION)) await setString(DATA_VERSION, "");
-    if (!await _hasKey(SUBSCRIBED_TOPICS)) await setString(SUBSCRIBED_TOPICS, "");
-    if (!await _hasKey(APP_LATEST_VERSION)) await setString(APP_LATEST_VERSION, "");
-    if (!await _hasKey(allowed_features)) await setString(allowed_features, "");
+    if (!await hasKey(userData)) await setString(userData, "");
+    if (!await hasKey(LANGUAGE)) await setString(LANGUAGE, "");
+    if (!await hasKey(termsURL)) await setString(termsURL, "");
+    if (!await hasKey(eLostReport)) await setString(eLostReport, "");
+    if (!await hasKey(eLostArticles)) await setString(eLostArticles, "");
+    if (!await hasKey(RSA_PUBLIC_KEY)) await setString(RSA_PUBLIC_KEY, "");
+    if (!await hasKey(RSA_PRIVATE_KEY)) await setString(RSA_PRIVATE_KEY, "");
+    if (!await hasKey(JWT)) await setString(JWT, "");
+    if (!await hasKey(MOBILE)) await setString(MOBILE, "");
+    if (!await hasKey(SERVER_PUBLIC_KEY))
+      await setString(SERVER_PUBLIC_KEY, "");
+    if (!await hasKey(AUTH)) await setString(AUTH, "");
+    if (!await hasKey(LOCAL_PASSWORD)) await setString(LOCAL_PASSWORD, "");
+    if (!await hasKey(CHANGE_DB_PASSWORD))
+      await setString(CHANGE_DB_PASSWORD, "");
+    if (!await hasKey(DATABASE_PASSWORD))
+      await setString(DATABASE_PASSWORD, "");
+    if (!await hasKey(IS_OTP_CHECK)) await setString(IS_OTP_CHECK, "false");
+    if (!await hasKey(SMS_RETRIVER_FLAG))
+      await setString(SMS_RETRIVER_FLAG, "false");
+    if (!await hasKey(ENCRYPTED_VALUE)) await setString(ENCRYPTED_VALUE, "");
+    if (!await hasKey(DISTRICT)) await setString(DISTRICT, "");
+    if (!await hasKey(USER_JURISDICTION))
+      await setString(USER_JURISDICTION, "");
+    if (!await hasKey(DATA_INITIALIZED))
+      await setString(DATA_INITIALIZED, "false");
+    if (!await hasKey(V24_INIT)) await setString(V24_INIT, "false");
+    if (!await hasKey(DATA_VERSION)) await setString(DATA_VERSION, "");
+    if (!await hasKey(SUBSCRIBED_TOPICS))
+      await setString(SUBSCRIBED_TOPICS, "");
+    if (!await hasKey(APP_LATEST_VERSION))
+      await setString(APP_LATEST_VERSION, "");
+    if (!await hasKey(allowed_features)) await setString(allowed_features, "");
   }
 
   // Store a plain string (no encryption)

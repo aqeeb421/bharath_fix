@@ -50,7 +50,7 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
     final email = data['email'] ?? 'N/A';
     final phone = data['phone'] ?? 'N/A';
     final radius = data['operatingRadiusKm'] ?? 15;
-    final exp = data['experienceYears'] ?? 3;
+    final exp = data['experience'] ?? data['experienceYears'] ?? 3;
 
     showDialog(
       context: context,
@@ -79,8 +79,8 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                 _buildInfoSection('Bank Payout Information', [
                   'Bank Name: ${bank['bankName'] ?? 'N/A'}',
                   'Account Holder: ${bank['accountHolder'] ?? 'N/A'}',
-                  'Account Number: ${bank['accountNumber'] ?? 'N/A'}',
-                  'IFSC Code: ${bank['ifscCode'] ?? 'N/A'}',
+                  'Account Number: ${bank['accountNumber'] ?? bank['accountNo'] ?? 'N/A'}',
+                  'IFSC Code: ${bank['ifscCode'] ?? bank['ifsc'] ?? 'N/A'}',
                 ]),
                 const SizedBox(height: 16),
                 Text('Certified Appliance Skills:', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -377,9 +377,9 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                 final data = doc.data();
                 final name = (data['name'] as String? ?? '').toLowerCase();
                 final category = (data['category'] as String? ?? '').toLowerCase();
-                final status = (data['status'] as String? ?? '');
+                final status = (data['status'] as String? ?? '').trim().toLowerCase();
 
-                return status != 'pending_verification' && (name.contains(_searchQuery) || category.contains(_searchQuery));
+                return status != 'pending_verification' && status != 'pending' && (name.contains(_searchQuery) || category.contains(_searchQuery));
               }).toList();
 
               if (filteredDocs.isEmpty) {
@@ -494,7 +494,10 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final pendingDocs = docs.where((doc) => doc.data()['status'] == 'pending_verification').toList();
+        final pendingDocs = docs.where((doc) {
+          final st = (doc.data()['status'] ?? '').toString().trim().toLowerCase();
+          return st == 'pending_verification' || st == 'pending';
+        }).toList();
 
         if (pendingDocs.isEmpty) {
           return Center(

@@ -8,8 +8,6 @@ import 'package:bharath_fix/utils/app_routes.dart';
 import 'package:bharath_fix/utils/app_strings.dart';
 import 'package:flutter/material.dart';
 
-import '../../utils/LocalStorage.dart';
-import '../../services/database_service.dart';
 import 'auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,103 +47,37 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushNamed(
             context,
             AppRoutes.otp,
-            arguments: {
-              'phone': phone,
-              'verificationId': verificationId,
-            },
+            arguments: {'phone': phone, 'verificationId': verificationId},
           );
         },
         onError: (e) {
           if (!mounted) return;
           setState(() => _isLoading = false);
-          final msg = (e.message ?? '').toUpperCase();
-          if (msg.contains('BILLING_NOT_ENABLED') || e.code == '17499') {
-            _showBillingNotEnabledDialog(phone);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.message ?? 'Phone verification failed'),
-                backgroundColor: Colors.redAccent,
+          final msg = e.message ?? 'Phone verification failed';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                msg.contains('BILLING_NOT_ENABLED') || e.code == '17499'
+                    ? 'Firebase Phone SMS requires Blaze Plan or adding +91$phone as a test number in Firebase Console.'
+                    : msg,
               ),
-            );
-          }
+              backgroundColor: Colors.redAccent,
+              duration: const Duration(seconds: 4),
+            ),
+          );
         },
       );
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        final errStr = e.toString().toUpperCase();
-        if (errStr.contains('BILLING_NOT_ENABLED') || errStr.contains('17499')) {
-          _showBillingNotEnabledDialog(phone);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Phone Verification Error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     }
-  }
-
-  void _showBillingNotEnabledDialog(String phone) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Firebase Billing Required',
-                style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Firebase Phone SMS requires upgrading to the Blaze Plan in Firebase Console, OR adding +91$phone as a test number in Firebase Console.',
-                style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                '• Free Test Mode: Firebase Console > Auth > Phone numbers for testing.\n• Real SMS: Firebase Console > Upgrade to Blaze Plan.',
-                style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: Colors.grey, height: 1.4),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(
-                context,
-                AppRoutes.otp,
-                arguments: {
-                  'phone': phone,
-                  'verificationId': 'test_id_billing_bypass',
-                },
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Proceed (Test Mode)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -207,7 +139,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
                 _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      )
                     : CommonButton(
                         label: AppStrings.continueText,
                         onPressed: isValid ? _handlePhoneContinue : () {},

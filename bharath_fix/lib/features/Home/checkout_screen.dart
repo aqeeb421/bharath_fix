@@ -46,15 +46,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String? _appliedCouponCode;
   double _discountAmount = 0.0;
-  final TextEditingController _couponTextController = TextEditingController(text: 'BHARATH20');
+  final TextEditingController _couponTextController = TextEditingController(text: '');
 
-  final List<Map<String, String>> _dates = [
-    {'day': 'Thu', 'num': '9'},
-    {'day': 'Fri', 'num': '10'},
-    {'day': 'Sat', 'num': '11'},
-    {'day': 'Sun', 'num': '12'},
-    {'day': 'Mo', 'num': '13'},
-  ];
+
+  List<Map<String, dynamic>> _dates = [];
 
   final List<String> _timeSlots = [
     '9:00 AM', '11:00 AM', '1:00 PM',
@@ -64,16 +59,129 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    // 1. Initialize the native gateway instance pipeline
+    _generate30DaysList();
     _razorpay = Razorpay();
 
-    // 2. Register global event handler response routines
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
 
     _loadUserProfileAndAddresses();
   }
+
+  void _generate30DaysList() {
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> list = [];
+    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (int i = 0; i < 30; i++) {
+      final d = now.add(Duration(days: i));
+      String dayStr;
+      if (i == 0) {
+        dayStr = 'Today';
+      } else if (i == 1) {
+        dayStr = 'Tomorrow';
+      } else {
+        dayStr = days[d.weekday % 7];
+      }
+      list.add({
+        'fullDate': d,
+        'day': dayStr,
+        'num': d.day.toString(),
+        'month': months[d.month - 1],
+      });
+    }
+    _dates = list;
+  }
+
+  Future<void> _openCalendarPicker() async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _dates[_selectedDateIndex]['fullDate'] as DateTime? ?? now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.title,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null && mounted) {
+      final index = _dates.indexWhere((d) {
+        final dt = d['fullDate'] as DateTime;
+        return dt.year == pickedDate.year &&
+            dt.month == pickedDate.month &&
+            dt.day == pickedDate.day;
+      });
+
+      if (index != -1) {
+        setState(() {
+          _selectedDateIndex = index;
+        });
+        _fetchBookedSlotsForSelectedDate();
+      }
+    }
+  }
+
+  Future<void> _openClockTimePicker() async {
+    final now = DateTime.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.title,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null && mounted) {
+      final selectedFullDate = _dates[_selectedDateIndex]['fullDate'] as DateTime;
+      final isToday = selectedFullDate.year == now.year &&
+          selectedFullDate.month == now.month &&
+          selectedFullDate.day == now.day;
+
+      if (isToday) {
+        final currentTime = TimeOfDay.now();
+        if (pickedTime.hour < currentTime.hour ||
+            (pickedTime.hour == currentTime.hour && pickedTime.minute < currentTime.minute)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select a future time slot for today!'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
+      }
+
+      final formattedTime = pickedTime.format(context);
+      setState(() {
+        if (!_timeSlots.contains(formattedTime)) {
+          _timeSlots.add(formattedTime);
+        }
+        _selectedTimeIndex = _timeSlots.indexOf(formattedTime);
+      });
+    }
+  }
+
 
   Future<void> _loadUserProfileAndAddresses() async {
     final profile = await DatabaseService().fetchProfile();
@@ -216,13 +324,80 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(height: AppSpacing.large),
                   _buildAddressSection(),
                   const SizedBox(height: AppSpacing.large),
-                  const Text('Choose date', style: AppTextStyle.bodyBold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Choose date', style: AppTextStyle.bodyBold),
+                      InkWell(
+                        onTap: _openCalendarPicker,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
+                              SizedBox(width: 4),
+                              Text(
+                                'Calendar 📅',
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.small),
                   _buildDateCarousel(),
                   const SizedBox(height: AppSpacing.large),
-                  const Text('Choose time', style: AppTextStyle.bodyBold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Choose time', style: AppTextStyle.bodyBold),
+                      InkWell(
+                        onTap: _openClockTimePicker,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+                              SizedBox(width: 4),
+                              Text(
+                                'Custom Time ⏰',
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.small),
                   _buildTimeGrid(),
+
                   const SizedBox(height: AppSpacing.large),
                   _buildCouponSection(),
                   const SizedBox(height: AppSpacing.large),
@@ -328,17 +503,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildDateCarousel() {
     return SizedBox(
-      height: 72,
+      height: 76,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _dates.length,
         itemBuilder: (context, index) {
           final isSelected = _selectedDateIndex == index;
+          final item = _dates[index];
           return GestureDetector(
-            onTap: () => setState(() => _selectedDateIndex = index),
+            onTap: () {
+              setState(() => _selectedDateIndex = index);
+              _fetchBookedSlotsForSelectedDate();
+            },
             child: Container(
-              width: 60,
+              width: 68,
               margin: const EdgeInsets.only(right: AppSpacing.small),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary : AppColors.background,
@@ -349,13 +528,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _dates[index]['day']!,
-                    style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: isSelected ? Colors.white70 : AppColors.subtitle, fontWeight: FontWeight.w500),
+                    item['day'].toString(),
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 11,
+                      color: isSelected ? Colors.white70 : AppColors.subtitle,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
-                    _dates[index]['num']!,
-                    style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 18, color: isSelected ? Colors.white : AppColors.title, fontWeight: FontWeight.bold),
+                    item['num'].toString(),
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 17,
+                      color: isSelected ? Colors.white : AppColors.title,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    item['month'].toString(),
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 10,
+                      color: isSelected ? Colors.white70 : AppColors.subtitle,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -365,6 +563,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
+
 
   Set<String> _bookedTimeSlots = {};
 
@@ -534,6 +733,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  void _confirmAndProcessCODPayment() {
+    if (!_isAddressSelected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a valid service address first!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final payableAmount = _getFinalPayableAmount();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.large)),
+          title: Row(
+            children: const [
+              Icon(Icons.payments_rounded, color: Colors.green, size: 28),
+              SizedBox(width: 10),
+              Text("Confirm Cash Payment", style: AppTextStyle.sectionHeader),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Pay on Service Completion",
+                style: AppTextStyle.bodyBold,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Please pay ₹${payableAmount.toStringAsFixed(0)} in cash directly to your technician after job completion.",
+                style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleCODPayment();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+              ),
+              child: const Text("Confirm & Book", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _handleCODPayment() async {
     if (!_isAddressSelected) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -544,6 +806,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       return;
     }
+
 
     final chosenDate = _dates[_selectedDateIndex];
     final chosenTime = _timeSlots[_selectedTimeIndex];
@@ -1019,8 +1282,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 if (_selectedPaymentMethod == 'WALLET') {
                   _handleWalletPayment(orderAmount, walletBalance);
                 } else if (_selectedPaymentMethod == 'COD') {
-                  _handleCODPayment();
+                  _confirmAndProcessCODPayment();
                 } else {
+
                   _openRazorpayGateway();
                 }
               },

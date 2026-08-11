@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../ui/theme/app_colors.dart';
@@ -21,28 +23,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _hasCheckedArguments = false;
 
   // Location tracking states
-  String _currentLocationName = "Fetching location...";
-  bool _isServiceableRegion = false;
-  bool _isLoadingLocation = true;
+  String _currentLocationName = "Hassan, KA";
+  bool _isServiceableRegion = true;
+  bool _isLoadingLocation = false;
 
   // The 8 official functional taluks of Hassan District
   final List<String> _hassanTaluks = [
-    'hassan', 'alur', 'arkalgud', 'arsikere',
-    'belur', 'channarayapatna', 'holenarasipura', 'sakleshpura', 'sakleshpur'
+    'hassan',
+    'alur',
+    'arkalgud',
+    'arsikere',
+    'belur',
+    'channarayapatna',
+    'holenarasipura',
+    'sakleshpura',
+    'sakleshpur',
   ];
 
   @override
   void initState() {
     super.initState();
-    _determineUserPositionWorkflow();
+    _determineUserPositionWorkflow(showDialogOnFail: false);
   }
 
-  Future<void> _determineUserPositionWorkflow({bool showDialogOnFail = true}) async {
-    setState(() => _isLoadingLocation = true);
+  Future<void> _determineUserPositionWorkflow({
+    bool showDialogOnFail = false,
+  }) async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _setFallbackLocation("Location services disabled");
+        _setFallbackLocation("Hassan, KA");
         if (showDialogOnFail && mounted) {
           _showEnableLocationServiceDialog();
         }
@@ -53,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _setFallbackLocation("Permission denied");
+          _setFallbackLocation("Hassan, KA");
           if (showDialogOnFail && mounted) {
             _showLocationPermissionDeniedDialog(permanently: false);
           }
@@ -62,54 +72,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _setFallbackLocation("Permissions permanently denied");
+        _setFallbackLocation("Hassan, KA");
         if (showDialogOnFail && mounted) {
           _showLocationPermissionDeniedDialog(permanently: true);
         }
         return;
       }
 
-      // Fetch precise GPS coordinates
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
+      // 1. Try fast cached last known position first (0ms delay)
+      Position? position = await Geolocator.getLastKnownPosition();
+
+      // 2. If no cached position, request fresh GPS coordinates with safe timeout catch
+      position ??=
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+            ),
+          ).timeout(
+            const Duration(seconds: 4),
+            onTimeout: () {
+              debugPrint(
+                "GPS location request timed out. Using fallback location.",
+              );
+              throw TimeoutException("GPS Timeout");
+            },
+          );
 
       // Reverse-geocode coordinates to find district, town, and postal parameters
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;
 
-        // Clean up string tokens
-        String district = (place.subAdministrativeArea ?? "").trim().toLowerCase();
-        String locality = (place.locality ?? "").trim().toLowerCase();
-        String subLocality = (place.subLocality ?? "").trim().toLowerCase();
+        // Prioritize town/sublocality name (e.g. Arkalgud) over generic district
+        String bestLocationName = '';
+        if (place.subLocality != null &&
+            place.subLocality!.trim().isNotEmpty &&
+            place.subLocality != 'Unnamed Road') {
+          bestLocationName = place.subLocality!.trim();
+        } else if (place.locality != null &&
+            place.locality!.trim().isNotEmpty) {
+          bestLocationName = place.locality!.trim();
+        } else if (place.name != null &&
+            place.name!.trim().isNotEmpty &&
+            !place.name!.contains('+')) {
+          bestLocationName = place.name!.trim();
+        } else if (place.subAdministrativeArea != null &&
+            place.subAdministrativeArea!.trim().isNotEmpty) {
+          bestLocationName = place.subAdministrativeArea!.trim();
+        } else {
+          bestLocationName = "Hassan";
+        }
 
-        // 1. Direct check: Is the district explicitly Hassan?
-        bool isHassanDistrict = district == 'hassan' || district.startsWith('hassan');
+        String displayName = "$bestLocationName, KA";
 
-        // 2. Exact word check against Hassan Taluks (prevents "bengALURu" matching "alur")
-        bool isAnyTaluk = _hassanTaluks.any((taluk) {
-          return district == taluk ||
-              locality == taluk ||
-              subLocality == taluk ||
-              RegExp('\\b$taluk\\b', caseSensitive: false).hasMatch(district) ||
-              RegExp('\\b$taluk\\b', caseSensitive: false).hasMatch(locality);
-        });
-
-        String displayName = place.locality?.isNotEmpty == true
-            ? "${place.locality}, KA"
-            : "${place.subAdministrativeArea ?? 'Unknown'}, KA";
-
-        setState(() {
-          _currentLocationName = displayName;
-          // TODO: Location restriction hidden for the time being
-          // _isServiceableRegion = isHassanDistrict || isAnyTaluk;
-          _isServiceableRegion = true;
-          _isLoadingLocation = false;
-        });
+        if (mounted) {
+          setState(() {
+            _currentLocationName = displayName;
+            _isServiceableRegion = true;
+            _isLoadingLocation = false;
+          });
+        }
       }
     } catch (e) {
-      _setFallbackLocation("Bengaluru, KA"); // Graceful fallback
+      debugPrint("Location workflow exception caught safely: $e");
+      if (mounted) {
+        _setFallbackLocation("Hassan, KA");
+      }
     }
   }
 
@@ -122,17 +153,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Icon(Icons.location_off_rounded, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('Enable Location Services', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'Enable Location Services',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
           ],
         ),
         content: const Text(
           'Location services are currently turned off on your device. Please turn on Location Services to automatically detect your service address and assign nearby technicians.',
-          style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: AppColors.subtitle, height: 1.4),
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+            color: AppColors.subtitle,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.subtitle)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.subtitle),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -141,9 +187,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('Open Location Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Open Location Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -159,19 +213,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Icon(Icons.security_rounded, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('Location Permission', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              'Location Permission',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
           ],
         ),
         content: Text(
           permanently
               ? 'Location permission is permanently denied in app settings. Please enable Location permissions in App Settings so BharathFix can locate nearby technicians.'
               : 'Location permission is required to detect your current service area. Please grant location access.',
-          style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: AppColors.subtitle, height: 1.4),
+          style: const TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+            color: AppColors.subtitle,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Dismiss', style: TextStyle(color: AppColors.subtitle)),
+            child: const Text(
+              'Dismiss',
+              style: TextStyle(color: AppColors.subtitle),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -184,20 +253,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: Text(permanently ? 'Open App Settings' : 'Grant Permission', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              permanently ? 'Open App Settings' : 'Grant Permission',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _setFallbackLocation(String fallbackName) {
+  void _setFallbackLocation([String fallbackName = "Hassan, KA"]) {
     setState(() {
       _currentLocationName = fallbackName;
-      // TODO: Location restriction hidden for the time being
-      // _isServiceableRegion = false;
       _isServiceableRegion = true;
       _isLoadingLocation = false;
     });
@@ -230,11 +305,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       HomeScreen(
         detectedLocation: _currentLocationName,
         isServiceable: _isServiceableRegion,
-        onRetryLocation: () => _determineUserPositionWorkflow(showDialogOnFail: true),
-        onProfileTap: () => setState(() => _currentIndex = 3),
+        onRetryLocation: () =>
+            _determineUserPositionWorkflow(showDialogOnFail: true),
+        onProfileTap: () => setState(() => _currentIndex = 2),
       ),
       const BookingsScreen(),
-      const ChatScreen(),
       const ProfileScreen(),
     ];
 
@@ -247,11 +322,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return;
         }
         final now = DateTime.now();
-        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
           _lastBackPressTime = now;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Press back again to exit BharathFix', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, fontWeight: FontWeight.w500)),
+              content: Text(
+                'Press back again to exit BharathFix',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               backgroundColor: AppColors.primary,
               duration: Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
@@ -266,7 +349,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppColors.background,
         body: IndexedStack(index: _currentIndex, children: screens),
         bottomNavigationBar: Container(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border, width: 1.0))),
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: AppColors.border, width: 1.0),
+            ),
+          ),
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: (index) => setState(() => _currentIndex = index),
@@ -275,13 +362,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
             unselectedItemColor: AppColors.subtitle,
             type: BottomNavigationBarType.fixed,
             elevation: 0,
-            selectedLabelStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600, fontSize: 11),
-            unselectedLabelStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w500, fontSize: 11),
+            selectedLabelStyle: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home_rounded), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), activeIcon: Icon(Icons.assignment_rounded), label: 'Bookings'),
-              BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline_rounded), activeIcon: Icon(Icons.chat_bubble_rounded), label: 'Chat'),
-              BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), activeIcon: Icon(Icons.person_rounded), label: 'Profile'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.assignment_outlined),
+                activeIcon: Icon(Icons.assignment_rounded),
+                label: 'Bookings',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline_rounded),
+                activeIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
             ],
           ),
         ),

@@ -2,14 +2,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/BookingEntry.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../services/database_service.dart';
+import '../../ui/widgets/rating_review_dialog.dart';
+import '../Chat/chat_screen.dart';
 
 class BookingsScreen extends StatefulWidget {
+
   const BookingsScreen({super.key});
 
   @override
@@ -18,24 +20,6 @@ class BookingsScreen extends StatefulWidget {
 
 class _BookingsScreenState extends State<BookingsScreen> {
   final _dbService = DatabaseService();
-  List<BookingEntry> _sqliteBookings = [];
-  bool _isLoadingSqlite = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSqliteBookings();
-  }
-
-  Future<void> _loadSqliteBookings() async {
-    final list = await _dbService.fetchBookings();
-    if (mounted) {
-      setState(() {
-        _sqliteBookings = list;
-        _isLoadingSqlite = false;
-      });
-    }
-  }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -101,19 +85,50 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text("Booking ID: $bookingId", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                const Divider(height: 24),
+                // OTP Display Box for Customer (Kept visible for all active stages)
 
-                // OTP Display Box for Customer
-                if (status == 'accepted' || status == 'in_progress')
+                if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()))
                   _buildCustomerOtpBox(startOtp, completionOtp, status),
 
                 const SizedBox(height: 12),
-                _buildStatusTimeline(status),
+                _buildStatusTimeline(status, techName),
+
+                if (['completed', 'work_completed'].contains(status.toLowerCase())) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        showDialog(
+                          context: context,
+                          builder: (context) => RatingReviewDialog(
+                            bookingId: bookingId,
+                            providerName: techName.isNotEmpty ? techName : 'Technician',
+                            providerId: techPhone,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.star_rounded, color: Colors.amber, size: 22),
+                      label: const Text(
+                        "Rate & Review Technician ⭐",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFF8E1),
+                        side: const BorderSide(color: Color(0xFFFFD54F)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                      ),
+                    ),
+                  ),
+                ],
 
                 const Divider(height: 24),
                 _buildInfoRow(Icons.schedule_rounded, "Scheduled Slot", dateTime),
                 const SizedBox(height: 10),
                 _buildInfoRow(Icons.location_on_outlined, "Service Address", address),
+
 
                 if (techName.isNotEmpty) ...[
                   const Divider(height: 24),
@@ -142,6 +157,24 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                 Text(techPhone, style: AppTextStyle.subtitle),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BookingChatDetailScreen(
+                                  bookingId: bookingId,
+                                  providerName: techName,
+                                  providerPhone: techPhone,
+                                  serviceTitle: title,
+                                  status: status,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         if (techPhone.isNotEmpty)
                           IconButton(
@@ -290,33 +323,88 @@ class _BookingsScreenState extends State<BookingsScreen> {
     );
   }
 
-  Widget _buildStatusTimeline(String status) {
-    String statusText = "Pending Assignment";
-    Color color = Colors.amber.shade800;
-    IconData icon = Icons.hourglass_top_rounded;
+  Map<String, dynamic> _getStatusConfig(String rawStatus, String techName) {
+    final status = rawStatus.toLowerCase().trim();
 
-    if (status == 'accepted') {
-      statusText = "Technician Assigned & En Route";
-      color = Colors.blue;
-      icon = Icons.directions_run_rounded;
-    } else if (status == 'in_progress') {
-      statusText = "Service in Progress";
-      color = Colors.orange;
-      icon = Icons.build_rounded;
-    } else if (status == 'completed') {
-      statusText = "Service Completed";
-      color = Colors.green;
-      icon = Icons.check_circle_rounded;
-    } else if (status == 'cancelled') {
-      statusText = "Cancelled";
-      color = Colors.red;
-      icon = Icons.cancel_rounded;
+    if (['on_the_way', 'in_transit'].contains(status)) {
+      final name = techName.isNotEmpty ? techName : "Technician";
+      return {
+        'label': 'On The Way 🛵',
+        'timeline': '$name is On The Way',
+        'color': Colors.blue.shade700,
+        'bg': Colors.blue.withValues(alpha: 0.15),
+        'icon': Icons.directions_bike_rounded,
+      };
+    } else if (['accepted', 'assigned'].contains(status)) {
+      final name = techName.isNotEmpty ? techName : "Technician";
+      return {
+        'label': 'Technician Assigned',
+        'timeline': '$name Assigned & Confirmed',
+        'color': Colors.indigo.shade600,
+        'bg': Colors.indigo.withValues(alpha: 0.15),
+        'icon': Icons.person_pin_circle_rounded,
+      };
+    } else if (status == 'arrived') {
+      return {
+        'label': 'Technician Arrived 📍',
+        'timeline': 'Technician has Arrived at your location',
+        'color': Colors.teal.shade700,
+        'bg': Colors.teal.withValues(alpha: 0.15),
+        'icon': Icons.location_on_rounded,
+      };
+    } else if (['inspection_in_progress', 'quotation_pending_approval'].contains(status)) {
+      return {
+        'label': 'Inspection & Quote 📋',
+        'timeline': 'Inspection in progress / Quote awaiting approval',
+        'color': Colors.amber.shade900,
+        'bg': Colors.amber.withValues(alpha: 0.15),
+        'icon': Icons.fact_check_rounded,
+      };
+    } else if (['in_progress', 'work_started', 'work_in_progress'].contains(status)) {
+      return {
+        'label': 'Service in Progress ⚙️',
+        'timeline': 'Technician is performing the service',
+        'color': Colors.orange.shade800,
+        'bg': Colors.orange.withValues(alpha: 0.15),
+        'icon': Icons.build_circle_rounded,
+      };
+    } else if (['completed', 'work_completed', 'paid_and_closed', 'closed'].contains(status)) {
+      return {
+        'label': 'Completed 🎉',
+        'timeline': 'Service Completed & Closed',
+        'color': Colors.green.shade700,
+        'bg': Colors.green.withValues(alpha: 0.15),
+        'icon': Icons.check_circle_rounded,
+      };
+    } else if (['cancelled', 'rejected'].contains(status)) {
+      return {
+        'label': 'Cancelled',
+        'timeline': 'Booking Cancelled',
+        'color': Colors.red.shade700,
+        'bg': Colors.red.withValues(alpha: 0.15),
+        'icon': Icons.cancel_rounded,
+      };
     }
+
+    return {
+      'label': 'Pending Assignment',
+      'timeline': 'Searching for nearby technician...',
+      'color': Colors.amber.shade800,
+      'bg': AppColors.statusPendingBg,
+      'icon': Icons.hourglass_top_rounded,
+    };
+  }
+
+  Widget _buildStatusTimeline(String status, String techName) {
+    final cfg = _getStatusConfig(status, techName);
+    final String statusText = cfg['timeline'];
+    final Color color = cfg['color'];
+    final IconData icon = cfg['icon'];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: cfg['bg'],
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color),
       ),
@@ -364,28 +452,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _dbService.getUserBookingsStream(),
         builder: (context, snapshot) {
-          // Merge local SQLite bookings and Firestore real-time snapshot docs
-          final Map<String, Map<String, dynamic>> allBookingsMap = {};
-
-          // 1. Include local SQLite bookings first
-          for (var b in _sqliteBookings) {
-            allBookingsMap[b.id] = b.toMap();
-          }
-
-          // 2. Merge Firestore stream documents (overriding or adding cloud docs)
-          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            for (var doc in snapshot.data!.docs) {
-              final data = doc.data();
-              final id = data['id']?.toString() ?? doc.id;
-              allBookingsMap[id] = data;
-            }
-          }
-
-          final List<Map<String, dynamic>> bookingDocs = allBookingsMap.values.toList();
-
-          if (bookingDocs.isEmpty && (snapshot.connectionState == ConnectionState.waiting || _isLoadingSqlite)) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
+
+          final docs = snapshot.data?.docs ?? [];
+          final List<Map<String, dynamic>> bookingDocs = docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            data['id'] = doc.id;
+            return data;
+          }).toList();
 
           if (bookingDocs.isEmpty) {
             return _buildEmptyState();
@@ -417,27 +493,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   ? Icons.water_drop_rounded
                   : Icons.handyman_rounded;
 
-              Color statusBg = AppColors.statusPendingBg;
-              Color statusText = AppColors.statusPendingText;
-              String displayStatusText = "Pending";
-
-              if (status == 'accepted') {
-                statusBg = Colors.blue.withOpacity(0.15);
-                statusText = Colors.blue;
-                displayStatusText = "Technician Assigned";
-              } else if (status == 'in_progress') {
-                statusBg = Colors.orange.withOpacity(0.15);
-                statusText = Colors.orange.shade800;
-                displayStatusText = "In Progress";
-              } else if (status == 'completed') {
-                statusBg = Colors.green.withOpacity(0.15);
-                statusText = Colors.green.shade800;
-                displayStatusText = "Completed";
-              } else if (status == 'cancelled') {
-                statusBg = Colors.red.withOpacity(0.15);
-                statusText = Colors.red;
-                displayStatusText = "Cancelled";
-              }
+              final cfg = _getStatusConfig(status, techName);
+              Color statusBg = cfg['bg'];
+              Color statusText = cfg['color'];
+              String displayStatusText = cfg['label'];
 
               return Container(
                 margin: const EdgeInsets.only(bottom: AppSpacing.medium),
@@ -498,15 +557,15 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           ],
                         ),
 
-                        // Display OTP Banner on Card if Assigned or In Progress
-                        if ((status == 'accepted' || status == 'in_progress') && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                        // Display OTP Banner on Card if technician is assigned, on the way, arrived, or in progress
+                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
                           const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.08),
+                              color: AppColors.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -516,12 +575,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                     const Icon(Icons.key_rounded, size: 16, color: AppColors.primary),
                                     const SizedBox(width: 6),
                                     Text(
-                                      status == 'accepted' ? "Start OTP: $startOtp" : "End OTP: $completionOtp",
+                                      ['completed', 'work_completed'].contains(status.toLowerCase())
+                                          ? "End OTP: $completionOtp"
+                                          : "Start OTP: $startOtp",
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
                                     ),
                                   ],
                                 ),
-                                const Text("Tap for details ►", style: TextStyle(fontSize: 11, color: AppColors.subtitle)),
+                                const Text("Share with technician ►", style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),

@@ -223,6 +223,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.dashboard,
+                (route) => false,
+              );
+            },
+            child: const Text(
+              'Skip for Now',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -397,6 +417,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           Center(
                             child: TextButton(
                               onPressed: () async {
+                                try {
+                                  final currentUser = FirebaseAuth.instance.currentUser;
+                                  final uid = currentUser?.uid ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
+                                  final phone = _phoneController.text.trim().isNotEmpty
+                                      ? _phoneController.text.trim()
+                                      : (currentUser?.phoneNumber ?? '');
+                                  final name = _nameController.text.trim().isNotEmpty
+                                      ? _nameController.text.trim()
+                                      : 'User';
+                                  final email = _emailController.text.trim();
+
+                                  final defaultUser = UserModel(
+                                    uid: uid,
+                                    name: name,
+                                    phone: phone,
+                                    email: email,
+                                  );
+                                  await DatabaseService().saveUserProfile(defaultUser);
+                                } catch (e) {
+                                  debugPrint('Error saving default skipped profile: $e');
+                                }
+
                                 LocalStorage local = await LocalStorage.getInstance();
                                 await local.setString(LocalStorage.firstUse, "false");
                                 if (mounted) {
