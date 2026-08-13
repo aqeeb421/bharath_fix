@@ -256,6 +256,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       visitingFee: _getFinalPayableAmount(),
       address: _chosenAddressDetails,
       status: JobStatus.booked,
+      paymentMode: 'ONLINE',
+      isVisitingFeePaid: true,
       isSynced: 0,
     );
 
@@ -708,6 +710,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         visitingFee: _getFinalPayableAmount(),
         address: _chosenAddressDetails,
         status: JobStatus.booked,
+        paymentMode: 'WALLET',
+        isVisitingFeePaid: true,
         isSynced: 0,
       );
 
@@ -819,6 +823,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       visitingFee: _getFinalPayableAmount(),
       address: _chosenAddressDetails,
       status: JobStatus.booked,
+      paymentMode: 'COD',
+      isVisitingFeePaid: false,
       isSynced: 0,
     );
 

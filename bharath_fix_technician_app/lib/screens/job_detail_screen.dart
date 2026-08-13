@@ -8,6 +8,7 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_style.dart';
 import 'chat/technician_chat_screen.dart';
+import 'quotation_builder_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String bookingId;
@@ -194,164 +195,45 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
-  void _showQuotationBuilderModal(List<dynamic> existingItems) {
-    _partItems.clear();
-    for (var item in existingItems) {
-      if (item is Map) {
-        _partItems.add(Map<String, dynamic>.from(item));
-      }
-    }
+  void _showQuotationBuilderModal(List<dynamic> existingItems, String categoryName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuotationBuilderScreen(
+          jobId: widget.bookingId,
+          categoryName: categoryName,
+          initialItems: existingItems,
+          onSubmitQuote: (items) async {
+            final partMaps = items
+                .map((i) => {
+                      'name': i.title,
+                      'title': i.title,
+                      'price': i.price,
+                      'isSparePart': i.isSparePart,
+                      'isVerified': i.isVerified,
+                      'warrantyDays': i.warrantyDays,
+                    })
+                .toList();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            double totalEstimate = 0.0;
-            for (var item in _partItems) {
-              totalEstimate += (item['price'] as num? ?? 0.0);
-            }
+            final total = items.fold(0.0, (sum, i) => sum + i.price);
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: AppSpacing.medium,
-                right: AppSpacing.medium,
-                top: AppSpacing.medium,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Spare Parts & Repair Quotation", style: AppTextStyle.sectionHeader),
-                      IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text("Add required replacement parts and extra service charges.", style: AppTextStyle.subtitle),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _partNameController,
-                          decoration: InputDecoration(
-                            hintText: "Part Name (e.g. Compressor)",
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _partPriceController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: "Cost (₹)",
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          final name = _partNameController.text.trim();
-                          final price = double.tryParse(_partPriceController.text) ?? 0.0;
-                          if (name.isNotEmpty && price > 0) {
-                            setModalState(() {
-                              _partItems.add({'name': name, 'price': price});
-                            });
-                            _partNameController.clear();
-                            _partPriceController.clear();
-                          }
-                        },
-                        icon: const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 36),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_partItems.isNotEmpty)
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 160),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.medium),
-                      ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _partItems.length,
-                        itemBuilder: (context, idx) {
-                          final item = _partItems[idx];
-                          return ListTile(
-                            dense: true,
-                            title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text("₹${item['price']}", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                  onPressed: () {
-                                    setModalState(() {
-                                      _partItems.removeAt(idx);
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Total Quotation Amount:", style: AppTextStyle.cardTitle),
-                      Text("₹$totalEstimate", style: AppTextStyle.mainTitle.copyWith(color: AppColors.primary, fontSize: 20)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await _firestoreService.submitQuotation(
-                          widget.bookingId,
-                          _partItems,
-                          totalEstimate,
-                        );
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Quotation saved and submitted to booking!"), backgroundColor: AppColors.success),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                      child: const Text("Save & Submit Quotation", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+            await _firestoreService.submitQuotation(
+              widget.bookingId,
+              partMaps,
+              total,
             );
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Standard Rate Card Quotation submitted to customer!"),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
           },
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -551,12 +433,186 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Quotation & Parts", style: AppTextStyle.sectionHeader),
-                    TextButton.icon(
-                      onPressed: () => _showQuotationBuilderModal(quotationItems),
-                      icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary),
-                      label: Text(quotationItems.isEmpty ? "Add Quotation" : "Edit Quotation", style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Text("Quotation & Parts", style: AppTextStyle.sectionHeader),
+                          if (quotationItems.isNotEmpty) ...[
+                            Builder(builder: (context) {
+                              final qStatus = (quotationMap?['status'] ?? data['quotationStatus'] ?? 'pending').toString().toLowerCase();
+                              Color bg = Colors.orange;
+                              String label = "AWAITING APPROVAL ⏳";
+                              if (qStatus == 'approved') {
+                                bg = Colors.green;
+                                label = "APPROVED ✓";
+                              } else if (qStatus == 'rejected') {
+                                bg = Colors.red;
+                                label = "DECLINED ✗";
+                              }
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: bg.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: bg.withOpacity(0.4)),
+                                ),
+                                child: Text(
+                                  label,
+                                  style: TextStyle(color: bg, fontWeight: FontWeight.bold, fontSize: 10),
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
                     ),
+                    Builder(builder: (context) {
+                      final statusLower = status.toLowerCase();
+                      final isJobClosed = [
+                        'completed',
+                        'work_completed',
+                        'paid_and_closed',
+                        'closed',
+                        'cancelled',
+                        'cancelled_by_customer',
+                      ].contains(statusLower);
+                      final isStarted = [
+                        'in_progress',
+                        'work_in_progress',
+                        'work_started',
+                        'repair_in_progress',
+                        'inspection_in_progress',
+                        'quotation_pending_approval',
+                      ].contains(statusLower);
+                      final qStatus = (quotationMap?['status'] ??
+                              data['quotationStatus'] ??
+                              '')
+                          .toString()
+                          .toLowerCase();
+                      final isApproved = qStatus == 'approved';
+
+                      if (isJobClosed) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.shade400),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lock_outline_rounded,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "Job Completed • Locked 🔒",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (isApproved) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.shade300),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 14,
+                                color: Colors.green,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "Approved by Customer ✓",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (!isStarted) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.orange.shade300),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lock_clock_rounded,
+                                size: 14,
+                                color: Colors.orange,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "Verify Start OTP to Unlock Quote 🔒",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return TextButton.icon(
+                        onPressed: () => _showQuotationBuilderModal(
+                          quotationItems,
+                          category,
+                        ),
+                        icon: const Icon(
+                          Icons.edit_note_rounded,
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          quotationItems.isEmpty
+                              ? "Add Quotation"
+                              : "Edit Quotation",
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }),
                   ],
                 ),
                 if (quotationItems.isNotEmpty)
@@ -575,7 +631,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(item['name']?.toString() ?? '', style: AppTextStyle.subtitle),
+                                Text(item['name']?.toString() ?? item['title']?.toString() ?? '', style: AppTextStyle.subtitle),
                                 Text("₹${item['price']}", style: AppTextStyle.cardTitle),
                               ],
                             ),

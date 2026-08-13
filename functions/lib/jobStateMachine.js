@@ -64,11 +64,30 @@ exports.updateJobStatus = functions.https.onCall(async (data, context) => {
         const quoteTotal = quoteItems.reduce((acc, item) => acc + (item.price || 0), 0);
         updates.quoteItems = quoteItems;
         updates.quoteTotal = quoteTotal;
+        updates['quotation.status'] = 'pending';
+        updates.quotationStatus = 'pending';
+    }
+    else if (targetStatus === 'WORK_IN_PROGRESS') {
+        const quoteTotal = currentJob.quoteTotal || 0;
+        const visitingFee = currentJob.visitingFee || 199.0;
+        const isFeePaid = currentJob.isVisitingFeePaid || false;
+        updates.finalAmountPaid = quoteTotal + (isFeePaid ? 0 : visitingFee);
+        updates.isVisitingFeePaid = true;
+        updates.isFinalBillPaid = true;
+        updates['quotation.status'] = 'approved';
+        updates.quotationStatus = 'approved';
     }
     else if (targetStatus === 'QUOTATION_REJECTED') {
         // Inspection-only completion
-        updates.finalAmountPaid = currentJob.visitingFee || 199.0;
-        updates.isFinalBillPaid = true;
+        const visitingFee = currentJob.visitingFee || 199.0;
+        const isFeePaid = currentJob.isVisitingFeePaid || false;
+        updates.finalAmountPaid = visitingFee;
+        updates.isFinalBillPaid = isFeePaid;
+        updates['quotation.status'] = 'rejected';
+        updates.quotationStatus = 'rejected';
+        if (isFeePaid) {
+            updates.status = 'PAID_AND_CLOSED';
+        }
     }
     else if (targetStatus === 'CANCELLED_BY_CUSTOMER') {
         // Compute refund policy

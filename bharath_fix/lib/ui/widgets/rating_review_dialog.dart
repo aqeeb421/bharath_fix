@@ -86,6 +86,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
         padding: const EdgeInsets.all(AppSpacing.medium),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
@@ -100,7 +101,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 size: 36,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               'Rate Your Technician',
               style: TextStyle(
@@ -120,7 +121,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // 5-Star Row
             Row(
@@ -131,13 +132,13 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                   icon: Icon(
                     starIndex <= _ratingStars ? Icons.star_rounded : Icons.star_border_rounded,
                     color: Colors.amber,
-                    size: 36,
+                    size: 32,
                   ),
                   onPressed: () => setState(() => _ratingStars = starIndex.toDouble()),
                 );
               }),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Multi-select Feedback Tags
             Wrap(
@@ -163,7 +164,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // Comment text area
             TextField(
@@ -177,7 +178,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // Technician Tipping Section
             Align(
@@ -193,8 +194,10 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
               children: _tipOptions.map((tip) {
                 final isSelected = _selectedTipAmount == tip;
                 final label = tip == 0 ? 'No Tip' : '₹${tip.toInt()}';
@@ -209,7 +212,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
             // Submit Button
             ElevatedButton(

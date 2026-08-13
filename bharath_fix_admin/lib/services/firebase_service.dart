@@ -406,5 +406,30 @@ class FirebaseService {
         .orderBy('createdAt', descending: true)
         .snapshots();
   }
+
+  // ==================== SPARE PARTS & RATE CARDS ====================
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> getSparePartsStream() {
+    return _db.collection('spare_parts_catalog').snapshots();
+  }
+
+  Future<void> addSparePart(Map<String, dynamic> data) async {
+    await _db.collection('spare_parts_catalog').add({
+      ...data,
+      'isVerified': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateSparePart(String docId, Map<String, dynamic> data) async {
+    await _db.collection('spare_parts_catalog').doc(docId).set({
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> deleteSparePart(String docId) async {
+    await _db.collection('spare_parts_catalog').doc(docId).delete();
+  }
 }
 

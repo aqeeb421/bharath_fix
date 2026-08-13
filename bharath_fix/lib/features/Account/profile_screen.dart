@@ -316,8 +316,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   } catch (e) {
                     debugPrint('FirebaseAuth signOut error: $e');
                   }
-                  LocalStorage local = await LocalStorage.getInstance();
-                  await local.clear();
+                  try {
+                    LocalStorage local = await LocalStorage.getInstance();
+                    await local.clear();
+                  } catch (e) {
+                    debugPrint('LocalStorage clear error: $e');
+                  }
                   await DatabaseService().logoutUser();
 
                   if (mounted) {

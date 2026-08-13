@@ -1,6 +1,7 @@
 // lib/screens/tabs/catalog_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firebase_service.dart';
 
 class CatalogTab extends StatefulWidget {
@@ -17,7 +18,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -34,7 +35,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'App Catalog Control',
+            'App Catalog & Rate Cards Control',
             style: GoogleFonts.plusJakartaSans(
               color: const Color(0xFF111111),
               fontSize: 24,
@@ -43,7 +44,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
           ),
           const SizedBox(height: 6),
           Text(
-            'Configure banners, service categories, and retail products dynamically.',
+            'Configure banners, service categories, spare part rate cards, and retail products dynamically.',
             style: GoogleFonts.plusJakartaSans(
               color: const Color(0xFF757575),
               fontSize: 13,
@@ -64,6 +65,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
               Tab(text: 'Promo Banners'),
               Tab(text: 'Service Categories'),
               Tab(text: 'Retail Products'),
+              Tab(text: 'Spare Parts & Rate Cards'),
             ],
           ),
           const SizedBox(height: 24),
@@ -76,6 +78,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                 _buildBannersPanel(),
                 _buildCategoriesPanel(),
                 _buildProductsPanel(),
+                _buildRateCardsPanel(),
               ],
             ),
           ),
@@ -623,6 +626,472 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
               child: const Text('Save'),
             )
           ],
+        );
+      },
+    );
+  }
+
+  // ==================== SPARE PARTS & RATE CARDS PANEL ====================
+
+  String _selectedCategoryFilter = 'All';
+
+  Widget _buildRateCardsPanel() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Spare Parts & Rate Cards Catalog',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF111111),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Manage standard spare part prices, warranties, and rate cards grouped by appliance category.',
+                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
+                ),
+              ],
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _showSparePartFormDialog(null),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add Spare Part Rate'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF000062),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _service.getSparePartsStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF000062)));
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No standard spare parts configured. Tap "Add Spare Part Rate" to create your first rate card entry.',
+                    style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575)),
+                  ),
+                );
+              }
+
+              // Group docs by Category
+              final Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>> grouped = {};
+              for (var doc in docs) {
+                final cat = (doc.data()['category'] ?? 'General').toString();
+                grouped.putIfAbsent(cat, () => []).add(doc);
+              }
+
+              final categories = ['All', ...grouped.keys.toList()..sort()];
+
+              // Filtered list
+              final displayCategories = _selectedCategoryFilter == 'All'
+                  ? grouped.keys.toList()
+                  : grouped.keys.where((c) => c.toLowerCase() == _selectedCategoryFilter.toLowerCase()).toList();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Horizontal Category Filter Chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: categories.map((cat) {
+                        final count = cat == 'All'
+                            ? docs.length
+                            : (grouped[cat]?.length ?? 0);
+                        final isSelected = _selectedCategoryFilter == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            selected: isSelected,
+                            showCheckmark: false,
+                            avatar: CircleAvatar(
+                              radius: 10,
+                              backgroundColor: isSelected ? Colors.white : const Color(0xFF000062).withValues(alpha: 0.1),
+                              child: Text(
+                                '$count',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? const Color(0xFF000062) : const Color(0xFF000062),
+                                ),
+                              ),
+                            ),
+                            label: Text(
+                              cat,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: isSelected ? Colors.white : const Color(0xFF111111),
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontSize: 13,
+                              ),
+                            ),
+                            selectedColor: const Color(0xFF000062),
+                            backgroundColor: Colors.white,
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF000062) : const Color(0xFFE0E0E0),
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategoryFilter = cat;
+                              });
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  // Grouped Category Cards
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: displayCategories.length,
+                      itemBuilder: (context, catIndex) {
+                        final catName = displayCategories[catIndex];
+                        final categoryDocs = grouped[catName] ?? [];
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: const Color(0xFFEAEAEA)),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Category Header Bar
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF000062).withValues(alpha: 0.04),
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                  border: const Border(bottom: BorderSide(color: Color(0xFFEAEAEA))),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.category_rounded, color: Color(0xFF000062), size: 20),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          catName,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            color: const Color(0xFF111111),
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF000062).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${categoryDocs.length} Parts',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: const Color(0xFF000062),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () => _showSparePartFormDialogWithCategory(catName),
+                                      icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF000062)),
+                                      label: Text(
+                                        'Add $catName Part',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF000062),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Spare Parts Data Table
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: MediaQuery.of(context).size.width > 900 ? MediaQuery.of(context).size.width - 320 : 800,
+                                  child: DataTable(
+                                    columnSpacing: 20,
+                                    horizontalMargin: 16,
+                                    headingRowHeight: 40,
+                                    dataRowMinHeight: 48,
+                                    dataRowMaxHeight: 56,
+                                    headingRowColor: WidgetStateProperty.all(Colors.transparent),
+                                    columns: [
+                                      DataColumn(label: Text('Part Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                      DataColumn(label: Text('Standard Rate', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                      DataColumn(label: Text('Warranty', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                      DataColumn(label: Text('Description', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                      DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                    ],
+                                    rows: categoryDocs.map((doc) {
+                                      final data = doc.data();
+                                      final name = data['partName'] ?? data['title'] ?? 'Spare Part';
+                                      final price = (data['price'] as num? ?? data['standardPrice'] as num? ?? 0.0).toDouble();
+                                      final warrantyDays = data['warrantyDays'] ?? 90;
+                                      final description = data['description'] ?? 'Standard component replacement';
+
+                                      return DataRow(
+                                        cells: [
+                                          DataCell(
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.build_circle_outlined, size: 16, color: Color(0xFF000062)),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  name,
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    color: const Color(0xFF111111),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              '₹${price.toStringAsFixed(0)}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: const Color(0xFF34A853),
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withValues(alpha: 0.08),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '🛡️ $warrantyDays Days',
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  color: Colors.blue.shade800,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              description,
+                                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Edit Spare Part',
+                                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
+                                                  onPressed: () => _showSparePartFormDialog(doc),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Delete Spare Part',
+                                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                                                  onPressed: () => _service.deleteSparePart(doc.id),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSparePartFormDialogWithCategory(String defaultCat) {
+    _showSparePartFormDialog(null, initialCategory: defaultCat);
+  }
+
+  void _showSparePartFormDialog(dynamic doc, {String? initialCategory}) {
+    final formKey = GlobalKey<FormState>();
+    final partNameController = TextEditingController(text: doc != null ? (doc['partName'] ?? doc['title']) : '');
+    final priceController = TextEditingController(text: doc != null ? (doc['price'] ?? doc['standardPrice'] ?? '').toString() : '');
+    final warrantyController = TextEditingController(text: doc != null ? (doc['warrantyDays'] ?? 90).toString() : '90');
+    final descriptionController = TextEditingController(text: doc != null ? (doc['description'] ?? '') : '');
+    String selectedCategory = doc != null ? (doc['category'] ?? 'Washing Machine') : (initialCategory ?? 'Washing Machine');
+
+    final categories = [
+      'Washing Machine',
+      'Refrigerator',
+      'Water Purifier',
+      'AC Repair',
+      'Kitchen Chimney',
+      'Air Cooler',
+      'Geyser',
+      'Microwave Oven',
+      'Electrician',
+      'Plumbing',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              title: Text(doc == null ? 'Add Standard Spare Part Rate' : 'Edit Spare Part Rate', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold)),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Appliance Category', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: categories.contains(selectedCategory) ? selectedCategory : categories.first,
+                        decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                        items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => selectedCategory = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Spare Part Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: partNameController,
+                        decoration: const InputDecoration(hintText: 'e.g. Drain Pump Motor / Capacitor 36uF', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                        validator: (v) => v == null || v.isEmpty ? 'Part name is required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Standard Rate (₹)', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+                                TextFormField(
+                                  controller: priceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(hintText: 'e.g. 650', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Warranty (Days)', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+                                TextFormField(
+                                  controller: warrantyController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(hintText: 'e.g. 90', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Part Description / Notes', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: descriptionController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(hintText: 'e.g. Original copper winding with 90-day warranty card', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pop(context);
+                    final data = {
+                      'partName': partNameController.text.trim(),
+                      'title': partNameController.text.trim(),
+                      'category': selectedCategory,
+                      'price': double.tryParse(priceController.text.trim()) ?? 0.0,
+                      'standardPrice': double.tryParse(priceController.text.trim()) ?? 0.0,
+                      'warrantyDays': int.tryParse(warrantyController.text.trim()) ?? 90,
+                      'description': descriptionController.text.trim(),
+                      'isVerified': true,
+                    };
+                    if (doc == null) {
+                      await _service.addSparePart(data);
+                    } else {
+                      await _service.updateSparePart(doc.id, data);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062), foregroundColor: Colors.white),
+                  child: const Text('Save Rate Card Item'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

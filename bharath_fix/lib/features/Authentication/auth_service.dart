@@ -75,7 +75,7 @@ class AuthService {
   }
 
 
-  // Sign out
+  // Sign out and clear local storage
   Future<void> signOut() async {
     try {
       await _auth.signOut();

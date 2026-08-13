@@ -13,17 +13,13 @@ class QuoteItem {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'price': price,
-      'isSparePart': isSparePart,
-    };
+    return {'title': title, 'price': price, 'isSparePart': isSparePart};
   }
 
   factory QuoteItem.fromMap(Map<String, dynamic> map) {
     return QuoteItem(
-      title: map['title'] ?? '',
-      price: (map['price'] ?? 0).toDouble(),
+      title: map['title'] ?? map['name'] ?? map['item'] ?? '',
+      price: (map['price'] ?? map['amount'] ?? 0).toDouble(),
       isSparePart: map['isSparePart'] ?? true,
     );
   }
@@ -84,7 +80,15 @@ class BookingEntry {
     this.isFinalBillPaid = false,
   });
 
-  String get cost => '₹${(isVisitingFeePaid ? (quoteTotal > 0 ? quoteTotal : visitingFee) : visitingFee).toStringAsFixed(0)}';
+  String get cost =>
+      '₹${(isVisitingFeePaid ? (quoteTotal > 0 ? quoteTotal : visitingFee) : visitingFee).toStringAsFixed(0)}';
+
+  /// Total payable amount for quotation approval: quotation total + visiting fee if not paid while booking
+  double get totalPayableAmount =>
+      quoteTotal + (isVisitingFeePaid ? 0.0 : visitingFee);
+
+  /// Unpaid visiting fee component (returns 0.0 if already paid during booking)
+  double get unpaidVisitingFee => isVisitingFeePaid ? 0.0 : visitingFee;
 
   BookingEntry copyWith({
     String? id,
@@ -206,19 +210,39 @@ class BookingEntry {
 
   factory BookingEntry.fromMap(Map<String, dynamic> map) {
     List<QuoteItem> decodedQuoteItems = [];
-    if (map['quoteItems'] is String && (map['quoteItems'] as String).isNotEmpty) {
+    dynamic rawItems = map['quoteItems'];
+    if (rawItems == null && map['quotation'] is Map) {
+      rawItems = map['quotation']['items'];
+    }
+
+    if (rawItems is String && rawItems.isNotEmpty) {
       try {
-        final List parsed = jsonDecode(map['quoteItems'] as String);
-        decodedQuoteItems = parsed.map((e) => QuoteItem.fromMap(Map<String, dynamic>.from(e))).toList();
+        final List parsed = jsonDecode(rawItems);
+        decodedQuoteItems = parsed
+            .map((e) => QuoteItem.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
       } catch (_) {}
-    } else if (map['quoteItems'] is List) {
-      decodedQuoteItems = (map['quoteItems'] as List)
+    } else if (rawItems is List) {
+      decodedQuoteItems = rawItems
           .map((e) => QuoteItem.fromMap(Map<String, dynamic>.from(e)))
           .toList();
     }
 
+    double parsedQuoteTotal = (map['quoteTotal'] as num?)?.toDouble() ?? 0.0;
+    if (parsedQuoteTotal == 0.0 && map['quotation'] is Map) {
+      parsedQuoteTotal =
+          (map['quotation']['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    }
+    if (parsedQuoteTotal == 0.0 && decodedQuoteItems.isNotEmpty) {
+      parsedQuoteTotal = decodedQuoteItems.fold(
+        0.0,
+        (sum, item) => sum + item.price,
+      );
+    }
+
     List<String> decodedBefore = [];
-    if (map['beforePhotos'] is String && (map['beforePhotos'] as String).isNotEmpty) {
+    if (map['beforePhotos'] is String &&
+        (map['beforePhotos'] as String).isNotEmpty) {
       try {
         final List parsed = jsonDecode(map['beforePhotos'] as String);
         decodedBefore = parsed.cast<String>();
@@ -228,7 +252,8 @@ class BookingEntry {
     }
 
     List<String> decodedAfter = [];
-    if (map['afterPhotos'] is String && (map['afterPhotos'] as String).isNotEmpty) {
+    if (map['afterPhotos'] is String &&
+        (map['afterPhotos'] as String).isNotEmpty) {
       try {
         final List parsed = jsonDecode(map['afterPhotos'] as String);
         decodedAfter = parsed.cast<String>();
@@ -249,7 +274,7 @@ class BookingEntry {
       title: map['title'] ?? '',
       dateTime: map['dateTime'] ?? '',
       visitingFee: (map['visitingFee'] ?? 199.0).toDouble(),
-      quoteTotal: (map['quoteTotal'] ?? 0.0).toDouble(),
+      quoteTotal: parsedQuoteTotal,
       finalAmountPaid: (map['finalAmountPaid'] ?? 0.0).toDouble(),
       status: JobStatus.fromCode(map['status'] ?? 'DRAFT'),
       address: map['address'] ?? '',

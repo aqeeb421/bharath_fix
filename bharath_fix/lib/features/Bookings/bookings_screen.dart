@@ -1,7 +1,8 @@
-// lib/Bookings/bookings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/BookingEntry.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -9,6 +10,9 @@ import '../../ui/theme/app_text_style.dart';
 import '../../services/database_service.dart';
 import '../../ui/widgets/rating_review_dialog.dart';
 import '../Chat/chat_screen.dart';
+import 'quotation_approval_dialog.dart';
+import 'quotation_checkout_screen.dart';
+
 
 class BookingsScreen extends StatefulWidget {
 
@@ -32,6 +36,220 @@ class _BookingsScreenState extends State<BookingsScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _approveQuotation(String bookingId, String paymentMode, [Map<String, dynamic>? bookingData]) async {
+    try {
+      final data = bookingData ?? {};
+      final quotation = data['quotation'] as Map<String, dynamic>?;
+      final double quoteTotal = (quotation?['totalAmount'] as num?)?.toDouble() ??
+          (data['quoteTotal'] as num?)?.toDouble() ??
+          0.0;
+      final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+      final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
+
+      // Total payable: quotation total + visiting fee if NOT paid during booking
+      final double totalPayableAmount = quoteTotal + (isVisitingFeePaid ? 0.0 : visitingFee);
+
+      // Handle Wallet balance deduction if WALLET selected
+      if (paymentMode == 'WALLET') {
+        final currentWallet = await DatabaseService().getWalletBalance();
+        if (currentWallet < totalPayableAmount) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Insufficient wallet balance. Top up wallet or choose another payment mode."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return false;
+        }
+        final debited = await DatabaseService().debitWallet(
+          amount: totalPayableAmount,
+          description: "Payment for Repair Quotation #$bookingId",
+          bookingId: bookingId,
+        );
+        if (!debited) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Wallet payment failed. Please try another payment mode."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return false;
+        }
+      }
+
+      final bool isPaidOnline = paymentMode == 'WALLET' || paymentMode == 'RAZORPAY';
+
+      final updates = <String, dynamic>{
+        'quotation.status': 'approved',
+        'quotationStatus': 'approved',
+        'status': 'in_progress',
+        'quoteTotal': quoteTotal,
+        'finalAmountPaid': totalPayableAmount,
+        'paymentMode': paymentMode,
+        'isFinalBillPaid': isPaidOnline,
+        'isVisitingFeePaid': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update(updates);
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('bookings')
+            .doc(bookingId)
+            .set(updates, SetOptions(merge: true));
+      }
+
+      // Send notification to provider
+      final providerId = data['providerId']?.toString();
+      if (providerId != null && providerId.isNotEmpty) {
+        final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
+        final modeLabel = paymentMode == 'WALLET' ? 'Wallet' : paymentMode == 'RAZORPAY' ? 'Online' : 'Cash';
+        await FirebaseFirestore.instance
+            .collection('providers')
+            .doc(providerId)
+            .collection('notifications')
+            .doc(notifId)
+            .set({
+          'id': notifId,
+          'techId': providerId,
+          'title': 'Quotation Approved! 🎉',
+          'body': 'Customer approved quotation (₹${totalPayableAmount.toStringAsFixed(0)} total via $modeLabel). You can proceed with repair.',
+          'data': {'bookingId': bookingId, 'type': 'QUOTATION_APPROVED'},
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Quotation Approved! ₹${totalPayableAmount.toStringAsFixed(0)} ($paymentMode). Technician starting repair.",
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to approve quotation: $e"), backgroundColor: Colors.red),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<void> _rejectQuotation(String bookingId, [Map<String, dynamic>? bookingData]) async {
+    try {
+      final data = bookingData ?? {};
+      final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+      final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
+
+      final updates = <String, dynamic>{
+        'quotation.status': 'rejected',
+        'quotationStatus': 'rejected',
+        'quotation.items': [],
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (isVisitingFeePaid) {
+        updates['status'] = 'paid_and_closed';
+        updates['finalAmountPaid'] = visitingFee;
+        updates['isFinalBillPaid'] = true;
+      } else {
+        updates['status'] = 'quotation_rejected';
+      }
+
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update(updates);
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('bookings')
+            .doc(bookingId)
+            .set(updates, SetOptions(merge: true));
+      }
+
+      final providerId = data['providerId']?.toString();
+      if (providerId != null && providerId.isNotEmpty) {
+        final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
+        await FirebaseFirestore.instance
+            .collection('providers')
+            .doc(providerId)
+            .collection('notifications')
+            .doc(notifId)
+            .set({
+          'id': notifId,
+          'techId': providerId,
+          'title': 'Quotation Declined ✗',
+          'body': 'Customer declined quotation. Service closed for inspection only.',
+          'data': {'bookingId': bookingId, 'type': 'QUOTATION_REJECTED'},
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isVisitingFeePaid
+                  ? "Quotation Declined. Inspection fee (₹${visitingFee.toStringAsFixed(0)}) paid. Job closed."
+                  : "Quotation Declined. Inspection fee (₹${visitingFee.toStringAsFixed(0)}) due.",
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to decline quotation: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _openQuotationApprovalDialog(Map<String, dynamic> data, String bookingId) {
+    final entry = BookingEntry.fromMap({
+      'id': bookingId,
+      ...data,
+    });
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => QuotationApprovalDialog(
+        booking: entry,
+        onApprove: (selectedPaymentMode) async {
+          final success = await _approveQuotation(bookingId, selectedPaymentMode, data);
+          if (success && mounted) {
+            Navigator.of(dialogContext, rootNavigator: true).pop(); // Close dialog
+            Navigator.of(context, rootNavigator: true).pop(); // Close detail sheet
+          }
+        },
+        onReject: () async {
+          Navigator.of(dialogContext, rootNavigator: true).pop(); // Close dialog
+          await _rejectQuotation(bookingId, data);
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pop(); // Close detail sheet
+          }
+        },
+      ),
+    );
   }
 
   void _showBookingDetailModal(Map<String, dynamic> data, String bookingId) {
@@ -188,12 +406,44 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
                 if (quotation != null) ...[
                   const Divider(height: 24),
-                  const Text("Repair Quotation & Parts Breakdown", style: AppTextStyle.bodyBold),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text("Repair Quotation & Parts Breakdown", style: AppTextStyle.bodyBold),
+                      ),
+                      const SizedBox(width: 8),
+                      Builder(builder: (context) {
+                        final qStatus = (quotation['status'] ?? data['quotationStatus'] ?? 'pending').toString().toLowerCase();
+                        Color bg = Colors.orange;
+                        String label = "AWAITING APPROVAL";
+                        if (qStatus == 'approved') {
+                          bg = Colors.green;
+                          label = "APPROVED ✓";
+                        } else if (qStatus == 'rejected') {
+                          bg = Colors.red;
+                          label = "DECLINED ✗";
+                        }
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: bg.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: bg.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(color: bg, fontWeight: FontWeight.bold, fontSize: 10),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.08),
+                      color: Colors.green.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(AppRadius.medium),
                       border: Border.all(color: Colors.green.shade300),
                     ),
@@ -206,7 +456,21 @@ class _BookingsScreenState extends State<BookingsScreen> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(item['name'] ?? 'Part Item', style: const TextStyle(fontSize: 13)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          (item['title'] ?? item['name'] ?? 'Spare Part').toString(),
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                        Text(
+                                          "🛡️ Verified • ${item['warrantyDays'] ?? 90}d Warranty",
+                                          style: TextStyle(fontSize: 10, color: Colors.green.shade700),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   Text("₹${item['price'] ?? '0'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                 ],
                               ),
@@ -215,10 +479,52 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text("Total Additional Estimate", style: TextStyle(fontWeight: FontWeight.bold)),
-                            Text("₹${quotation['totalAmount'] ?? '0'}", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 15)),
+                            const Text("Total Repair Estimate", style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              "₹${quotation['totalAmount'] ?? '0'}",
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
+                            ),
                           ],
                         ),
+                        Builder(builder: (context) {
+                          final qStatus = (quotation['status'] ?? data['quotationStatus'] ?? 'pending').toString().toLowerCase();
+                          final isJobClosed = ['completed', 'work_completed', 'paid_and_closed', 'closed', 'cancelled', 'cancelled_by_customer'].contains(status.toLowerCase());
+                          if (qStatus != 'approved' && qStatus != 'rejected' && !isJobClosed) {
+                            return Column(
+                              children: [
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _rejectQuotation(bookingId, data),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                          side: const BorderSide(color: Colors.red),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        child: const Text("Decline Quote"),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () => _openQuotationApprovalDialog(data, bookingId),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green.shade700,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        child: const Text("Approve & Pay", style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }),
                       ],
                     ),
                   ),
@@ -558,34 +864,41 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ),
 
                         // Display OTP Banner on Card if technician is assigned, on the way, arrived, or in progress
-                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
                           const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.key_rounded, size: 16, color: AppColors.primary),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      ['completed', 'work_completed'].contains(status.toLowerCase())
-                                          ? "End OTP: $completionOtp"
-                                          : "Start OTP: $startOtp",
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary),
-                                    ),
-                                  ],
-                                ),
-                                const Text("Share with technician ►", style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
+                          Builder(builder: (context) {
+                            final bool showEndOtp = ['in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+                            final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
+                            final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: showEndOtp ? Colors.green.shade50 : AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: showEndOtp ? Colors.green.shade300 : AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.key_rounded, size: 16, color: showEndOtp ? Colors.green.shade800 : AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        "$otpLabel: $otpVal",
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: showEndOtp ? Colors.green.shade900 : AppColors.primary),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    showEndOtp ? "Share upon completion ►" : "Share with technician ►",
+                                    style: TextStyle(fontSize: 11, color: showEndOtp ? Colors.green.shade800 : AppColors.primary, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
 
                         if (techName.isNotEmpty) ...[

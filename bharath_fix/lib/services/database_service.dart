@@ -311,8 +311,66 @@ class DatabaseService {
   }
 
   Future<List<BookingEntry>> fetchBookings() async {
-    final db = await database;
     final uid = _currentUserUid;
+    final db = await database;
+
+    if (_isFirebaseAvailable && uid != 'guest_user') {
+      try {
+        final Map<String, Map<String, dynamic>> activeMap = {};
+
+        // 1. Fetch from root bookings collection
+        final rootSnap = await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('userId', isEqualTo: uid)
+            .get();
+
+        for (var doc in rootSnap.docs) {
+          final data = Map<String, dynamic>.from(doc.data());
+          data['id'] = doc.id;
+          activeMap[doc.id] = data;
+        }
+
+        // 2. Fetch from subcollection users/{uid}/bookings
+        final subSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('bookings')
+            .get();
+
+        for (var doc in subSnap.docs) {
+          final data = Map<String, dynamic>.from(doc.data());
+          data['id'] = doc.id;
+          activeMap[doc.id] = data;
+        }
+
+        // 3. Purge local SQLite DB of any bookings deleted from Firestore
+        final localMaps = await db.query('bookings');
+        final activeIds = activeMap.keys.toSet();
+
+        for (var localRow in localMaps) {
+          final localId = localRow['id'] as String?;
+          if (localId != null && !activeIds.contains(localId)) {
+            await db.delete('bookings', where: 'id = ?', whereArgs: [localId]);
+          }
+        }
+
+        // 4. Update local SQLite DB with current active Firestore bookings
+        for (var entryMap in activeMap.values) {
+          final entry = BookingEntry.fromMap(entryMap);
+          await db.insert(
+            'bookings',
+            entry.toSQLiteMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+
+        return activeMap.values.map((m) => BookingEntry.fromMap(m)).toList();
+      } catch (e) {
+        debugPrint('Error fetching live bookings from Firestore: $e');
+      }
+    }
+
+    // Offline or fallback SQLite read
     List<Map<String, dynamic>> maps = [];
     try {
       maps = await db.query(
@@ -338,10 +396,44 @@ class DatabaseService {
   Stream<QuerySnapshot<Map<String, dynamic>>> getUserBookingsStream() {
     final uid = _currentUserUid;
     return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
         .collection('bookings')
+        .where('userId', isEqualTo: uid)
         .snapshots();
+  }
+
+  /// Delete a booking document from Firestore and local SQLite storage
+  Future<void> deleteBooking(String bookingId) async {
+    final uid = _currentUserUid;
+    try {
+      final db = await database;
+      await db.delete('bookings', where: 'id = ?', whereArgs: [bookingId]);
+    } catch (e) {
+      debugPrint('Local SQLite booking delete failed: $e');
+    }
+
+    if (_isFirebaseAvailable) {
+      try {
+        final batch = FirebaseFirestore.instance.batch();
+
+        final rootDoc = FirebaseFirestore.instance
+            .collection('bookings')
+            .doc(bookingId);
+        batch.delete(rootDoc);
+
+        if (uid != 'guest_user') {
+          final userDoc = FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('bookings')
+              .doc(bookingId);
+          batch.delete(userDoc);
+        }
+
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Firebase booking delete failed: $e');
+      }
+    }
   }
 
   // ==================== ADDRESS WORKFLOW ====================
@@ -548,16 +640,38 @@ class DatabaseService {
       final db = await database;
       await db.update('user_profile', {'isLoggedIn': 0});
       await db.delete('user_profile');
+      await db.delete('bookings');
+      await db.delete('addresses');
     } catch (e) {
       debugPrint('Error logging out in local DB: $e');
+    }
+
+    try {
+      if (_isFirebaseAvailable) {
+        await FirebaseFirestore.instance.clearPersistence();
+      }
+    } catch (e) {
+      debugPrint('Error clearing Firestore persistence on logout: $e');
     }
   }
 
   Future<void> clearProfile() async {
-    final db = await database;
-    await db.delete('user_profile');
-    await db.delete('bookings');
-    await db.delete('addresses');
+    try {
+      final db = await database;
+      await db.delete('user_profile');
+      await db.delete('bookings');
+      await db.delete('addresses');
+    } catch (e) {
+      debugPrint('Error clearing profile tables: $e');
+    }
+
+    try {
+      if (_isFirebaseAvailable) {
+        await FirebaseFirestore.instance.clearPersistence();
+      }
+    } catch (e) {
+      debugPrint('Error clearing Firestore persistence: $e');
+    }
   }
 
   // ==================== AUTO-SYNCHRONIZATION WORKER ====================

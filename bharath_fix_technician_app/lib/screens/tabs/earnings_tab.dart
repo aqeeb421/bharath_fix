@@ -37,6 +37,39 @@ class _EarningsTabState extends State<EarningsTab> {
     }
   }
 
+  double _toDouble(dynamic val, [double defaultVal = 0.0]) {
+    if (val == null) return defaultVal;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      final clean = val.replaceAll(RegExp(r'[^\d.]'), '');
+      return double.tryParse(clean) ?? defaultVal;
+    }
+    return defaultVal;
+  }
+
+  double _getJobEarnings(Map<String, dynamic> data) {
+    double base = 0.0;
+    if (data['amount'] != null) {
+      base = _toDouble(data['amount']);
+    } else if (data['totalAmount'] != null) {
+      base = _toDouble(data['totalAmount']);
+    } else if (data['cost'] != null) {
+      base = _toDouble(data['cost']);
+    } else if (data['visitingFee'] != null) {
+      base = _toDouble(data['visitingFee']);
+    } else {
+      base = 299.0;
+    }
+
+    final addCost = _toDouble(data['additionalCost']);
+    double quoteTotal = 0.0;
+    if (data['quotation'] is Map) {
+      quoteTotal = _toDouble(data['quotation']['totalAmount']);
+    }
+
+    return base + addCost + quoteTotal;
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -49,19 +82,13 @@ class _EarningsTabState extends State<EarningsTab> {
         final allDocs = snapshot.data?.docs ?? [];
         final docs = allDocs.where((doc) {
           final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
-          return status == 'completed' || status == 'paid_and_closed';
+          return status == 'completed' || status == 'paid_and_closed' || status == 'work_completed';
         }).toList();
 
         double totalEarnings = 0.0;
 
         for (var doc in docs) {
-          final data = doc.data();
-          final amount = (data['amount'] as num?)?.toDouble() ??
-              (data['totalAmount'] as num?)?.toDouble() ??
-              (data['cost'] as num?)?.toDouble() ??
-              499.0;
-          final addCost = (data['additionalCost'] as num?)?.toDouble() ?? 0.0;
-          totalEarnings += (amount + addCost);
+          totalEarnings += _getJobEarnings(doc.data());
         }
 
         return ListView(
@@ -130,11 +157,7 @@ class _EarningsTabState extends State<EarningsTab> {
                       data['applianceType'] ??
                       'Appliance Repair';
                   final customer = data['userName'] ?? data['customerName'] ?? 'Customer';
-                  final basePrice = (data['amount'] as num?)?.toDouble() ??
-                      (data['totalAmount'] as num?)?.toDouble() ??
-                      499.0;
-                  final extraPrice = (data['additionalCost'] as num?)?.toDouble() ?? 0.0;
-                  final totalJobVal = basePrice + extraPrice;
+                  final totalJobVal = _getJobEarnings(data);
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: AppSpacing.small),
