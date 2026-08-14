@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
           title: "BharathFix",
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          darkTheme: ThemeData.dark(useMaterial3: true),
+          darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routes,

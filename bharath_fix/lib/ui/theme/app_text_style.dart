@@ -4,31 +4,30 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTextStyle {
-  static TextStyle heading = GoogleFonts.plusJakartaSans(
+  static TextStyle get heading => GoogleFonts.plusJakartaSans(
     fontSize: 30,
     fontWeight: FontWeight.bold,
     color: AppColors.title,
   );
 
-  static TextStyle title = GoogleFonts.plusJakartaSans(
+  static TextStyle get title => GoogleFonts.plusJakartaSans(
     fontSize: 22,
     fontWeight: FontWeight.w700,
     color: AppColors.title,
   );
 
-
-  static TextStyle body = GoogleFonts.plusJakartaSans(
+  static TextStyle get body => GoogleFonts.plusJakartaSans(
     fontSize: 15,
     color: AppColors.title,
   );
 
-  static TextStyle button = GoogleFonts.plusJakartaSans(
+  static TextStyle get button => GoogleFonts.plusJakartaSans(
     fontSize: 17,
     fontWeight: FontWeight.w600,
     color: Colors.white,
   );
 
-  static const TextStyle mainTitle = TextStyle(
+  static TextStyle get mainTitle => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.bold,
     fontSize: 24,
@@ -36,7 +35,7 @@ class AppTextStyle {
     letterSpacing: -0.5,
   );
 
-  static const TextStyle sectionHeader = TextStyle(
+  static TextStyle get sectionHeader => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.bold,
     fontSize: 18,
@@ -44,28 +43,28 @@ class AppTextStyle {
     letterSpacing: -0.3,
   );
 
-  static const TextStyle cardTitle = TextStyle(
+  static TextStyle get cardTitle => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.bold,
     fontSize: 14,
     color: AppColors.title,
   );
 
-  static const TextStyle bodyBold = TextStyle(
+  static TextStyle get bodyBold => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.w600,
     fontSize: 14,
     color: AppColors.title,
   );
 
-  static const TextStyle bodyMedium = TextStyle(
+  static TextStyle get bodyMedium => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.w500,
     fontSize: 14,
     color: AppColors.title,
   );
 
-  static const TextStyle subtitle = TextStyle(
+  static TextStyle get subtitle => TextStyle(
     fontFamily: 'Plus Jakarta Sans',
     fontWeight: FontWeight.w500,
     fontSize: 13,

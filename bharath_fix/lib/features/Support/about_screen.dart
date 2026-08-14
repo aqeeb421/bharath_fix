@@ -38,17 +38,17 @@ class AboutScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('About BharathFix', style: AppTextStyle.sectionHeader),
+        title: Text('About BharathFix', style: AppTextStyle.sectionHeader),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
           children: [
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
             
             // Central Logo Header
             Center(
@@ -61,8 +61,7 @@ class AboutScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(4),
-                      boxShadow: const [
-                        BoxShadow(
+                      boxShadow: [BoxShadow(
                           color: Color(0x1F000062),
                           blurRadius: 16,
                           offset: Offset(0, 6),
@@ -73,15 +72,15 @@ class AboutScreen extends StatelessWidget {
                     child: Image.asset(
                       'assets/images/app_logo.png',
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      errorBuilder: (context, error, stackTrace) => Icon(
                         Icons.handyman_rounded,
                         color: Colors.white,
                         size: 48,
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.medium),
-                  const Text(
+                  SizedBox(height: AppSpacing.medium),
+                  Text(
                     'BharathFix',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -90,8 +89,8 @@ class AboutScreen extends StatelessWidget {
                       color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
+                  SizedBox(height: 4),
+                  Text(
                     'Version 1.0.0 (Build 100)',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -100,14 +99,14 @@ class AboutScreen extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8ECF8),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Trusted Doorstep Home Services',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
@@ -121,12 +120,12 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.extraLarge),
+            SizedBox(height: AppSpacing.extraLarge),
 
             // Company Info Card
             _buildSectionCard(
               title: 'Company Profile',
-              child: const Text(
+              child: Text(
                 'Bharath Fix Services is a leading on-demand home maintenance and appliance repair provider. Our platform seamlessly connects homeowners with certified, background-verified technicians for instant doorstep solutions.',
                 style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
@@ -137,7 +136,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
 
             // Key Highlights
             _buildSectionCard(
@@ -145,17 +144,17 @@ class AboutScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildHighlightRow(Icons.verified_user_rounded, 'Verified Technicians', 'Background-checked certified service professionals.'),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _buildHighlightRow(Icons.price_check_rounded, 'Upfront Transparent Pricing', 'Flat visit charges with zero hidden fees.'),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _buildHighlightRow(Icons.location_on_rounded, 'Live GPS Tracking', 'Track your technician in real-time with OTP verification.'),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _buildHighlightRow(Icons.support_agent_rounded, 'Dedicated Customer Support', 'Direct helpline, WhatsApp & email support.'),
                 ],
               ),
             ),
 
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
 
             // Official Contact Information Card
             _buildSectionCard(
@@ -186,8 +185,8 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: AppSpacing.extraLarge),
-            const Text(
+            SizedBox(height: AppSpacing.extraLarge),
+            Text(
               '© 2026 Bharath Fix Services. All rights reserved.',
               style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
@@ -195,7 +194,7 @@ class AboutScreen extends StatelessWidget {
                 color: AppColors.subtitle,
               ),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
           ],
         ),
       ),
@@ -205,9 +204,9 @@ class AboutScreen extends StatelessWidget {
   Widget _buildSectionCard({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: EdgeInsets.all(AppSpacing.medium),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.large),
         border: Border.all(color: AppColors.border),
       ),
@@ -216,14 +215,14 @@ class AboutScreen extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: AppColors.title,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           child,
         ],
       ),
@@ -235,31 +234,31 @@ class AboutScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(
             color: Color(0xFFE8ECF8),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: AppColors.primary, size: 16),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                   color: AppColors.title,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
                 description,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
                   fontSize: 12,
                   color: AppColors.subtitle,
@@ -282,22 +281,22 @@ class AboutScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
             Icon(icon, color: AppColors.primary, size: 20),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Text(title, style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+                  SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.subtitle),
+            Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.subtitle),
           ],
         ),
       ),

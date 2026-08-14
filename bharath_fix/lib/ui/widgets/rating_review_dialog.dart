@@ -62,13 +62,13 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.stars_rounded, color: Colors.amber),
-              const SizedBox(width: 8),
+              Icon(Icons.stars_rounded, color: Colors.amber),
+              SizedBox(width: 8),
               Text(
                 _selectedTipAmount > 0
                     ? 'Thank you for your rating & ₹${_selectedTipAmount.toInt()} tip! 🙏'
                     : 'Thank you for your feedback! ⭐',
-                style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold),
+                style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -83,25 +83,25 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.thumb_up_alt_rounded,
                 color: AppColors.primary,
                 size: 36,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               'Rate Your Technician',
               style: TextStyle(
@@ -111,17 +111,17 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 color: Colors.blueGrey.shade900,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               'How was your service with ${widget.providerName.isNotEmpty ? widget.providerName : "Technician"}?',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontSize: 13,
                 color: Colors.grey,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             // 5-Star Row
             Row(
@@ -138,7 +138,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 );
               }),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Multi-select Feedback Tags
             Wrap(
@@ -164,21 +164,21 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             // Comment text area
             TextField(
               controller: _commentController,
               maxLines: 2,
-              style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13),
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Share your feedback or suggestions...',
-                hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
-                contentPadding: const EdgeInsets.all(12),
+                contentPadding: EdgeInsets.all(12),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             // Technician Tipping Section
             Align(
@@ -193,7 +193,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 6,
@@ -212,7 +212,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
 
             // Submit Button
             ElevatedButton(
@@ -223,8 +223,8 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isSubmitting
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Submit Rating & Review', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: Colors.white)),
+                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text('Submit Rating & Review', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ],
         ),

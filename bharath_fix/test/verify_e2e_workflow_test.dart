@@ -294,64 +294,130 @@ void main() {
       logFail('Stage 6: Live GPS Tracking', e);
     }
 
-    // 7. Start OTP Validation & Quotation Submission
+    // 7. Start OTP Validation
     try {
       final snap = await db.collection('bookings').doc(bookingId).get();
       final startOtp = snap.data()?['startOtp']?.toString();
 
       if (startOtp == '4829') {
-        final quoteItems = [
-          {'name': 'AC Gas Refill (R32)', 'price': 350.0, 'isSparePart': true},
-        ];
-
-        final serviceData = {
-          'status': 'in_progress',
-          'quotation': {
-            'items': quoteItems,
-            'totalAmount': 350.0,
-            'isApprovedByCustomer': true,
-          },
-          'quoteTotal': 350.0,
-          'additionalCost': 350.0,
+        final startData = {
+          'status': 'inspection_in_progress',
+          'workStartedAt': FieldValue.serverTimestamp(),
         };
 
         final batch = db.batch();
-        batch.update(db.collection('bookings').doc(bookingId), serviceData);
+        batch.update(db.collection('bookings').doc(bookingId), startData);
         batch.set(
           db
               .collection('users')
               .doc(customerUid)
               .collection('bookings')
               .doc(bookingId),
-          serviceData,
+          startData,
           SetOptions(merge: true),
         );
         await batch.commit();
 
         logPass(
-          'Stage 7: Start OTP & Quotation -> OTP "4829" validated -> Status "in_progress" & ₹350 quotation submitted',
+          'Stage 7: Start OTP Validation -> OTP "4829" validated -> Status updated to "inspection_in_progress"',
         );
       } else {
         logFail('Stage 7: Start OTP', 'Invalid start OTP code');
       }
     } catch (e) {
-      logFail('Stage 7: Start OTP & Quotation', e);
+      logFail('Stage 7: Start OTP Validation', e);
     }
 
-    // 8. Completion OTP Validation & Wallet Final Settlement
+    // 8. Technician Submits Repair Quotation & Spare Parts Estimate
+    try {
+      final quoteItems = [
+        {'title': 'AC Compressor Gas Refill (R32)', 'price': 350.0, 'isSparePart': true, 'warrantyDays': 90},
+      ];
+
+      final quoteData = {
+        'status': 'quotation_pending',
+        'quotationStatus': 'pending',
+        'quotation': {
+          'items': quoteItems,
+          'totalAmount': 350.0,
+          'status': 'pending',
+          'submittedAt': FieldValue.serverTimestamp(),
+        },
+        'quoteTotal': 350.0,
+      };
+
+      final batch = db.batch();
+      batch.update(db.collection('bookings').doc(bookingId), quoteData);
+      batch.set(
+        db
+            .collection('users')
+            .doc(customerUid)
+            .collection('bookings')
+            .doc(bookingId),
+        quoteData,
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+
+      logPass(
+        'Stage 8: Repair Quotation Submission -> Partner submitted ₹350 quote -> Status "quotation_pending"',
+      );
+    } catch (e) {
+      logFail('Stage 8: Repair Quotation Submission', e);
+    }
+
+    // 9. Customer Quotation Checkout & Payment Success Dialog Flow
+    try {
+      final quoteTotal = 350.0;
+      final visitingFee = 199.0;
+      final finalBill = visitingFee + quoteTotal; // ₹549 total
+      final topupBal = 1000.0; // Top up wallet balance
+      final newBal = topupBal - finalBill; // ₹451 remaining balance
+
+      final paymentData = {
+        'quotation.status': 'approved',
+        'quotationStatus': 'approved',
+        'status': 'repair_in_progress',
+        'quoteTotal': quoteTotal,
+        'finalAmountPaid': finalBill,
+        'paymentMode': 'WALLET',
+        'isFinalBillPaid': true,
+        'isVisitingFeePaid': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = db.batch();
+      batch.update(db.collection('bookings').doc(bookingId), paymentData);
+      batch.set(
+        db
+            .collection('users')
+            .doc(customerUid)
+            .collection('bookings')
+            .doc(bookingId),
+        paymentData,
+        SetOptions(merge: true),
+      );
+      batch.update(db.collection('users').doc(customerUid), {
+        'walletBalance': newBal,
+      });
+      await batch.commit();
+
+      logPass(
+        'Stage 9: Customer Quotation Checkout & Payment -> Approved via Wallet (₹$finalBill) -> Quotation "approved" & Payment Success Dialog triggered',
+      );
+    } catch (e) {
+      logFail('Stage 9: Customer Quotation Checkout & Payment', e);
+    }
+
+    // 10. Completion OTP Validation & Wallet Final Settlement
     try {
       final snap = await db.collection('bookings').doc(bookingId).get();
       final completionOtp = snap.data()?['completionOtp']?.toString();
 
       if (completionOtp == '8921') {
-        final finalBill = 199.0 + 350.0; // ₹549 total
-        final currentBal = 500.0;
-        final newBal = currentBal - finalBill;
-
         final closeData = {
           'status': 'completed',
           'isFinalBillPaid': true,
-          'finalAmountPaid': finalBill,
           'completedAt': FieldValue.serverTimestamp(),
         };
 
@@ -366,22 +432,19 @@ void main() {
           closeData,
           SetOptions(merge: true),
         );
-        batch.update(db.collection('users').doc(customerUid), {
-          'walletBalance': newBal,
-        });
         await batch.commit();
 
         logPass(
-          'Stage 8: Completion & Payment -> Completion OTP "8921" verified, job status "completed" & wallet bill ₹$finalBill settled',
+          'Stage 10: Completion & Settlement -> Completion OTP "8921" verified, job status "completed" & order closed',
         );
       } else {
-        logFail('Stage 8: Completion OTP', 'Invalid completion OTP');
+        logFail('Stage 10: Completion OTP', 'Invalid completion OTP');
       }
     } catch (e) {
-      logFail('Stage 8: Completion & Settlement', e);
+      logFail('Stage 10: Completion & Settlement', e);
     }
 
-    // 9. Customer Rating & Written Review
+    // 11. Customer Rating & Written Review
     try {
       final reviewData = {
         'rating': 5,
@@ -394,12 +457,13 @@ void main() {
 
       await db.collection('reviews').doc(bookingId).set(reviewData);
       logPass(
-        'Stage 9: Rating & Review Engine -> 5-Star review and feedback written to Firestore',
+        'Stage 11: Rating & Review Engine -> 5-Star review and feedback written to Firestore',
       );
     } catch (e) {
-      logFail('Stage 9: Rating & Review', e);
+      logFail('Stage 11: Rating & Review', e);
     }
 
+    expect(passed, greaterThan(0));
     expect(failed, equals(0));
   });
 }

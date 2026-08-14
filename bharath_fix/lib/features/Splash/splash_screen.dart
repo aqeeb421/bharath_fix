@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'dart:async';
 
 import 'package:bharath_fix/ui/theme/app_colors.dart';
@@ -18,7 +19,19 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     appStartFlow();
   }
@@ -38,8 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: AppColors.primary, width: 2),
-                boxShadow: const [
-                  BoxShadow(
+                boxShadow: [BoxShadow(
                     color: Color(0x1F000062),
                     blurRadius: 16,
                     offset: Offset(0, 6),
@@ -49,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Image.asset(
                 'assets/images/app_logo.png',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Icon(
+                errorBuilder: (context, error, stackTrace) => Icon(
                   Icons.handyman_rounded,
                   color: Colors.white,
                   size: 52,
@@ -57,14 +69,14 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
 
-            const SizedBox(height: 30),
+            SizedBox(height: 30),
 
             Text(
               "BharathFix",
               style: AppTextStyle.heading,
             ),
 
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             Text(
               "Trusted Home Services",

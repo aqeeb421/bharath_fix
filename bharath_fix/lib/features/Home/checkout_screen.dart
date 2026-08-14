@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Home/checkout_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +35,10 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   late Razorpay _razorpay;
   int _selectedDateIndex = 0;
   int _selectedTimeIndex = 0;
@@ -58,6 +63,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     _generate30DaysList();
     _razorpay = Razorpay();
@@ -105,7 +112,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: AppColors.title,
@@ -141,7 +148,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: AppColors.title,
@@ -203,6 +210,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     // Clean up channel links to prevent context thread leaks
     _razorpay.clear();
     super.dispose();
@@ -308,39 +316,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Checkout', style: AppTextStyle.sectionHeader),
+        title: Text('Checkout', style: AppTextStyle.sectionHeader),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildServiceSummaryCard(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildAddressSection(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Choose date', style: AppTextStyle.bodyBold),
+                      Text('Choose date', style: AppTextStyle.bodyBold),
                       InkWell(
                         onTap: _openCalendarPicker,
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: AppColors.primary.withOpacity(0.3)),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.calendar_month_rounded, size: 16, color: AppColors.primary),
@@ -360,24 +368,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.small),
                   _buildDateCarousel(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Choose time', style: AppTextStyle.bodyBold),
+                      Text('Choose time', style: AppTextStyle.bodyBold),
                       InkWell(
                         onTap: _openClockTimePicker,
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: AppColors.primary.withOpacity(0.3)),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
@@ -397,20 +405,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.small),
                   _buildTimeGrid(),
 
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildCouponSection(),
-                  const SizedBox(height: AppSpacing.large),
-                  const Text('Notes for provider (optional)', style: AppTextStyle.bodyBold),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.large),
+                  Text('Notes for provider (optional)', style: AppTextStyle.bodyBold),
+                  SizedBox(height: AppSpacing.small),
                   const CommonTextField(hintText: 'Any specific instructions?'),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildPaymentMethodsSection(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildBillDetailsSection(),
-                  const SizedBox(height: AppSpacing.medium),
+                  SizedBox(height: AppSpacing.medium),
                 ],
               ),
             ),
@@ -423,7 +431,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildServiceSummaryCard() {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: EdgeInsets.all(AppSpacing.medium),
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.large)),
       child: Row(
         children: [
@@ -436,13 +444,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               image: DecorationImage(image: NetworkImage(widget.bannerImage), fit: BoxFit.cover),
             ),
           ),
-          const SizedBox(width: AppSpacing.medium),
+          SizedBox(width: AppSpacing.medium),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(widget.serviceTitle, style: AppTextStyle.cardTitle),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text('Visit & Inspection Charge • ${widget.priceString}', style: AppTextStyle.subtitle),
               ],
             ),
@@ -456,8 +464,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Address', style: AppTextStyle.bodyBold),
-        const SizedBox(height: AppSpacing.small),
+        Text('Address', style: AppTextStyle.bodyBold),
+        SizedBox(height: AppSpacing.small),
         InkWell(
           onTap: () async {
             final selectedAddress = await Navigator.push(
@@ -474,9 +482,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           borderRadius: BorderRadius.circular(AppRadius.large),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(color: _isAddressSelected ? AppColors.primary : AppColors.border, width: _isAddressSelected ? 1.5 : 1),
             ),
@@ -494,7 +502,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
               ],
             ),
           ),
@@ -520,7 +528,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             },
             child: Container(
               width: 68,
-              margin: const EdgeInsets.only(right: AppSpacing.small),
+              margin: EdgeInsets.only(right: AppSpacing.small),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary : AppColors.background,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -538,7 +546,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     item['num'].toString(),
                     style: TextStyle(
@@ -611,7 +619,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return GestureDetector(
           onTap: isBooked ? null : () => setState(() => _selectedTimeIndex = index),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isBooked
                   ? Colors.grey.shade200
@@ -639,7 +647,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 if (isBooked) ...[
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Text(
                     '(Full)',
                     style: TextStyle(
@@ -684,7 +692,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      builder: (context) => Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
 
     final bookingId = 'bf_w_${DateTime.now().millisecondsSinceEpoch}';
@@ -757,8 +765,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           backgroundColor: AppColors.background,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.large)),
           title: Row(
-            children: const [
-              Icon(Icons.payments_rounded, color: Colors.green, size: 28),
+            children: [Icon(Icons.payments_rounded, color: Colors.green, size: 28),
               SizedBox(width: 10),
               Text("Confirm Cash Payment", style: AppTextStyle.sectionHeader),
             ],
@@ -767,11 +774,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Pay on Service Completion",
                 style: AppTextStyle.bodyBold,
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 "Please pay ₹${payableAmount.toStringAsFixed(0)} in cash directly to your technician after job completion.",
                 style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4),
@@ -781,7 +788,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              child: Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -792,7 +799,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
               ),
-              child: const Text("Confirm & Book", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text("Confirm & Book", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -856,12 +863,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Payment Method', style: AppTextStyle.bodyBold),
-            const SizedBox(height: AppSpacing.medium),
+            Text('Payment Method', style: AppTextStyle.bodyBold),
+            SizedBox(height: AppSpacing.medium),
 
             // Option 1: BharathFix Wallet
             Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.small),
+              margin: EdgeInsets.only(bottom: AppSpacing.small),
               decoration: BoxDecoration(
                 color: _selectedPaymentMethod == 'WALLET' ? const Color(0xFFE8ECF8) : AppColors.background,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -875,21 +882,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 groupValue: _selectedPaymentMethod,
                 onChanged: (val) => setState(() => _selectedPaymentMethod = val!),
                 activeColor: AppColors.primary,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                 title: Row(
                   children: [
-                    const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
+                    Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
                       child: Text(
                         'BharathFix Wallet',
                         style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: hasSufficientWallet ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
                         borderRadius: BorderRadius.circular(10),
@@ -908,14 +915,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 subtitle: Text(
                   hasSufficientWallet ? '⚡ 1-Tap Instant Payment' : 'Insufficient balance. Top-up in Wallet.',
-                  style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle),
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle),
                 ),
               ),
             ),
 
             // Option 2: Razorpay / Online UPI / Cards
             Container(
-              margin: const EdgeInsets.only(bottom: AppSpacing.small),
+              margin: EdgeInsets.only(bottom: AppSpacing.small),
               decoration: BoxDecoration(
                 color: _selectedPaymentMethod == 'RAZORPAY' ? const Color(0xFFE8ECF8) : AppColors.background,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -929,8 +936,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 groupValue: _selectedPaymentMethod,
                 onChanged: (val) => setState(() => _selectedPaymentMethod = val!),
                 activeColor: AppColors.primary,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                title: const Row(
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                title: Row(
                   children: [
                     Icon(Icons.payment_rounded, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
@@ -943,7 +950,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ],
                 ),
-                subtitle: const Text('Google Pay, PhonePe, Paytm & All Cards', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+                subtitle: Text('Google Pay, PhonePe, Paytm & All Cards', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
               ),
             ),
 
@@ -962,8 +969,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 groupValue: _selectedPaymentMethod,
                 onChanged: (val) => setState(() => _selectedPaymentMethod = val!),
                 activeColor: AppColors.primary,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                title: const Row(
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                title: Row(
                   children: [
                     Icon(Icons.money_rounded, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
@@ -976,7 +983,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ],
                 ),
-                subtitle: const Text('Pay technician directly upon service completion', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+                subtitle: Text('Pay technician directly upon service completion', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
               ),
             ),
           ],
@@ -1015,14 +1022,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.stars_rounded, color: Color(0xFFFFD700)),
-              const SizedBox(width: 10),
+              Icon(Icons.stars_rounded, color: Color(0xFFFFD700)),
+              SizedBox(width: 10),
               Expanded(child: Text(result['message'] ?? 'Coupon applied successfully!')),
             ],
           ),
           backgroundColor: const Color(0xFF2E7D32),
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
+          margin: EdgeInsets.all(16),
         ),
       );
     } else {
@@ -1031,7 +1038,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           content: Text(result['message'] ?? 'Failed to apply coupon.'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
+          margin: EdgeInsets.all(16),
         ),
       );
     }
@@ -1052,7 +1059,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Coupon', style: AppTextStyle.bodyBold),
+            Text('Coupon', style: AppTextStyle.bodyBold),
             InkWell(
               onTap: () async {
                 final selectedCode = await Navigator.push<String>(
@@ -1063,7 +1070,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _applyCouponCode(selectedCode);
                 }
               },
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.local_offer_outlined, size: 16, color: AppColors.primary),
                   SizedBox(width: 4),
@@ -1073,10 +1080,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.small),
+        SizedBox(height: AppSpacing.small),
         if (_appliedCouponCode != null)
           Container(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             decoration: BoxDecoration(
               color: const Color(0xFFE8F5E9),
               borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -1084,25 +1091,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 22),
-                const SizedBox(width: 10),
+                Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 22),
+                SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Code "$_appliedCouponCode" Applied',
-                        style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: Color(0xFF1B5E20), fontSize: 13),
+                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: Color(0xFF1B5E20), fontSize: 13),
                       ),
                       Text(
                         'You are saving ₹${_discountAmount.toStringAsFixed(0)} on this booking!',
-                        style: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: Color(0xFF2E7D32), fontSize: 11),
+                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Color(0xFF2E7D32), fontSize: 11),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Color(0xFF2E7D32), size: 20),
+                  icon: Icon(Icons.close_rounded, color: Color(0xFF2E7D32), size: 20),
                   onPressed: _removeCoupon,
                 ),
               ],
@@ -1115,26 +1122,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: TextField(
                   controller: _couponTextController,
                   textCapitalization: TextCapitalization.characters,
-                  style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: AppColors.title),
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: AppColors.title),
                   decoration: InputDecoration(
                     hintText: 'ENTER CODE',
-                    hintStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.subtitle, fontSize: 13),
+                    hintStyle: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.subtitle, fontSize: 13),
                     filled: true,
                     fillColor: AppColors.card,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: BorderSide(color: AppColors.primary, width: 1.5)),
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.medium),
+              SizedBox(width: AppSpacing.medium),
               InkWell(
                 onTap: () => _applyCouponCode(_couponTextController.text),
                 borderRadius: BorderRadius.circular(AppRadius.medium),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(AppRadius.medium)),
-                  child: const Text('Apply', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  child: Text('Apply', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
             ],
@@ -1149,8 +1156,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Bill Details', style: AppTextStyle.bodyBold),
-        const SizedBox(height: AppSpacing.medium),
+        Text('Bill Details', style: AppTextStyle.bodyBold),
+        SizedBox(height: AppSpacing.medium),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1159,22 +1166,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
         ),
         if (_appliedCouponCode != null && _discountAmount > 0) ...[
-          const SizedBox(height: AppSpacing.small),
+          SizedBox(height: AppSpacing.small),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Coupon Discount ($_appliedCouponCode)', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
-              Text('-₹${_discountAmount.toStringAsFixed(0)}', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+              Text('Coupon Discount ($_appliedCouponCode)', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+              Text('-₹${_discountAmount.toStringAsFixed(0)}', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
             ],
           ),
         ],
-        const SizedBox(height: AppSpacing.small),
-        const Divider(color: AppColors.border, thickness: 1),
-        const SizedBox(height: AppSpacing.small),
+        SizedBox(height: AppSpacing.small),
+        Divider(color: AppColors.border, thickness: 1),
+        SizedBox(height: AppSpacing.small),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Total payable', style: AppTextStyle.bodyBold),
+            Text('Total payable', style: AppTextStyle.bodyBold),
             Text('₹${finalPayable.toStringAsFixed(0)}', style: AppTextStyle.mainTitle.copyWith(fontSize: 18, color: AppColors.primary)),
           ],
         ),
@@ -1190,21 +1197,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.account_circle_rounded, color: AppColors.primary, size: 26),
               SizedBox(width: 8),
               Text('Login Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'You are exploring in Guest Mode. Please sign in with your mobile number to complete your booking.',
             style: TextStyle(fontSize: 14, height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -1212,7 +1219,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Navigator.pushNamed(context, AppRoutes.login);
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Sign In to Proceed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text('Sign In to Proceed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1227,21 +1234,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.assignment_ind_rounded, color: AppColors.primary, size: 26),
               SizedBox(width: 8),
               Text('Registration Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Please complete your profile registration details before placing a booking.',
             style: TextStyle(fontSize: 14, height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -1253,7 +1260,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Complete Registration', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text('Complete Registration', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1273,8 +1280,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         final walletBalance = snapshot.data ?? 0.0;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
-          decoration: const BoxDecoration(color: AppColors.background, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
+          decoration: BoxDecoration(color: AppColors.card, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
           child: SafeArea(
             top: false,
             child: CommonButton(

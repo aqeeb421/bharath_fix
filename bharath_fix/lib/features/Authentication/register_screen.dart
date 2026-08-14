@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Authentication/register_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -21,6 +22,16 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
@@ -85,6 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -173,32 +185,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            padding: EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Upload Profile Picture',
                   style: AppTextStyle.sectionHeader,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.card,
                     child: Icon(Icons.photo_camera_rounded, color: AppColors.primary),
                   ),
-                  title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     Navigator.pop(context);
                     _pickImage(ImageSource.camera);
                   },
                 ),
                 ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.card,
                     child: Icon(Icons.photo_library_rounded, color: AppColors.primary),
                   ),
-                  title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
@@ -220,7 +232,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -232,7 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 (route) => false,
               );
             },
-            child: const Text(
+            child: Text(
               'Skip for Now',
               style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
@@ -241,19 +253,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.large),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.large),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Setup Profile',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -263,8 +275,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.extraSmall),
-                const Text(
+                SizedBox(height: AppSpacing.extraSmall),
+                Text(
                   'Complete your profile and address details',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -273,7 +285,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.subtitle,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.large),
+                SizedBox(height: AppSpacing.large),
 
                 // Profile Image Upload Section
                 Center(
@@ -288,7 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 _nameController.text.isNotEmpty
                                     ? _nameController.text[0].toUpperCase()
                                     : 'U',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
                                   fontSize: 36,
                                   fontWeight: FontWeight.bold,
@@ -303,7 +315,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: GestureDetector(
                           onTap: _showImagePickerOptions,
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
@@ -316,7 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.camera_alt_rounded,
                               size: 16,
                               color: Colors.white,
@@ -327,12 +339,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 Center(
                   child: TextButton.icon(
                     onPressed: _showImagePickerOptions,
-                    icon: const Icon(Icons.file_upload_outlined, size: 18, color: AppColors.primary),
-                    label: const Text(
+                    icon: Icon(Icons.file_upload_outlined, size: 18, color: AppColors.primary),
+                    label: Text(
                       'Upload Profile Picture',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
@@ -343,59 +355,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.large),
+                SizedBox(height: AppSpacing.large),
 
                 // Section 1: Personal Details
-                const Text('Personal Information', style: AppTextStyle.sectionHeader),
-                const SizedBox(height: AppSpacing.small),
+                Text('Personal Information', style: AppTextStyle.sectionHeader),
+                SizedBox(height: AppSpacing.small),
 
                 CommonTextField(
                   label: 'Full name',
                   hintText: 'e.g. Rahul Sharma',
                   controller: _nameController,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 CommonTextField(
                   label: 'Email Address',
                   hintText: 'you@example.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 CommonTextField(
                   label: 'Phone Number',
                   hintText: '+91 90000 00000',
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                 ),
-                const SizedBox(height: AppSpacing.extraLarge),
+                SizedBox(height: AppSpacing.extraLarge),
 
                 // Section 2: Address Details
-                const Text('Address Details', style: AppTextStyle.sectionHeader),
-                const SizedBox(height: AppSpacing.small),
-                const Text('Save address as', style: AppTextStyle.bodyBold),
-                const SizedBox(height: AppSpacing.small),
+                Text('Address Details', style: AppTextStyle.sectionHeader),
+                SizedBox(height: AppSpacing.small),
+                Text('Save address as', style: AppTextStyle.bodyBold),
+                SizedBox(height: AppSpacing.small),
                 _buildTagSelectorRow(),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
 
                 CommonTextField(
                   label: 'House / Flat / Block No.',
                   hintText: 'e.g. Flat 302, 3rd Floor',
                   controller: _houseController,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 CommonTextField(
                   label: 'Street / Area / Colony',
                   hintText: 'e.g. Prestige Falcon City',
                   controller: _streetController,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 CommonTextField(
                   label: 'Landmark (Optional)',
                   hintText: 'e.g. Near Metro Station',
                   controller: _landmarkController,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 CommonTextField(
                   label: 'Pincode',
                   hintText: 'e.g. 560062',
@@ -403,17 +415,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                 ),
-                const SizedBox(height: AppSpacing.extraLarge),
+                SizedBox(height: AppSpacing.extraLarge),
 
                 _isSaving
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    ? Center(child: CircularProgressIndicator(color: AppColors.primary))
                     : Column(
                         children: [
                           CommonButton(
                             label: 'Save & Continue',
                             onPressed: _handleSaveProfile,
                           ),
-                          const SizedBox(height: AppSpacing.medium),
+                          SizedBox(height: AppSpacing.medium),
                           Center(
                             child: TextButton(
                               onPressed: () async {
@@ -449,7 +461,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   );
                                 }
                               },
-                              child: const Text(
+                              child: Text(
                                 "Skip for now (Explore App)",
                                 style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
@@ -462,7 +474,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ],
                       ),
-                const SizedBox(height: AppSpacing.extraLarge),
+                SizedBox(height: AppSpacing.extraLarge),
               ],
             ),
           ),
@@ -478,7 +490,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final isSelected = _selectedTag == tag;
         return Padding(
           key: ValueKey(tag),
-          padding: const EdgeInsets.only(right: AppSpacing.small),
+          padding: EdgeInsets.only(right: AppSpacing.small),
           child: ChoiceChip(
             label: Text(tag),
             selected: isSelected,

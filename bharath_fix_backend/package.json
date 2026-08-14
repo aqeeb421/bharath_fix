@@ -1,0 +1,28 @@
+{
+  "name": "bharath_fix_backend",
+  "version": "1.0.0",
+  "description": "Production Node.js Backend Server & FCM Push Notification Engine for BharathFix Multi-App Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "bharathfix",
+    "fcm",
+    "firebase-admin",
+    "express",
+    "notifications"
+  ],
+  "author": "BharathFix Team",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

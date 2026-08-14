@@ -9,7 +9,7 @@ class CommonBackButton extends StatelessWidget {
       onPressed: () {
         Navigator.pop(context);
       },
-      icon: const Icon(Icons.arrow_back),
+      icon: Icon(Icons.arrow_back),
     );
   }
 }

@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +22,10 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
@@ -30,6 +35,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     final profile = widget.initialProfile;
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -47,6 +54,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -127,13 +135,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: const CommonAppBar(title: "Edit Full Profile"),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // Avatar Display Header
                 Center(
@@ -145,7 +153,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         backgroundColor: AppColors.primary,
                         child: Text(
                           nameLetter,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 40,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -153,12 +161,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.camera_alt_rounded,
                           color: Colors.white,
                           size: 18,
@@ -167,43 +175,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
 
                 // Full Name Input Field
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Full Name", style: AppTextStyle.bodyBold),
-                    const SizedBox(height: 8),
+                    Text("Full Name", style: AppTextStyle.bodyBold),
+                    SizedBox(height: 8),
                     CommonTextField(
                       controller: _nameController,
                       hintText: "Enter your full name",
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // Email Address Input Field
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Email Address", style: AppTextStyle.bodyBold),
-                    const SizedBox(height: 8),
+                    Text("Email Address", style: AppTextStyle.bodyBold),
+                    SizedBox(height: 8),
                     CommonTextField(
                       controller: _emailController,
                       hintText: "Enter your email address",
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // Phone Number Input Field (READ ONLY / DISABLED)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: const [
-                        Text("Phone Number", style: AppTextStyle.bodyBold),
+                      children: [Text("Phone Number", style: AppTextStyle.bodyBold),
                         SizedBox(width: 6),
                         Icon(
                           Icons.lock_outline_rounded,
@@ -212,9 +219,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
                       ),
@@ -225,25 +232,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.phone_rounded,
                             color: Colors.grey,
                             size: 20,
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               _phoneController.text.isNotEmpty
                                   ? _phoneController.text
                                   : "Not provided",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.grey,
                               ),
                             ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.lock_rounded,
                             color: Colors.grey,
                             size: 18,
@@ -251,8 +258,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
+                    SizedBox(height: 4),
+                    Text(
                       "🔒 Phone number is tied to your account verification and cannot be modified.",
                       style: TextStyle(
                         fontSize: 11,
@@ -263,7 +270,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 36),
+                SizedBox(height: 36),
 
                 // Save Changes Button
                 CommonButton(

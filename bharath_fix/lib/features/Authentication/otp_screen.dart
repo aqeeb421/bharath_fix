@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'dart:async';
 import 'package:bharath_fix/ui/theme/app_colors.dart';
 import 'package:bharath_fix/ui/theme/app_spacing.dart';
@@ -21,6 +22,10 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   final TextEditingController otpController = TextEditingController();
   int seconds = 30;
   Timer? timer;
@@ -43,6 +48,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     startTimer();
   }
@@ -129,6 +136,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     timer?.cancel();
     //otpController.dispose();
     super.dispose();
@@ -147,11 +155,11 @@ class _OtpScreenState extends State<OtpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.lg),
               Text(AppStrings.otpTitle, style: AppTextStyle.heading),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               Text("Code sent to $displayPhone", style: AppTextStyle.subtitle),
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: AppSpacing.xl),
               PinCodeTextField(
                 appContext: context,
                 controller: otpController,
@@ -175,9 +183,9 @@ class _OtpScreenState extends State<OtpScreen> {
                   inactiveColor: const Color(0xFFEAEAEA),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: AppSpacing.md),
               _isVerifying
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
                         color: AppColors.primary,
                       ),
@@ -189,7 +197,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                 otpController.clear();
                                 startTimer();
                               },
-                              child: const Text(
+                              child: Text(
                                 "Resend OTP",
                                 style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',

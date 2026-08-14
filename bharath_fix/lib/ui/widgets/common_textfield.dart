@@ -32,7 +32,7 @@ class CommonTextField extends StatelessWidget {
       children: [
         if (label != null) ...[
           Text(label!, style: AppTextStyle.bodyBold),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
         ],
         TextFormField(
           controller: controller,
@@ -49,22 +49,22 @@ class CommonTextField extends StatelessWidget {
             fillColor: AppColors.card,
             filled: true,
             counterText: "", // Completely removes standard counter spacing footprint
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1),
+              borderSide: BorderSide(color: AppColors.primary, width: 1),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: const BorderSide(color: Colors.redAccent),
+              borderSide: BorderSide(color: Colors.redAccent),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+              borderSide: BorderSide(color: Colors.redAccent, width: 1),
             ),
           ),
         ),

@@ -63,7 +63,7 @@ class LiveTrackingScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Live Provider Tracking',
           style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold),
         ),
@@ -107,19 +107,19 @@ class LiveTrackingScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(28),
+                        padding: EdgeInsets.all(28),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.primary.withValues(alpha: 0.1),
                           border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 2),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.radar_rounded,
                           size: 64,
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Text(
                         'Live GPS Radar Active 📡',
                         style: TextStyle(
@@ -129,19 +129,19 @@ class LiveTrackingScreen extends StatelessWidget {
                           color: Colors.blueGrey.shade800,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 6),
                       Text(
                         'Live Tech Coordinates: $providerLat, $providerLng',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 13,
                           color: Colors.grey,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -155,11 +155,11 @@ class LiveTrackingScreen extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.timer_outlined, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 6),
+                            Icon(Icons.timer_outlined, size: 16, color: AppColors.primary),
+                            SizedBox(width: 6),
                             Text(
                               'Estimated Arrival: $etaMinutes mins',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -184,7 +184,7 @@ class LiveTrackingScreen extends StatelessWidget {
                   shadowColor: Colors.black.withValues(alpha: 0.15),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    padding: EdgeInsets.all(AppSpacing.medium),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -193,9 +193,9 @@ class LiveTrackingScreen extends StatelessWidget {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                              child: const Icon(Icons.person_rounded, size: 32, color: AppColors.primary),
+                              child: Icon(Icons.person_rounded, size: 32, color: AppColors.primary),
                             ),
-                            const SizedBox(width: 14),
+                            SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,19 +204,19 @@ class LiveTrackingScreen extends StatelessWidget {
                                     providerName,
                                     style: AppTextStyle.sectionHeader,
                                   ),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                      const SizedBox(width: 4),
-                                      const Text(
+                                      Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                      SizedBox(width: 4),
+                                      Text(
                                         '4.9 (120+ jobs)',
                                         style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: Colors.grey),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: 8),
                                       Text(
                                         '• $maskedPhone',
-                                        style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: Colors.grey),
+                                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: Colors.grey),
                                       ),
                                     ],
                                   ),
@@ -224,7 +224,7 @@ class LiveTrackingScreen extends StatelessWidget {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFE8F5E9),
                                 borderRadius: BorderRadius.circular(20),
@@ -232,11 +232,11 @@ class LiveTrackingScreen extends StatelessWidget {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.directions_run_rounded, size: 14, color: Color(0xFF2E7D32)),
-                                  const SizedBox(width: 4),
+                                  Icon(Icons.directions_run_rounded, size: 14, color: Color(0xFF2E7D32)),
+                                  SizedBox(width: 4),
                                   Text(
                                     statusStr == 'ON_THE_WAY' ? 'On The Way' : statusStr,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'Plus Jakarta Sans',
                                       color: Color(0xFF2E7D32),
                                       fontSize: 12,
@@ -256,14 +256,14 @@ class LiveTrackingScreen extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Start Job OTP',
                                   style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: Colors.grey),
                                 ),
-                                const SizedBox(height: 2),
+                                SizedBox(height: 2),
                                 Text(
                                   startOtp,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontFamily: 'Plus Jakarta Sans',
                                     fontWeight: FontWeight.bold,
                                     fontSize: 22,
@@ -277,26 +277,26 @@ class LiveTrackingScreen extends StatelessWidget {
                               children: [
                                 OutlinedButton.icon(
                                   onPressed: () => _openProviderChat(context, rawProviderPhone, booking.id),
-                                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                                  label: const Text('Chat'),
+                                  icon: Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                                  label: Text('Chat'),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.primary,
-                                    side: const BorderSide(color: AppColors.primary),
+                                    side: BorderSide(color: AppColors.primary),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 8),
                                 ElevatedButton.icon(
                                   onPressed: () => _makeMaskedCall(context, rawProviderPhone),
-                                  icon: const Icon(Icons.phone_rounded, size: 16),
-                                  label: const Text('Call'),
+                                  icon: Icon(Icons.phone_rounded, size: 16),
+                                  label: Text('Call'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF2E7D32),
                                     foregroundColor: Colors.white,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   ),
                                 ),
                               ],

@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +29,22 @@ class BookingChatDetailScreen extends StatefulWidget {
 }
 
 class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   final TextEditingController _msgController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -86,7 +103,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
         elevation: 1,
         shadowColor: AppColors.primary.withValues(alpha: 0.08),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -94,16 +111,16 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
             CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 20),
+              child: Icon(Icons.person_rounded, color: AppColors.primary, size: 20),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.providerName.isNotEmpty ? widget.providerName : "Assigned Technician",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -112,7 +129,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                   ),
                   Text(
                     widget.serviceTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 11,
                       color: Colors.blueGrey,
@@ -126,13 +143,13 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
         actions: [
           if (widget.providerPhone.isNotEmpty)
             Container(
-              margin: const EdgeInsets.only(right: 12),
+              margin: EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.phone_rounded, color: AppColors.primary, size: 20),
+                icon: Icon(Icons.phone_rounded, color: AppColors.primary, size: 20),
                 onPressed: () => _makePhoneCall(widget.providerPhone),
               ),
             ),
@@ -150,7 +167,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  return Center(child: CircularProgressIndicator(color: AppColors.primary));
                 }
 
                 final messages = snapshot.data?.docs ?? [];
@@ -158,28 +175,28 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                 if (messages.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24.0),
+                      padding: EdgeInsets.all(24.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(20),
+                            padding: EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.08),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chat_bubble_outline_rounded,
                               size: 48,
                               color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
                             _isJobDone
                                 ? "Chat history for this completed job."
                                 : "Start conversation with ${widget.providerName.isNotEmpty ? widget.providerName : 'your technician'}",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -195,7 +212,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
 
                 return ListView.builder(
                   reverse: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final data = messages[index].data() as Map<String, dynamic>;
@@ -205,7 +222,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                     final senderName = data['senderName'] ?? (isMe ? 'You' : widget.providerName);
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -214,13 +231,13 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                             CircleAvatar(
                               radius: 14,
                               backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                              child: const Icon(Icons.build_rounded, size: 14, color: AppColors.primary),
+                              child: Icon(Icons.build_rounded, size: 14, color: AppColors.primary),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                           ],
                           Flexible(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 gradient: isMe
                                     ? const LinearGradient(
@@ -253,10 +270,10 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                                 children: [
                                   if (!isMe)
                                     Padding(
-                                      padding: const EdgeInsets.only(bottom: 3),
+                                      padding: EdgeInsets.only(bottom: 3),
                                       child: Text(
                                         senderName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontFamily: 'Plus Jakarta Sans',
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11,
@@ -274,7 +291,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: 4),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     mainAxisAlignment: MainAxisAlignment.end,
@@ -288,8 +305,8 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                                         ),
                                       ),
                                       if (isMe) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.done_all_rounded, size: 13, color: Colors.white70),
+                                        SizedBox(width: 4),
+                                        Icon(Icons.done_all_rounded, size: 13, color: Colors.white70),
                                       ],
                                     ],
                                   ),
@@ -297,7 +314,7 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                               ),
                             ),
                           ),
-                          if (isMe) const SizedBox(width: 4),
+                          if (isMe) SizedBox(width: 4),
                         ],
                       ),
                     );
@@ -309,13 +326,13 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
           _isJobDone
               ? Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                   color: const Color(0xFFFFF3E0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.lock_clock_rounded, size: 20, color: Color(0xFFE65100)),
-                      const SizedBox(width: 8),
+                      Icon(Icons.lock_clock_rounded, size: 20, color: Color(0xFFE65100)),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "This job is completed. Chat is read-only and will auto-delete after 7 days.",
@@ -332,8 +349,8 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                   ),
                 )
               : Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: const BoxDecoration(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(color: Color(0x0C000062), blurRadius: 12, offset: Offset(0, -3)),
@@ -346,13 +363,13 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                           child: TextField(
                             controller: _msgController,
                             textCapitalization: TextCapitalization.sentences,
-                            style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14),
+                            style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14),
                             decoration: InputDecoration(
                               hintText: "Type a message...",
-                              hintStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: Colors.grey),
+                              hintStyle: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: Colors.grey),
                               fillColor: const Color(0xFFF1F5F9),
                               filled: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(28),
                                 borderSide: BorderSide.none,
@@ -360,16 +377,16 @@ class _BookingChatDetailScreenState extends State<BookingChatDetailScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        SizedBox(width: 10),
                         Container(
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [Color(0xFF000062), Color(0xFF1A1A80)],
                             ),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                            icon: Icon(Icons.send_rounded, color: Colors.white, size: 20),
                             onPressed: _sendMessage,
                           ),
                         ),

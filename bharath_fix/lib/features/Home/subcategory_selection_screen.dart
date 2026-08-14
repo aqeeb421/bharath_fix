@@ -21,7 +21,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(mainCategory.name, style: AppTextStyle.sectionHeader),
@@ -29,17 +29,17 @@ class SubCategorySelectionScreen extends StatelessWidget {
       body: SafeArea(
         child: ListView.builder(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           itemCount: mainCategory.subCategories.length,
           itemBuilder: (context, index) {
             final subCategory = mainCategory.subCategories[index];
             return GestureDetector(
               onTap: () => _showIntentBottomSheet(context, subCategory.name, subCategory.placeholderImage),
               child: Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.medium),
-                padding: const EdgeInsets.all(AppSpacing.small),
+                margin: EdgeInsets.only(bottom: AppSpacing.medium),
+                padding: EdgeInsets.all(AppSpacing.small),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(AppRadius.large),
                   border: Border.all(color: AppColors.border),
                 ),
@@ -58,7 +58,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                       child: Image.network(
                         subCategory.placeholderImage,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Center(
+                        errorBuilder: (context, error, stackTrace) => Center(
                           child: Icon(
                             Icons.broken_image_outlined,
                             color: Colors.grey,
@@ -67,7 +67,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                         ),
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
-                          return const Center(
+                          return Center(
                             child: SizedBox(
                               width: 20,
                               height: 20,
@@ -80,7 +80,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                         },
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.medium),
+                    SizedBox(width: AppSpacing.medium),
 
                     // Middle: Text Hierarchy
                     Expanded(
@@ -94,17 +94,17 @@ class SubCategorySelectionScreen extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             'Complete Diagnostics & Inspection',
                             style: AppTextStyle.subtitle.copyWith(fontSize: 12),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: 6),
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 '₹499',
                                 style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
@@ -114,8 +114,8 @@ class SubCategorySelectionScreen extends StatelessWidget {
                                   decorationColor: AppColors.subtitle,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              const Text(
+                              SizedBox(width: 6),
+                              Text(
                                 '₹199',
                                 style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
@@ -124,14 +124,14 @@ class SubCategorySelectionScreen extends StatelessWidget {
                                   color: AppColors.primary,
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFE8F5E9),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   '60% OFF',
                                   style: TextStyle(
                                     fontFamily: 'Plus Jakarta Sans',
@@ -148,7 +148,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                     ),
 
                     // Right Side: Minimal Action Pointer Arrow
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: AppSpacing.small),
                       child: Icon(
                         Icons.arrow_forward_ios_rounded,
@@ -173,29 +173,29 @@ class SubCategorySelectionScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large))),
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(subName, style: AppTextStyle.sectionHeader),
-              const SizedBox(height: AppSpacing.small),
+              SizedBox(height: AppSpacing.small),
               Text('Select service type (Inspection charge applies)', style: AppTextStyle.subtitle),
-              const SizedBox(height: AppSpacing.medium),
+              SizedBox(height: AppSpacing.medium),
               _buildIntentOption(
                 context,
                 icon: Icons.build_rounded,
                 title: 'Service / Repair Request',
                 onTap: () => _navigateToDetails(context, '$subName Repair', image, 'Service'),
               ),
-              const Divider(color: AppColors.border),
+              Divider(color: AppColors.border),
               _buildIntentOption(
                 context,
                 icon: Icons.settings_suggest_rounded,
                 title: 'Installation / Uninstallation',
                 onTap: () => _navigateToDetails(context, '$subName Installation', image, 'Installation'),
               ),
-              const SizedBox(height: AppSpacing.medium),
+              SizedBox(height: AppSpacing.medium),
             ],
           ),
         );
@@ -208,7 +208,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
       onTap: onTap,
       leading: Icon(icon, color: AppColors.primary),
       title: Text(title, style: AppTextStyle.bodyBold),
-      trailing: const Text('₹199', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.primary, fontWeight: FontWeight.bold)),
+      trailing: Text('₹199', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.primary, fontWeight: FontWeight.bold)),
     );
   }
 

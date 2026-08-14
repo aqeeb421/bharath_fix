@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import '../../models/BookingEntry.dart';
 import '../../services/database_service.dart';
@@ -20,6 +21,22 @@ class QuotationApprovalDialog extends StatefulWidget {
 }
 
 class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   String _selectedPaymentMode = 'RAZORPAY';
   bool _isProcessing = false;
 
@@ -33,7 +50,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,18 +58,18 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.green.shade50,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.verified_user_rounded,
                     color: Colors.green,
                     size: 28,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,10 +80,9 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                               fontWeight: FontWeight.bold,
                             ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2),
                       Row(
-                        children: const [
-                          Icon(Icons.shield_rounded, color: Colors.green, size: 14),
+                        children: [Icon(Icons.shield_rounded, color: Colors.green, size: 14),
                           SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -86,12 +102,12 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'The technician completed inspection and submitted standard rate card pricing:',
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 180),
               child: Container(
@@ -102,7 +118,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12),
                   itemCount: widget.booking.quoteItems.length,
                   separatorBuilder: (_, __) => const Divider(height: 12),
                   itemBuilder: (context, index) {
@@ -120,19 +136,19 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                                 size: 16,
                                 color: item.isSparePart ? Colors.blue : Colors.orange,
                               ),
-                              const SizedBox(width: 8),
+                              SizedBox(width: 8),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       item.title,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
                                       ),
                                     ),
-                                    const Text(
+                                    Text(
                                       '🛡️ Official Standard Rate • 90d Warranty',
                                       style: TextStyle(
                                         color: Colors.green,
@@ -148,7 +164,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                         ),
                         Text(
                           '₹${item.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -159,24 +175,24 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Repair & Parts Subtotal:',
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 Text(
                   '₹${quoteTotal.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -186,12 +202,12 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
-                      const Text(
+                      Text(
                         'Service Charge (Visiting Fee):',
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: isFeePaid ? Colors.green.shade50 : Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(4),
@@ -211,7 +227,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   isFeePaid ? '₹0 (Paid)' : '+ ₹${visitingFee.toStringAsFixed(0)}',
                   style: TextStyle(
@@ -226,13 +242,13 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Total Payable Amount:',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 Text(
                   '₹${totalPayable.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
                     color: AppColors.primary,
@@ -241,16 +257,16 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
               ],
             ),
 
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Select Payment Option',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Option 1: Razorpay / Online UPI
             Container(
-              margin: const EdgeInsets.only(bottom: 8),
+              margin: EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: _selectedPaymentMode == 'RAZORPAY' ? Colors.blue.shade50 : Colors.white,
                 borderRadius: BorderRadius.circular(10),
@@ -265,15 +281,15 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 onChanged: _isProcessing ? null : (val) => setState(() => _selectedPaymentMode = val!),
                 activeColor: AppColors.primary,
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                title: const Row(
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                title: Row(
                   children: [
                     Icon(Icons.payment_rounded, color: AppColors.primary, size: 18),
                     SizedBox(width: 8),
                     Text('UPI / Cards / NetBanking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
-                subtitle: const Text('Google Pay, PhonePe, Paytm & All Cards', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                subtitle: Text('Google Pay, PhonePe, Paytm & All Cards', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ),
             ),
 
@@ -284,7 +300,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 final balance = snapshot.data ?? 0.0;
                 final bool hasBalance = balance >= totalPayable;
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: _selectedPaymentMode == 'WALLET' ? Colors.blue.shade50 : Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -299,11 +315,11 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                     onChanged: _isProcessing ? null : (val) => setState(() => _selectedPaymentMode = val!),
                     activeColor: AppColors.primary,
                     dense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 8),
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
+                        Row(
                           children: [
                             Icon(Icons.account_balance_wallet_rounded, color: Colors.green, size: 18),
                             SizedBox(width: 8),
@@ -345,19 +361,19 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                 onChanged: _isProcessing ? null : (val) => setState(() => _selectedPaymentMode = val!),
                 activeColor: AppColors.primary,
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                title: const Row(
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                title: Row(
                   children: [
                     Icon(Icons.money_rounded, color: AppColors.primary, size: 18),
                     SizedBox(width: 8),
                     Text('Cash After Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
-                subtitle: const Text('Pay technician directly upon service completion', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                subtitle: Text('Pay technician directly upon service completion', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ),
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
@@ -365,16 +381,16 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                     onPressed: _isProcessing ? null : widget.onReject,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.red),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Decline Quote'),
+                    child: Text('Decline Quote'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _isProcessing
@@ -391,13 +407,13 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade700,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: _isProcessing
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
@@ -405,7 +421,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Approve & Pay',
                             style: TextStyle(
                               color: Colors.white,

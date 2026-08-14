@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Home/product_details_screen.dart
 import 'package:bharath_fix/features/Home/product_checkout_screen.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,22 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -39,20 +56,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 children: [
                   _buildImmersiveImageHeader(context),
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    padding: EdgeInsets.all(AppSpacing.medium),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Sub-category badge + Product Name
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.accentGreen,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             widget.productSubCategory,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -60,13 +77,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.small),
+                        SizedBox(height: AppSpacing.small),
                         Text(widget.productName, style: AppTextStyle.mainTitle.copyWith(fontSize: 22)),
-                        const SizedBox(height: AppSpacing.small),
+                        SizedBox(height: AppSpacing.small),
 
                         Row(
-                          children: const [
-                            Icon(Icons.gpp_good_rounded, color: AppColors.primary, size: 18),
+                          children: [Icon(Icons.gpp_good_rounded, color: AppColors.primary, size: 18),
                             SizedBox(width: 6),
                             Text(
                               '1 Year Comprehensive Warranty',
@@ -79,20 +95,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.large),
+                        SizedBox(height: AppSpacing.large),
 
-                        const Text('Description', style: AppTextStyle.sectionHeader),
-                        const SizedBox(height: AppSpacing.small),
+                        Text('Description', style: AppTextStyle.sectionHeader),
+                        SizedBox(height: AppSpacing.small),
                         Text(
                           'Get 100% safe and pure drinking water with the brand new ${widget.productName}. Features multi-stage RO + UV purification technology with an active mineral infusion layer tailored perfectly for Indian households.',
                           style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4, color: AppColors.title),
                         ),
-                        const SizedBox(height: AppSpacing.large),
+                        SizedBox(height: AppSpacing.large),
 
                         // Free Delivery & Installation Highlight Box
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.medium),
+                          padding: EdgeInsets.all(AppSpacing.medium),
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(AppRadius.large),
@@ -101,13 +117,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
-                              const SizedBox(width: 12),
+                              Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
+                                  children: [Text(
                                       'BharathFix Delivery Promise',
                                       style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.title),
                                     ),
@@ -122,10 +137,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.large),
+                        SizedBox(height: AppSpacing.large),
 
-                        const Text("Technical Specifications", style: AppTextStyle.sectionHeader),
-                        const SizedBox(height: AppSpacing.medium),
+                        Text("Technical Specifications", style: AppTextStyle.sectionHeader),
+                        SizedBox(height: AppSpacing.medium),
                         _buildSpecItem('Purification Flow', 'RO + UV + Copper + Minerals'),
                         _buildSpecItem('Storage Capacity', '7.5 Liters clear tank'),
                         _buildSpecItem('Installation Type', 'Wall Mounted / Counter Top'),
@@ -159,11 +174,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.small),
+            padding: EdgeInsets.all(AppSpacing.small),
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 18),
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 18),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -175,7 +190,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Widget _buildSpecItem(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+      padding: EdgeInsets.only(bottom: AppSpacing.medium),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start, // Aligns elements neatly if wrapping happens
@@ -188,7 +203,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               style: AppTextStyle.subtitle.copyWith(fontSize: 14),
             ),
           ),
-          const SizedBox(width: AppSpacing.medium), // Prevents texts from touching
+          SizedBox(width: AppSpacing.medium), // Prevents texts from touching
 
           // Constrains the right value side and allows text wrapping
           Expanded(
@@ -206,9 +221,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Widget _buildStickyBottomActionBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
+      decoration: BoxDecoration(
+        color: AppColors.card,
         border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: SafeArea(
@@ -220,8 +235,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Product Price', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
+                Text('Product Price', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500)),
+                SizedBox(height: 2),
                 Text(widget.productPrice, style: AppTextStyle.mainTitle.copyWith(fontSize: 22, color: AppColors.primary)),
               ],
             ),
@@ -240,12 +255,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               },
               borderRadius: BorderRadius.circular(AppRadius.button),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 44, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(AppRadius.button),
                 ),
-                child: const Text(
+                child: Text(
                   'Buy now',
                   style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                 ),

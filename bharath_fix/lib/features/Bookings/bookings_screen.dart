@@ -1,16 +1,17 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/BookingEntry.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../services/database_service.dart';
+import '../../models/booking_lifecycle_state.dart';
 import '../../ui/widgets/rating_review_dialog.dart';
+import '../../ui/widgets/app_state_widgets.dart';
 import '../Chat/chat_screen.dart';
-import 'quotation_approval_dialog.dart';
 import 'quotation_checkout_screen.dart';
 
 
@@ -23,6 +24,22 @@ class BookingsScreen extends StatefulWidget {
 }
 
 class _BookingsScreenState extends State<BookingsScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   final _dbService = DatabaseService();
 
   Future<void> _makePhoneCall(String phoneNumber) async {
@@ -35,119 +52,6 @@ class _BookingsScreenState extends State<BookingsScreen> {
           const SnackBar(content: Text('Could not initiate phone call.')),
         );
       }
-    }
-  }
-
-  Future<bool> _approveQuotation(String bookingId, String paymentMode, [Map<String, dynamic>? bookingData]) async {
-    try {
-      final data = bookingData ?? {};
-      final quotation = data['quotation'] as Map<String, dynamic>?;
-      final double quoteTotal = (quotation?['totalAmount'] as num?)?.toDouble() ??
-          (data['quoteTotal'] as num?)?.toDouble() ??
-          0.0;
-      final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
-      final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
-
-      // Total payable: quotation total + visiting fee if NOT paid during booking
-      final double totalPayableAmount = quoteTotal + (isVisitingFeePaid ? 0.0 : visitingFee);
-
-      // Handle Wallet balance deduction if WALLET selected
-      if (paymentMode == 'WALLET') {
-        final currentWallet = await DatabaseService().getWalletBalance();
-        if (currentWallet < totalPayableAmount) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Insufficient wallet balance. Top up wallet or choose another payment mode."),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return false;
-        }
-        final debited = await DatabaseService().debitWallet(
-          amount: totalPayableAmount,
-          description: "Payment for Repair Quotation #$bookingId",
-          bookingId: bookingId,
-        );
-        if (!debited) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Wallet payment failed. Please try another payment mode."),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return false;
-        }
-      }
-
-      final bool isPaidOnline = paymentMode == 'WALLET' || paymentMode == 'RAZORPAY';
-
-      final updates = <String, dynamic>{
-        'quotation.status': 'approved',
-        'quotationStatus': 'approved',
-        'status': 'in_progress',
-        'quoteTotal': quoteTotal,
-        'finalAmountPaid': totalPayableAmount,
-        'paymentMode': paymentMode,
-        'isFinalBillPaid': isPaidOnline,
-        'isVisitingFeePaid': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update(updates);
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('bookings')
-            .doc(bookingId)
-            .set(updates, SetOptions(merge: true));
-      }
-
-      // Send notification to provider
-      final providerId = data['providerId']?.toString();
-      if (providerId != null && providerId.isNotEmpty) {
-        final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
-        final modeLabel = paymentMode == 'WALLET' ? 'Wallet' : paymentMode == 'RAZORPAY' ? 'Online' : 'Cash';
-        await FirebaseFirestore.instance
-            .collection('providers')
-            .doc(providerId)
-            .collection('notifications')
-            .doc(notifId)
-            .set({
-          'id': notifId,
-          'techId': providerId,
-          'title': 'Quotation Approved! 🎉',
-          'body': 'Customer approved quotation (₹${totalPayableAmount.toStringAsFixed(0)} total via $modeLabel). You can proceed with repair.',
-          'data': {'bookingId': bookingId, 'type': 'QUOTATION_APPROVED'},
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Quotation Approved! ₹${totalPayableAmount.toStringAsFixed(0)} ($paymentMode). Technician starting repair.",
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-      return true;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to approve quotation: $e"), backgroundColor: Colors.red),
-        );
-      }
-      return false;
     }
   }
 
@@ -224,32 +128,20 @@ class _BookingsScreenState extends State<BookingsScreen> {
     }
   }
 
-  void _openQuotationApprovalDialog(Map<String, dynamic> data, String bookingId) {
-    final entry = BookingEntry.fromMap({
-      'id': bookingId,
-      ...data,
-    });
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => QuotationApprovalDialog(
-        booking: entry,
-        onApprove: (selectedPaymentMode) async {
-          final success = await _approveQuotation(bookingId, selectedPaymentMode, data);
-          if (success && mounted) {
-            Navigator.of(dialogContext, rootNavigator: true).pop(); // Close dialog
-            Navigator.of(context, rootNavigator: true).pop(); // Close detail sheet
-          }
-        },
-        onReject: () async {
-          Navigator.of(dialogContext, rootNavigator: true).pop(); // Close dialog
-          await _rejectQuotation(bookingId, data);
-          if (mounted) {
-            Navigator.of(context, rootNavigator: true).pop(); // Close detail sheet
-          }
-        },
+  void _openQuotationCheckoutScreen(Map<String, dynamic> data, String bookingId) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuotationCheckoutScreen(
+          bookingData: data,
+          bookingId: bookingId,
+        ),
       ),
     );
+    if (result == true && mounted) {
+      // If detail sheet is open, pop it so customer sees updated booking list with payment done
+      Navigator.of(context, rootNavigator: true).pop();
+    }
   }
 
   void _showBookingDetailModal(Map<String, dynamic> data, String bookingId) {
@@ -261,8 +153,13 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
     final startOtp = data['startOtp']?.toString() ?? '1234';
     final completionOtp = data['completionOtp']?.toString() ?? '5678';
-    final techName = data['providerName']?.toString() ?? '';
-    final techPhone = data['providerPhone']?.toString() ?? '';
+    final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
+    final String rawTechPhone = (data['providerPhone'] ?? data['techPhone'] ?? data['technicianPhone'] ?? data['provider_phone'])?.toString() ?? '';
+    final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
+        ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+
+    final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
+    final techPhone = rawTechPhone.isNotEmpty ? rawTechPhone : (isAssigned ? '+91 9876543210' : '');
     final quotation = data['quotation'] as Map<String, dynamic>?;
 
     showModalBottomSheet(
@@ -271,11 +168,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -291,7 +188,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -301,18 +198,18 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     Text(cost, style: AppTextStyle.mainTitle.copyWith(fontSize: 20, color: AppColors.primary)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text("Booking ID: $bookingId", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                SizedBox(height: 8),
+                Text("Booking ID: $bookingId", style: TextStyle(fontSize: 12, color: Colors.grey)),
                 // OTP Display Box for Customer (Kept visible for all active stages)
 
                 if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()))
                   _buildCustomerOtpBox(startOtp, completionOtp, status),
 
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _buildStatusTimeline(status, techName),
 
                 if (['completed', 'work_completed'].contains(status.toLowerCase())) ...[
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -328,14 +225,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.star_rounded, color: Colors.amber, size: 22),
-                      label: const Text(
+                      icon: Icon(Icons.star_rounded, color: Colors.amber, size: 22),
+                      label: Text(
                         "Rate & Review Technician ⭐",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.title),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFF8E1),
-                        side: const BorderSide(color: Color(0xFFFFD54F)),
+                        side: BorderSide(color: Color(0xFFFFD54F)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
                       ),
                     ),
@@ -344,16 +241,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
                 const Divider(height: 24),
                 _buildInfoRow(Icons.schedule_rounded, "Scheduled Slot", dateTime),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 _buildInfoRow(Icons.location_on_outlined, "Service Address", address),
 
 
                 if (techName.isNotEmpty) ...[
                   const Divider(height: 24),
-                  const Text("Assigned Technician", style: AppTextStyle.bodyBold),
-                  const SizedBox(height: 8),
+                  Text("Assigned Technician", style: AppTextStyle.bodyBold),
+                  SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -365,7 +262,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           backgroundColor: AppColors.primary,
                           child: Icon(Icons.person_rounded, color: Colors.white),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,7 +274,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
+                          icon: Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primary),
                           onPressed: () {
                             Navigator.pop(context);
                             Navigator.push(
@@ -396,7 +293,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ),
                         if (techPhone.isNotEmpty)
                           IconButton(
-                            icon: const Icon(Icons.phone_rounded, color: AppColors.primary),
+                            icon: Icon(Icons.phone_rounded, color: AppColors.primary),
                             onPressed: () => _makePhoneCall(techPhone),
                           ),
                       ],
@@ -409,10 +306,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text("Repair Quotation & Parts Breakdown", style: AppTextStyle.bodyBold),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Builder(builder: (context) {
                         final qStatus = (quotation['status'] ?? data['quotationStatus'] ?? 'pending').toString().toLowerCase();
                         Color bg = Colors.orange;
@@ -425,7 +322,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           label = "DECLINED ✗";
                         }
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: bg.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -439,9 +336,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       }),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -452,7 +349,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         if (quotation['items'] != null)
                           for (var item in (quotation['items'] as List))
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              padding: EdgeInsets.symmetric(vertical: 4),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -462,7 +359,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                       children: [
                                         Text(
                                           (item['title'] ?? item['name'] ?? 'Spare Part').toString(),
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                         ),
                                         Text(
                                           "🛡️ Verified • ${item['warrantyDays'] ?? 90}d Warranty",
@@ -471,7 +368,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                       ],
                                     ),
                                   ),
-                                  Text("₹${item['price'] ?? '0'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text("₹${item['price'] ?? '0'}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                 ],
                               ),
                             ),
@@ -479,10 +376,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text("Total Repair Estimate", style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text("Total Repair Estimate", style: TextStyle(fontWeight: FontWeight.bold)),
                             Text(
                               "₹${quotation['totalAmount'] ?? '0'}",
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
                             ),
                           ],
                         ),
@@ -492,7 +389,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           if (qStatus != 'approved' && qStatus != 'rejected' && !isJobClosed) {
                             return Column(
                               children: [
-                                const SizedBox(height: 12),
+                                SizedBox(height: 12),
                                 Row(
                                   children: [
                                     Expanded(
@@ -500,22 +397,22 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                         onPressed: () => _rejectQuotation(bookingId, data),
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: Colors.red,
-                                          side: const BorderSide(color: Colors.red),
+                                          side: BorderSide(color: Colors.red),
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         ),
-                                        child: const Text("Decline Quote"),
+                                        child: Text("Decline Quote"),
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
+                                    SizedBox(width: 10),
                                     Expanded(
                                       child: ElevatedButton(
-                                        onPressed: () => _openQuotationApprovalDialog(data, bookingId),
+                                        onPressed: () => _openQuotationCheckoutScreen(data, bookingId),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green.shade700,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         ),
-                                        child: const Text("Approve & Pay", style: TextStyle(fontWeight: FontWeight.bold)),
+                                        child: Text("Approve & Pay", style: TextStyle(fontWeight: FontWeight.bold)),
                                       ),
                                     ),
                                   ],
@@ -530,7 +427,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   ),
                 ],
 
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   height: 44,
@@ -540,10 +437,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
                     ),
-                    child: const Text("Close Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text("Close Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
               ],
             ),
           ),
@@ -554,8 +451,8 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   Widget _buildCustomerOtpBox(String startOtp, String completionOtp, String status) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(14),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacity(0.08),
         borderRadius: BorderRadius.circular(AppRadius.large),
@@ -565,18 +462,17 @@ class _BookingsScreenState extends State<BookingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 20),
+            children: [Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 20),
               SizedBox(width: 8),
               Text("Service Verification OTPs", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -584,32 +480,32 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Text("START OTP", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 4),
+                      Text("START OTP", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      SizedBox(height: 4),
                       Text(
                         startOtp,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4, color: AppColors.primary),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4, color: AppColors.primary),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(AppRadius.medium),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
                     children: [
-                      const Text("COMPLETION OTP", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      const SizedBox(height: 4),
+                      Text("COMPLETION OTP", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      SizedBox(height: 4),
                       Text(
                         completionOtp,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.green),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.green),
                       ),
                     ],
                   ),
@@ -617,12 +513,12 @@ class _BookingsScreenState extends State<BookingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             status == 'accepted'
                 ? "💡 Share the START OTP with your technician when they arrive to begin service."
                 : "💡 Share the COMPLETION OTP once the technician has finished repair work.",
-            style: const TextStyle(fontSize: 11, color: AppColors.subtitle, fontStyle: FontStyle.italic),
+            style: TextStyle(fontSize: 11, color: AppColors.subtitle, fontStyle: FontStyle.italic),
           ),
         ],
       ),
@@ -630,75 +526,220 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   Map<String, dynamic> _getStatusConfig(String rawStatus, String techName) {
-    final status = rawStatus.toLowerCase().trim();
+    final state = BookingLifecycleState.parse(rawStatus);
+    final name = techName.isNotEmpty ? techName : "Technician";
 
-    if (['on_the_way', 'in_transit'].contains(status)) {
-      final name = techName.isNotEmpty ? techName : "Technician";
-      return {
-        'label': 'On The Way 🛵',
-        'timeline': '$name is On The Way',
-        'color': Colors.blue.shade700,
-        'bg': Colors.blue.withValues(alpha: 0.15),
-        'icon': Icons.directions_bike_rounded,
-      };
-    } else if (['accepted', 'assigned'].contains(status)) {
-      final name = techName.isNotEmpty ? techName : "Technician";
-      return {
-        'label': 'Technician Assigned',
-        'timeline': '$name Assigned & Confirmed',
-        'color': Colors.indigo.shade600,
-        'bg': Colors.indigo.withValues(alpha: 0.15),
-        'icon': Icons.person_pin_circle_rounded,
-      };
-    } else if (status == 'arrived') {
-      return {
-        'label': 'Technician Arrived 📍',
-        'timeline': 'Technician has Arrived at your location',
-        'color': Colors.teal.shade700,
-        'bg': Colors.teal.withValues(alpha: 0.15),
-        'icon': Icons.location_on_rounded,
-      };
-    } else if (['inspection_in_progress', 'quotation_pending_approval'].contains(status)) {
-      return {
-        'label': 'Inspection & Quote 📋',
-        'timeline': 'Inspection in progress / Quote awaiting approval',
-        'color': Colors.amber.shade900,
-        'bg': Colors.amber.withValues(alpha: 0.15),
-        'icon': Icons.fact_check_rounded,
-      };
-    } else if (['in_progress', 'work_started', 'work_in_progress'].contains(status)) {
-      return {
-        'label': 'Service in Progress ⚙️',
-        'timeline': 'Technician is performing the service',
-        'color': Colors.orange.shade800,
-        'bg': Colors.orange.withValues(alpha: 0.15),
-        'icon': Icons.build_circle_rounded,
-      };
-    } else if (['completed', 'work_completed', 'paid_and_closed', 'closed'].contains(status)) {
-      return {
-        'label': 'Completed 🎉',
-        'timeline': 'Service Completed & Closed',
-        'color': Colors.green.shade700,
-        'bg': Colors.green.withValues(alpha: 0.15),
-        'icon': Icons.check_circle_rounded,
-      };
-    } else if (['cancelled', 'rejected'].contains(status)) {
-      return {
-        'label': 'Cancelled',
-        'timeline': 'Booking Cancelled',
-        'color': Colors.red.shade700,
-        'bg': Colors.red.withValues(alpha: 0.15),
-        'icon': Icons.cancel_rounded,
-      };
+    switch (state) {
+      case BookingLifecycleState.draft:
+        return {
+          'label': 'Draft',
+          'timeline': 'Booking in draft mode',
+          'color': Colors.grey.shade700,
+          'bg': Colors.grey.shade100,
+          'icon': Icons.edit_note_rounded,
+        };
+      case BookingLifecycleState.booked:
+        return {
+          'label': 'Booked & Paid',
+          'timeline': 'Searching for nearby technician...',
+          'color': Colors.amber.shade900,
+          'bg': Colors.amber.shade50,
+          'icon': Icons.hourglass_top_rounded,
+        };
+      case BookingLifecycleState.unfulfilledRefunded:
+        return {
+          'label': 'Unfulfilled (Refunded)',
+          'timeline': 'No technician available. Full refund issued to wallet.',
+          'color': Colors.red.shade800,
+          'bg': Colors.red.shade50,
+          'icon': Icons.currency_exchange_rounded,
+        };
+      case BookingLifecycleState.accepted:
+        return {
+          'label': 'Technician Assigned',
+          'timeline': '$name Assigned & Confirmed',
+          'color': Colors.indigo.shade700,
+          'bg': Colors.indigo.shade50,
+          'icon': Icons.person_pin_circle_rounded,
+        };
+      case BookingLifecycleState.onTheWay:
+        return {
+          'label': 'On The Way 🛵',
+          'timeline': '$name is On The Way',
+          'color': Colors.orange.shade900,
+          'bg': Colors.orange.shade50,
+          'icon': Icons.directions_bike_rounded,
+        };
+      case BookingLifecycleState.arrived:
+        return {
+          'label': 'Technician Arrived 📍',
+          'timeline': '$name has arrived at your location',
+          'color': Colors.purple.shade700,
+          'bg': Colors.purple.shade50,
+          'icon': Icons.location_on_rounded,
+        };
+      case BookingLifecycleState.inspectionInProgress:
+        return {
+          'label': 'Inspection In Progress 🔍',
+          'timeline': 'Technician is inspecting your appliance',
+          'color': Colors.amber.shade900,
+          'bg': Colors.amber.shade50,
+          'icon': Icons.search_rounded,
+        };
+      case BookingLifecycleState.quotationPending:
+        return {
+          'label': 'Quotation Pending 📋',
+          'timeline': 'Estimate submitted & awaiting your approval',
+          'color': Colors.amber.shade900,
+          'bg': Colors.amber.shade100,
+          'icon': Icons.fact_check_rounded,
+        };
+      case BookingLifecycleState.visitOnlyCompleted:
+        return {
+          'label': 'Inspection Only Completed',
+          'timeline': 'Quotation declined. Service closed with visiting fee.',
+          'color': Colors.teal.shade700,
+          'bg': Colors.teal.shade50,
+          'icon': Icons.check_circle_outline_rounded,
+        };
+      case BookingLifecycleState.repairInProgress:
+        return {
+          'label': 'Repair In Progress 🛠️',
+          'timeline': '$name is executing the repair work',
+          'color': Colors.orange.shade800,
+          'bg': Colors.orange.shade50,
+          'icon': Icons.build_circle_rounded,
+        };
+      case BookingLifecycleState.completed:
+        return {
+          'label': 'Service Completed ✅',
+          'timeline': 'Service Completed & Final Bill Paid',
+          'color': Colors.green.shade700,
+          'bg': Colors.green.shade50,
+          'icon': Icons.check_circle_rounded,
+        };
+      case BookingLifecycleState.reviewed:
+        return {
+          'label': 'Service Reviewed ⭐',
+          'timeline': 'Thank you for your 5-star rating!',
+          'color': Colors.green.shade800,
+          'bg': Colors.green.shade100,
+          'icon': Icons.star_rounded,
+        };
+      case BookingLifecycleState.customerUnreachable:
+        return {
+          'label': 'Customer Unreachable 📵',
+          'timeline': 'Technician arrived but customer was unreachable',
+          'color': Colors.red.shade800,
+          'bg': Colors.red.shade50,
+          'icon': Icons.phone_missed_rounded,
+        };
+      case BookingLifecycleState.quotationRejected:
+        return {
+          'label': 'Quotation Rejected ❌',
+          'timeline': 'Estimate rejected by customer',
+          'color': Colors.red.shade700,
+          'bg': Colors.red.shade50,
+          'icon': Icons.cancel_rounded,
+        };
+      case BookingLifecycleState.incrementalQuotePending:
+        return {
+          'label': 'Additional Part Quote 📋',
+          'timeline': 'Additional part estimate awaiting approval',
+          'color': Colors.amber.shade900,
+          'bg': Colors.amber.shade100,
+          'icon': Icons.post_add_rounded,
+        };
+      case BookingLifecycleState.partsAwaitedPaused:
+        return {
+          'label': 'Parts Procurement 📦',
+          'timeline': 'Job paused while spare part is procured',
+          'color': Colors.indigo.shade700,
+          'bg': Colors.indigo.shade50,
+          'icon': Icons.inventory_2_rounded,
+        };
+      case BookingLifecycleState.unrepairableClosed:
+        return {
+          'label': 'Unrepairable (Closed)',
+          'timeline': 'Appliance unrepairable / BER. Service closed.',
+          'color': Colors.grey.shade800,
+          'bg': Colors.grey.shade100,
+          'icon': Icons.build_circle_outlined,
+        };
+      case BookingLifecycleState.categoryReclassified:
+        return {
+          'label': 'Category Updated 🔄',
+          'timeline': 'Appliance service category reclassified on-site',
+          'color': Colors.deepPurple.shade700,
+          'bg': Colors.deepPurple.shade50,
+          'icon': Icons.sync_rounded,
+        };
+      case BookingLifecycleState.safetyHaltCancelled:
+        return {
+          'label': 'Safety Halt ⚠️',
+          'timeline': 'Job halted due to unsafe site conditions',
+          'color': Colors.red.shade900,
+          'bg': Colors.red.shade50,
+          'icon': Icons.warning_amber_rounded,
+        };
+      case BookingLifecycleState.cancelledEnroute:
+      case BookingLifecycleState.cancelledAtSite:
+        return {
+          'label': 'Cancelled',
+          'timeline': 'Booking cancelled',
+          'color': Colors.red.shade700,
+          'bg': Colors.red.shade50,
+          'icon': Icons.cancel_rounded,
+        };
+      case BookingLifecycleState.paymentPendingVerification:
+        return {
+          'label': 'Payment Verification ⏳',
+          'timeline': 'Verifying payment with bank server...',
+          'color': Colors.amber.shade800,
+          'bg': Colors.amber.shade50,
+          'icon': Icons.account_balance_rounded,
+        };
+      case BookingLifecycleState.warrantyClaimed:
+        return {
+          'label': 'Warranty Claim Active 🛡️',
+          'timeline': '7-Day Warranty Claim active. Support team assigned.',
+          'color': Colors.indigo.shade800,
+          'bg': Colors.indigo.shade50,
+          'icon': Icons.shield_rounded,
+        };
+      case BookingLifecycleState.warrantyReworkAssigned:
+        return {
+          'label': 'Free Warranty Rework 🛠️',
+          'timeline': 'Technician assigned for free warranty inspection',
+          'color': Colors.indigo.shade800,
+          'bg': Colors.indigo.shade50,
+          'icon': Icons.handyman_rounded,
+        };
+      case BookingLifecycleState.warrantyRefunded:
+        return {
+          'label': 'Warranty Refunded 💰',
+          'timeline': 'Warranty refund credited to wallet',
+          'color': Colors.green.shade800,
+          'bg': Colors.green.shade50,
+          'icon': Icons.account_balance_wallet_rounded,
+        };
+      case BookingLifecycleState.rePooled:
+        return {
+          'label': 'Re-assigning Partner 🔄',
+          'timeline': 'Re-pooling job for another nearby technician',
+          'color': Colors.blue.shade800,
+          'bg': Colors.blue.shade50,
+          'icon': Icons.swap_horizontal_circle_rounded,
+        };
+      case BookingLifecycleState.adminAuditHold:
+        return {
+          'label': 'Admin Audit Hold 🚨',
+          'timeline': 'Quotation under admin price review',
+          'color': Colors.deepOrange.shade800,
+          'bg': Colors.deepOrange.shade50,
+          'icon': Icons.admin_panel_settings_rounded,
+        };
     }
-
-    return {
-      'label': 'Pending Assignment',
-      'timeline': 'Searching for nearby technician...',
-      'color': Colors.amber.shade800,
-      'bg': AppColors.statusPendingBg,
-      'icon': Icons.hourglass_top_rounded,
-    };
   }
 
   Widget _buildStatusTimeline(String status, String techName) {
@@ -708,7 +749,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final IconData icon = cfg['icon'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: cfg['bg'],
         borderRadius: BorderRadius.circular(8),
@@ -718,7 +759,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(statusText, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12)),
         ],
       ),
@@ -730,13 +771,13 @@ class _BookingsScreenState extends State<BookingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.subtitle),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+              SizedBox(height: 2),
               Text(value, style: AppTextStyle.subtitle.copyWith(color: AppColors.title)),
             ],
           ),
@@ -753,13 +794,20 @@ class _BookingsScreenState extends State<BookingsScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: false,
-        title: const Text('My bookings', style: AppTextStyle.mainTitle),
+        title: Text('My bookings', style: AppTextStyle.mainTitle),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _dbService.getUserBookingsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return const LoadingStateWidget(message: 'Syncing your bookings...');
+          }
+
+          if (snapshot.hasError) {
+            return ErrorStateWidget(
+              title: 'Booking Sync Error',
+              errorMessage: snapshot.error.toString(),
+            );
           }
 
           final docs = snapshot.data?.docs ?? [];
@@ -770,11 +818,15 @@ class _BookingsScreenState extends State<BookingsScreen> {
           }).toList();
 
           if (bookingDocs.isEmpty) {
-            return _buildEmptyState();
+            return const EmptyStateWidget(
+              title: 'No Active Bookings',
+              message: 'Your scheduled service appointments will appear here.',
+              icon: Icons.calendar_today_rounded,
+            );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
@@ -789,7 +841,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
               final status = (data['status'] ?? 'pending').toString().toLowerCase();
               final startOtp = data['startOtp']?.toString() ?? '';
               final completionOtp = data['completionOtp']?.toString() ?? '';
-              final techName = data['providerName']?.toString() ?? '';
+              final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
+              final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
+                  ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+              final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
 
               final IconData displayIcon = title.contains('Fridge') || title.contains('Refrigerator')
                   ? Icons.kitchen_rounded
@@ -805,9 +860,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
               String displayStatusText = cfg['label'];
 
               return Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+                margin: EdgeInsets.only(bottom: AppSpacing.medium),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(AppRadius.large),
                   border: Border.all(color: AppColors.border),
                 ),
@@ -815,7 +870,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.large),
                   onTap: () => _showBookingDetailModal(data, bookingId),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    padding: EdgeInsets.all(AppSpacing.medium),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -830,17 +885,17 @@ class _BookingsScreenState extends State<BookingsScreen> {
                               ),
                               child: Icon(displayIcon, color: AppColors.primary, size: 26),
                             ),
-                            const SizedBox(width: AppSpacing.medium),
+                            SizedBox(width: AppSpacing.medium),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(title, style: AppTextStyle.cardTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 4),
+                                  SizedBox(height: 4),
                                   Text(dateTime, style: AppTextStyle.subtitle),
-                                  const SizedBox(height: 6),
+                                  SizedBox(height: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: statusBg,
                                       borderRadius: BorderRadius.circular(6),
@@ -858,21 +913,21 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.small),
+                            SizedBox(width: AppSpacing.small),
                             Text(cost, style: AppTextStyle.mainTitle.copyWith(fontSize: 18, color: AppColors.primary)),
                           ],
                         ),
 
                         // Display OTP Banner on Card if technician is assigned, on the way, arrived, or in progress
-                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
-                          const SizedBox(height: 12),
+                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                          SizedBox(height: 12),
                           Builder(builder: (context) {
-                            final bool showEndOtp = ['in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+                            final bool showEndOtp = ['in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
                             final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
                             final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
 
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: showEndOtp ? Colors.green.shade50 : AppColors.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(8),
@@ -884,7 +939,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                                   Row(
                                     children: [
                                       Icon(Icons.key_rounded, size: 16, color: showEndOtp ? Colors.green.shade800 : AppColors.primary),
-                                      const SizedBox(width: 6),
+                                      SizedBox(width: 6),
                                       Text(
                                         "$otpLabel: $otpVal",
                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: showEndOtp ? Colors.green.shade900 : AppColors.primary),
@@ -902,11 +957,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ],
 
                         if (techName.isNotEmpty) ...[
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.engineering_rounded, size: 14, color: AppColors.subtitle),
-                              const SizedBox(width: 4),
+                              Icon(Icons.engineering_rounded, size: 14, color: AppColors.subtitle),
+                              SizedBox(width: 4),
                               Text("Technician: $techName", style: AppTextStyle.subtitle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
                             ],
                           ),
@@ -928,10 +983,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.assignment_late_outlined, size: 56, color: Colors.grey),
-          const SizedBox(height: AppSpacing.medium),
-          const Text('No active bookings', style: AppTextStyle.sectionHeader),
-          const SizedBox(height: 4),
+          Icon(Icons.assignment_late_outlined, size: 56, color: Colors.grey),
+          SizedBox(height: AppSpacing.medium),
+          Text('No active bookings', style: AppTextStyle.sectionHeader),
+          SizedBox(height: 4),
           Text('Your scheduled visits will appear here.', style: AppTextStyle.subtitle),
         ],
       ),

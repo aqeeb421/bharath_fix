@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Home/home_screen.dart
 import 'package:bharath_fix/features/Home/product_details_screen.dart';
 import 'package:bharath_fix/features/Home/subcategory_selection_screen.dart';
@@ -38,6 +39,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   String _userName = "User";
   String _profileLetter = "U";
 
@@ -52,6 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+    super.initState();
     _loadUserProfile();
     _loadFirestoreHomeData();
     _setupNotificationListener();
@@ -59,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _notifSub?.cancel();
     super.dispose();
   }
@@ -88,13 +96,13 @@ class _HomeScreenState extends State<HomeScreen> {
       SnackBar(
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
+        margin: EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: const Color(0xFF000062),
         content: Row(
           children: [
-            const Icon(Icons.notifications_active, color: Colors.amber, size: 28),
-            const SizedBox(width: 12),
+            Icon(Icons.notifications_active, color: Colors.amber, size: 28),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -102,16 +110,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       fontSize: 15,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     body,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
@@ -295,11 +303,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       bottomNavigationBar: const FloatingCartBar(),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
+          padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.medium,
             vertical: AppSpacing.small,
           ),
@@ -307,14 +314,14 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildTopBar(),
-              const SizedBox(height: AppSpacing.medium),
+              SizedBox(height: AppSpacing.medium),
               Expanded(
                 // TODO: Location restriction hidden for the time being
                 // child: widget.isServiceable
                 //     ? (_isLoadingFirestore ... )
                 //     : _buildComingSoonBody(),
                 child: _isLoadingFirestore
-                    ? const Center(
+                    ? Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primary,
                         ),
@@ -330,26 +337,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildAISearchBar(),
-                              const SizedBox(height: AppSpacing.medium),
+                              SizedBox(height: AppSpacing.medium),
                               _buildPromoBannerCarousel(),
-                              const SizedBox(height: AppSpacing.large),
-                              const Text(
+                              SizedBox(height: AppSpacing.large),
+                              Text(
                                 'Service & Installation',
                                 style: AppTextStyle.sectionHeader,
                               ),
-                              const SizedBox(height: AppSpacing.medium),
+                              SizedBox(height: AppSpacing.medium),
                               _buildCategoryGrid(),
-                              const SizedBox(height: AppSpacing.large),
-                              const Text(
+                              SizedBox(height: AppSpacing.large),
+                              Text(
                                 'Buy New Water Purifier',
                                 style: AppTextStyle.sectionHeader,
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               Text(
                                 'Premium units ranging from ₹6,999 to ₹29,999',
                                 style: AppTextStyle.subtitle,
                               ),
-                              const SizedBox(height: AppSpacing.medium),
+                              SizedBox(height: AppSpacing.medium),
                               _buildProductHorizontalLists(),
                             ],
                           ),
@@ -367,21 +374,21 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Lottie.network(
               'https://assets9.lottiefiles.com/packages/lf20_mvm84upg.json',
               height: 240,
-              errorBuilder: (context, error, stackTrace) => const Icon(
+              errorBuilder: (context, error, stackTrace) => Icon(
                 Icons.location_off_rounded,
                 size: 80,
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            SizedBox(height: 24),
+            Text(
               'Coming Soon to Your Area!',
               style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
@@ -391,10 +398,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               'BharathFix services are currently exclusive to Hassan District and its administrative taluks. Detected: "${widget.detectedLocation}". We are expanding quickly and will reach you soon!',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontSize: 14,
                 color: AppColors.subtitle,
@@ -402,11 +409,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: widget.onRetryLocation,
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-              label: const Text(
+              icon: Icon(Icons.refresh_rounded, color: Colors.white),
+              label: Text(
                 'Retry Location Check',
                 style: TextStyle(
                   color: Colors.white,
@@ -415,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 14,
                 ),
@@ -438,20 +445,20 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Hi, $_userName', style: AppTextStyle.mainTitle),
-            const SizedBox(height: AppSpacing.extraSmall),
+            SizedBox(height: AppSpacing.extraSmall),
             GestureDetector(
               onTap: widget.onRetryLocation,
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_rounded,
                     size: 14,
                     color: AppColors.primary,
                   ),
-                  const SizedBox(width: AppSpacing.extraSmall),
+                  SizedBox(width: AppSpacing.extraSmall),
                   Text(widget.detectedLocation, style: AppTextStyle.subtitle),
-                  const SizedBox(width: 4),
-                  const Icon(
+                  SizedBox(width: 4),
+                  Icon(
                     Icons.keyboard_arrow_down_rounded,
                     size: 16,
                     color: AppColors.subtitle,
@@ -469,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.primary,
             child: Text(
               _profileLetter,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -485,15 +492,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => _showAISearchBottomSheet(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
-          children: const [
-            Icon(Icons.auto_awesome, color: Colors.grey, size: 18),
+          children: [Icon(Icons.auto_awesome, color: Colors.grey, size: 18),
             SizedBox(width: AppSpacing.small),
             Text(
               'Describe your problem — AI will help...',
@@ -539,12 +545,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.medium),
+                padding: EdgeInsets.all(AppSpacing.medium),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
                         SizedBox(width: 8),
@@ -554,34 +560,34 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.small),
+                    SizedBox(height: AppSpacing.small),
                     TextField(
                       controller: searchController,
                       autofocus: true,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         color: AppColors.title,
                       ),
                       onChanged: (val) => setModalState(() {}),
                       decoration: InputDecoration(
                         hintText: 'Search service e.g. "AC", "Purifier", "Fridge"...',
-                        hintStyle: const TextStyle(
+                        hintStyle: TextStyle(
                           color: Colors.grey,
                           fontSize: 13,
                         ),
-                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.medium),
-                          borderSide: const BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: AppColors.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.medium),
-                          borderSide: const BorderSide(color: AppColors.primary),
+                          borderSide: BorderSide(color: AppColors.primary),
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.medium),
-                    const Text(
+                    SizedBox(height: AppSpacing.medium),
+                    Text(
                       'Matching Services:',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
@@ -590,7 +596,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: AppColors.subtitle,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Flexible(
                       child: ListView.builder(
                         shrinkWrap: true,
@@ -599,16 +605,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           final match = matches[idx];
                           return ListTile(
                             dense: true,
-                            leading: const Icon(Icons.build_circle_outlined, color: AppColors.primary, size: 22),
+                            leading: Icon(Icons.build_circle_outlined, color: AppColors.primary, size: 22),
                             title: Text(
                               match['title']!,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
                             ),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
                             onTap: () {
                               Navigator.pop(context);
                               final category = _categoriesList.firstWhere(
@@ -688,15 +694,14 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Row(
-            children: const [
-              Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+            children: [Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
               SizedBox(width: 8),
               Text('AI Diagnostics', style: AppTextStyle.sectionHeader),
             ],
           ),
           content: Text(
             message,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               color: AppColors.title,
               height: 1.4,
@@ -705,7 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
+              child: Text(
                 'Cancel',
                 style: TextStyle(color: AppColors.subtitle),
               ),
@@ -733,7 +738,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
-                child: const Text(
+                child: Text(
                   'Book Now',
                   style: TextStyle(
                     color: Colors.white,
@@ -763,8 +768,8 @@ class _HomeScreenState extends State<HomeScreen> {
           final String image = banner['image'] as String? ?? '';
 
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(0),
+            margin: EdgeInsets.symmetric(horizontal: 4),
+            padding: EdgeInsets.all(0),
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(AppRadius.large),
@@ -782,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         image,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Center(
+                            Center(
                               child: Icon(
                                 Icons.broken_image_rounded,
                                 color: Colors.grey,
@@ -794,16 +799,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(title, style: AppTextStyle.cardTitle),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 12,
                           color: AppColors.subtitle,
@@ -872,11 +877,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.small),
+              SizedBox(height: AppSpacing.small),
               Text(
                 category.name,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -926,9 +931,9 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             child: Container(
               width: 140,
-              margin: const EdgeInsets.only(right: AppSpacing.medium),
+              margin: EdgeInsets.only(right: AppSpacing.medium),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: AppColors.card,
                 borderRadius: BorderRadius.circular(AppRadius.large),
                 border: Border.all(color: AppColors.border),
               ),
@@ -948,7 +953,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         prod.image,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Center(
+                            Center(
                               child: Icon(
                                 Icons.broken_image_rounded,
                                 color: Colors.grey,
@@ -959,13 +964,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: EdgeInsets.all(8.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           prod.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -974,19 +979,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           prod.subCategory,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
                             fontSize: 10,
                             color: AppColors.subtitle,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           prod.price,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
                             fontSize: 13,
                             fontWeight: FontWeight.bold,

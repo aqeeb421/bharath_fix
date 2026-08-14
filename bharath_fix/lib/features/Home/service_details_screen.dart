@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
@@ -25,6 +26,22 @@ class ServiceDetailsScreen extends StatefulWidget {
 
 class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bool isInstallation = widget.intentMode == 'Installation';
 
@@ -40,19 +57,19 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 children: [
                   _buildImmersiveImageHeader(context),
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    padding: EdgeInsets.all(AppSpacing.medium),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(widget.serviceTitle, style: AppTextStyle.mainTitle.copyWith(fontSize: 22)),
-                        const SizedBox(height: AppSpacing.small),
+                        SizedBox(height: AppSpacing.small),
                         Row(
                           children: [
-                            const Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 16),
-                            const SizedBox(width: 6),
+                            Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 16),
+                            SizedBox(width: 6),
                             Text(
                               isInstallation ? 'Verified Installation Pack' : 'Verified Inspection Pack',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -61,24 +78,24 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.large),
+                        SizedBox(height: AppSpacing.large),
                         Text(
                           isInstallation ? 'About this Installation' : 'About this Service',
                           style: AppTextStyle.sectionHeader,
                         ),
-                        const SizedBox(height: AppSpacing.small),
+                        SizedBox(height: AppSpacing.small),
                         Text(
                           isInstallation
                               ? 'Secure a professional doorstep visit for seamless equipment setup. Our expert technician will assess the layout parameters, safely mount or unmount the unit, and configure structural settings optimally.'
                               : 'Secure a professional doorstep visit. Our expert technician will diagnose your appliance defect and issue a localized cost quotation transparently over the provider application framework.',
                           style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4, color: AppColors.title),
                         ),
-                        const SizedBox(height: AppSpacing.large),
+                        SizedBox(height: AppSpacing.large),
 
                         // Dynamic Pricing Terms Quote Box
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.medium),
+                          padding: EdgeInsets.all(AppSpacing.medium),
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(AppRadius.large),
@@ -87,22 +104,22 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
-                              const SizedBox(width: 12),
+                              Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       isInstallation ? 'Installation Flow Information' : 'Inspection Flow Information',
-                                      style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.title),
+                                      style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.title),
                                     ),
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: 4),
                                     Text(
                                       isInstallation
                                           ? 'The current flat charge covers the initial doorstep visit, site evaluation, and base tool setup configuration metrics.'
                                           : 'The current flat charge covers the expert technician doorstep visit and multi-point parameter fault diagnostics only.',
-                                      style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, height: 1.3),
+                                      style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, height: 1.3),
                                     ),
                                   ],
                                 ),
@@ -110,9 +127,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.large),
-                        const Text("What's included", style: AppTextStyle.sectionHeader),
-                        const SizedBox(height: AppSpacing.medium),
+                        SizedBox(height: AppSpacing.large),
+                        Text("What's included", style: AppTextStyle.sectionHeader),
+                        SizedBox(height: AppSpacing.medium),
 
                         // Conditionals matching the selected intent
                         if (isInstallation) ...[
@@ -154,11 +171,11 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         ),
         SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.small),
+            padding: EdgeInsets.all(AppSpacing.small),
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 18),
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 18),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -170,21 +187,21 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Widget _buildIncludedCheckItem(String checkText) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+      padding: EdgeInsets.only(bottom: AppSpacing.medium),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 2),
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-            child: const Icon(Icons.check_rounded, color: Colors.white, size: 12),
+            margin: EdgeInsets.only(top: 2),
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+            child: Icon(Icons.check_rounded, color: Colors.white, size: 12),
           ),
-          const SizedBox(width: AppSpacing.medium),
+          SizedBox(width: AppSpacing.medium),
           Expanded(
             child: Text(
               checkText,
-              style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.title, height: 1.2),
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.title, height: 1.2),
             ),
           ),
         ],
@@ -194,9 +211,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   Widget _buildStickyBottomActionBar(bool isInstallation) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
+      decoration: BoxDecoration(
+        color: AppColors.card,
         border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: SafeArea(
@@ -210,12 +227,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               children: [
                 Text(
                   isInstallation ? 'Installation Fee' : 'Inspection Fee',
-                  style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       '₹499',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
@@ -225,19 +242,19 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         decorationColor: AppColors.subtitle,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       widget.servicePrice,
                       style: AppTextStyle.mainTitle.copyWith(fontSize: 22, color: AppColors.primary),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
+                      child: Text(
                         'SAVE ₹300',
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
@@ -266,12 +283,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               },
               borderRadius: BorderRadius.circular(AppRadius.button),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 44, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(AppRadius.button),
                 ),
-                child: const Text(
+                child: Text(
                   'Book now',
                   style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                 ),

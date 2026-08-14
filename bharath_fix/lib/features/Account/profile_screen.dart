@@ -26,6 +26,16 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   String _userName = "User";
   String _userEmail = "user@bharathfix.in";
   String _userPhone = "+91 9000000000";
@@ -41,6 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     _loadProfileDetails();
   }
@@ -106,17 +118,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Edit Profile Details',
                     style: AppTextStyle.sectionHeader,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -125,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   prefixIcon: Icon(Icons.person_outline_rounded),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -135,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -145,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -178,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Save Profile',
                     style: TextStyle(
                       color: Colors.white,
@@ -199,7 +211,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: AppColors.background,
         body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -207,18 +218,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: Column(
             children: [
               _buildProfileHeader(),
-              const SizedBox(height: AppSpacing.large),
+              SizedBox(height: AppSpacing.large),
               if (!_isGuest) ...[
                 _buildWalletBalanceCard(),
-                const SizedBox(height: AppSpacing.large),
+                SizedBox(height: AppSpacing.large),
               ],
               _buildNavigationRow(
                 Icons.person_outline_rounded,
@@ -308,46 +318,203 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildThemeSwitchTile(),
               _buildLanguageSelectorTile(),
-              const SizedBox(height: AppSpacing.large),
-              TextButton(
-                onPressed: () async {
-                  try {
-                    await FirebaseAuth.instance.signOut();
-                  } catch (e) {
-                    debugPrint('FirebaseAuth signOut error: $e');
-                  }
-                  try {
-                    LocalStorage local = await LocalStorage.getInstance();
-                    await local.clear();
-                  } catch (e) {
-                    debugPrint('LocalStorage clear error: $e');
-                  }
-                  await DatabaseService().logoutUser();
+              _buildLogoutTile(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                  if (mounted) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRoutes.login,
-                      (route) => false,
-                    );
-                  }
-                },
-
-                child: Text(
-                  _isGuest ? 'Sign In' : 'Log out',
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+  Widget _buildLogoutTile(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.large, bottom: AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0x1FFF5252) : const Color(0xFFFFF1F0),
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        border: Border.all(
+          color: isDark ? const Color(0x4DFF5252) : const Color(0xFFFFCDD2),
+          width: 1.2,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _showLogoutConfirmationDialog(context),
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x33FF5252) : Colors.red.shade100,
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _isGuest ? 'Sign In / Register' : 'Log Out Account',
+                      style: const TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      _isGuest
+                          ? 'Sign in to access bookings & wallet'
+                          : 'Securely sign out of your account',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFFFF8A80) : Colors.red.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: Colors.redAccent,
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    if (_isGuest) {
+      Navigator.pushNamed(context, AppRoutes.login);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: AppColors.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x33FF5252) : Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  size: 36,
+                  color: Colors.redAccent,
+                ),
+              ),
+              SizedBox(height: 14),
+              Text(
+                'Confirm Logout',
+                style: AppTextStyle.sectionHeader,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to log out of your BharathFix account? You will need to log in again to track active bookings.',
+            style: AppTextStyle.subtitle,
+            textAlign: TextAlign.center,
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.title,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(dialogContext);
+                      await _performLogout();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Yes, Log Out',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      debugPrint('FirebaseAuth signOut error: $e');
+    }
+    try {
+      LocalStorage local = await LocalStorage.getInstance();
+      await local.clear();
+    } catch (e) {
+      debugPrint('LocalStorage clear error: $e');
+    }
+    await DatabaseService().logoutUser();
+
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+        (route) => false,
+      );
+    }
   }
 
   Widget _buildProfileHeader() {
@@ -370,7 +537,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: localPhotoFile == null
               ? Text(
                   _profileLetter,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -379,13 +546,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               : null,
         ),
-        const SizedBox(width: AppSpacing.medium),
+        SizedBox(width: AppSpacing.medium),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(_userName, style: AppTextStyle.sectionHeader),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Text(
                 _userPhone.isNotEmpty && _userPhone != "guest_phone"
                     ? '$_userEmail • $_userPhone'
@@ -396,7 +563,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+          icon: Icon(Icons.edit_outlined, color: AppColors.primary),
           onPressed: _isGuest
               ? () => Navigator.pushNamed(context, AppRoutes.login)
               : _showEditProfileModal,
@@ -418,7 +585,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             decoration: BoxDecoration(
               color: AppColors.accentGreen,
               borderRadius: BorderRadius.circular(AppRadius.large),
@@ -429,7 +596,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Wallet balance',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
@@ -438,10 +605,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       '₹${balance.toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -451,7 +618,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
                   ),
@@ -459,7 +626,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Manage Wallet',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -485,24 +652,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return GestureDetector(
       onTap: () => onTap != null ? onTap() : {},
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: AppColors.border, width: 0.8),
           ),
         ),
         child: ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(leadingIcon, color: Colors.black87, size: 22),
+          leading: Icon(leadingIcon, color: AppColors.title, size: 22),
           title: Text(
             labelText,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontWeight: FontWeight.w500,
               fontSize: 14,
               color: AppColors.title,
             ),
           ),
-          trailing: const Icon(
+          trailing: Icon(
             Icons.arrow_forward_ios_rounded,
             size: 12,
             color: Colors.grey,
@@ -519,7 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context, mode, child) {
         final isDark = mode == ThemeMode.dark;
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.border, width: 0.8),
             ),
@@ -533,16 +700,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: Text(
               LanguageService().translate('app_theme'),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
-                color: AppColors.title,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             trailing: Switch.adaptive(
               value: isDark,
-              activeColor: AppColors.primary,
+              activeColor: Theme.of(context).colorScheme.primary,
               onChanged: (val) => themeService.toggleTheme(val),
             ),
           ),
@@ -559,21 +726,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final langDisplay = langCode == 'kn' ? 'ಕನ್ನಡ (Kannada)' : 'English';
 
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppColors.border, width: 0.8),
             ),
           ),
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(
+            leading: Icon(
               Icons.translate_rounded,
               color: AppColors.primary,
               size: 22,
             ),
             title: Text(
               LanguageService().translate('language'),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
@@ -582,14 +749,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             subtitle: Text(
               langDisplay,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontSize: 12,
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.arrow_forward_ios_rounded,
               size: 12,
               color: Colors.grey,
@@ -609,7 +776,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -618,10 +785,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 LanguageService().translate('select_language'),
                 style: AppTextStyle.sectionHeader,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               ListTile(
-                leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
-                title: const Text(
+                leading: Text('🇮🇳', style: TextStyle(fontSize: 24)),
+                title: Text(
                   'English (Default)',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -629,7 +796,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 trailing: LanguageService().currentLanguage == 'en'
-                    ? const Icon(
+                    ? Icon(
                         Icons.check_circle_rounded,
                         color: AppColors.primary,
                       )
@@ -642,20 +809,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Text('🇮🇳', style: TextStyle(fontSize: 24)),
-                title: const Text(
+                leading: Text('🇮🇳', style: TextStyle(fontSize: 24)),
+                title: Text(
                   'ಕನ್ನಡ (Kannada)',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'ಹಾಸನ & ಬೆಳಗಾವಿ ಸ್ಥಳೀಯ ಭಾಷೆ',
                   style: TextStyle(fontSize: 12),
                 ),
                 trailing: LanguageService().currentLanguage == 'kn'
-                    ? const Icon(
+                    ? Icon(
                         Icons.check_circle_rounded,
                         color: AppColors.primary,
                       )

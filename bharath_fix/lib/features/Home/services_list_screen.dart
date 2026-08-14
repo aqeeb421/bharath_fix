@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 /*
 // lib/Home/services_list_screen.dart
 import 'package:flutter/material.dart';
@@ -17,6 +18,22 @@ class ServicesListScreen extends StatefulWidget {
 }
 
 class _ServicesListScreenState extends State<ServicesListScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   int _selectedFilterIndex = 0;
 
   final List<String> _filters = ['All', 'Top rated', 'Price: Low to High', 'Price: High to Low'];
@@ -30,7 +47,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(widget.categoryName, style: AppTextStyle.sectionHeader),
@@ -41,7 +58,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
           Expanded(
             child: ListView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               children: [
                 _buildServiceListItem(
                   context,
@@ -51,7 +68,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
                   description: 'Team of 3 professionals, high-pressure jets, eco-friendly chemicals...',
                   price: '₹2999',
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 _buildServiceListItem(
                   context,
                   title: 'Bathroom Cleaning',
@@ -74,12 +91,12 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
         itemCount: _filters.length,
         itemBuilder: (context, index) {
           final isSelected = _selectedFilterIndex == index;
           return Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.small),
+            padding: EdgeInsets.only(right: AppSpacing.small),
             child: ChoiceChip(
               label: Text(_filters[index]),
               selected: isSelected,
@@ -116,9 +133,9 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
         required String price,
       }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: EdgeInsets.all(AppSpacing.medium),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.large),
         border: Border.all(color: AppColors.border),
       ),
@@ -130,30 +147,30 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: AppTextStyle.sectionHeader.copyWith(fontSize: 16)),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                    const SizedBox(width: 2),
+                    Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                    SizedBox(width: 2),
                     Text(
                       '$rating · $duration',
-                      style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.small),
+                SizedBox(height: AppSpacing.small),
                 Text(
                   description,
                   style: AppTextStyle.subtitle.copyWith(fontSize: 13, height: 1.3),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
                 Text(price, style: AppTextStyle.mainTitle.copyWith(fontSize: 18)),
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.medium),
+          SizedBox(width: AppSpacing.medium),
           Column(
             children: [
               Container(
@@ -168,7 +185,7 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.small),
+              SizedBox(height: AppSpacing.small),
               InkWell(
                 onTap: () {
                   Navigator.push(
@@ -181,13 +198,13 @@ class _ServicesListScreenState extends State<ServicesListScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.small),
                 child: Container(
                   width: 76,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: EdgeInsets.symmetric(vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppRadius.small),
                   ),
                   alignment: Alignment.center,
-                  child: const Text(
+                  child: Text(
                     'Add',
                     style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   ),

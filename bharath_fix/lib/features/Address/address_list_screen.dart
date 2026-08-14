@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Address/address_list_screen.dart
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
@@ -21,12 +22,24 @@ class AddressListScreen extends StatefulWidget {
 }
 
 class _AddressListScreenState extends State<AddressListScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   List<Map<String, String>> _addresses = [];
   bool _isLoading = true;
   String _profileName = "Location details";
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     _loadSavedAddresses();
   }
@@ -68,7 +81,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -77,7 +90,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
           Expanded(
@@ -85,14 +98,14 @@ class _AddressListScreenState extends State<AddressListScreen> {
                 ? _buildEmptyState()
                 : ListView.builder(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               itemCount: _addresses.length,
               itemBuilder: (context, index) {
                 final item = _addresses[index];
                 return Container(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+                  margin: EdgeInsets.only(bottom: AppSpacing.medium),
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.large),
                     border: Border.all(color: AppColors.border),
                   ),
@@ -105,19 +118,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
                       }
                     },
                     child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.medium),
+                      padding: EdgeInsets.all(AppSpacing.medium),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppColors.accentGreen,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               item['tag'] ?? 'Address',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -125,7 +138,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.medium),
+                          SizedBox(width: AppSpacing.medium),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +147,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
                                   item['tag'] == 'Home' ? _profileName : 'Location details',
                                   style: AppTextStyle.bodyBold,
                                 ),
-                                const SizedBox(height: 4),
+                                SizedBox(height: 4),
                                 Text(
                                   item['details'] ?? '',
                                   style: AppTextStyle.subtitle.copyWith(height: 1.3),
@@ -169,7 +182,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
                                 _deleteAddress(index);
                               }
                             },
-                            icon: const Icon(Icons.more_vert_rounded, color: AppColors.subtitle),
+                            icon: Icon(Icons.more_vert_rounded, color: AppColors.subtitle),
                             itemBuilder: (context) => [
                               const PopupMenuItem(value: 'edit', child: Text('Edit')),
                               const PopupMenuItem(
@@ -187,7 +200,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             child: SafeArea(
               top: false,
               child: CommonButton(
@@ -224,10 +237,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.location_off_rounded, size: 56, color: Colors.grey),
-          const SizedBox(height: AppSpacing.medium),
-          const Text('No saved addresses yet', style: AppTextStyle.sectionHeader),
-          const SizedBox(height: 4),
+          Icon(Icons.location_off_rounded, size: 56, color: Colors.grey),
+          SizedBox(height: AppSpacing.medium),
+          Text('No saved addresses yet', style: AppTextStyle.sectionHeader),
+          SizedBox(height: 4),
           Text('Add an address to speed up checkout.', style: AppTextStyle.subtitle),
         ],
       ),

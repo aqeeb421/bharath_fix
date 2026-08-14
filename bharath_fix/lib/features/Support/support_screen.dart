@@ -39,14 +39,14 @@ class SupportScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Support Marketplace', style: AppTextStyle.sectionHeader),
+        title: Text('Support Marketplace', style: AppTextStyle.sectionHeader),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
+        padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.medium,
           vertical: AppSpacing.small,
         ),
@@ -55,7 +55,7 @@ class SupportScreen extends StatelessWidget {
           children: [
             // Top Logo Banner
             Container(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               decoration: BoxDecoration(
                 color: const Color(0xFFE8ECF8),
                 borderRadius: BorderRadius.circular(AppRadius.large),
@@ -75,11 +75,11 @@ class SupportScreen extends StatelessWidget {
                     child: Image.asset(
                       'assets/images/app_logo.png',
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.handyman_rounded, color: Colors.white, size: 28),
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.handyman_rounded, color: Colors.white, size: 28),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.medium),
-                  const Expanded(
+                  SizedBox(width: AppSpacing.medium),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -92,9 +92,9 @@ class SupportScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.large),
-            const Text('How can we help you today?', style: AppTextStyle.subtitle),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.large),
+            Text('How can we help you today?', style: AppTextStyle.subtitle),
+            SizedBox(height: AppSpacing.medium),
 
             _buildSupportChannelCard(
               icon: Icons.call_rounded,
@@ -102,14 +102,14 @@ class SupportScreen extends StatelessWidget {
               subtitle: '+91 9148699386 (Speak directly to our expert)',
               onTap: () => _makeCall('9148699386'),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
             _buildSupportChannelCard(
               icon: Icons.chat_bubble_rounded,
               title: 'WhatsApp Support',
               subtitle: '+91 9148699386 (Instant resolution on WhatsApp)',
               onTap: () => _openWhatsApp('9148699386'),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
             _buildSupportChannelCard(
               icon: Icons.email_rounded,
               title: 'Email Support',
@@ -117,15 +117,15 @@ class SupportScreen extends StatelessWidget {
               onTap: () => _sendEmail('bharathfixservice@gmail.com'),
             ),
 
-            const SizedBox(height: AppSpacing.large),
-            const Text('Frequently Asked Questions', style: AppTextStyle.sectionHeader),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.large),
+            Text('Frequently Asked Questions', style: AppTextStyle.sectionHeader),
+            SizedBox(height: AppSpacing.medium),
 
             _buildFAQTile('How do I cancel my booking slot?'),
             _buildFAQTile('Are local service providers verified?'),
             _buildFAQTile('What payments methods are accepted?'),
 
-            const SizedBox(height: AppSpacing.large),
+            SizedBox(height: AppSpacing.large),
             _buildSupportChannelCard(
               icon: Icons.info_outline_rounded,
               title: 'About Us',
@@ -137,7 +137,7 @@ class SupportScreen extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
           ],
         ),
       ),
@@ -152,7 +152,7 @@ class SupportScreen extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.large),
         border: Border.all(color: AppColors.border),
       ),
@@ -160,11 +160,11 @@ class SupportScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.large),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.all(AppSpacing.medium),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.small),
+                padding: EdgeInsets.all(AppSpacing.small),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -172,26 +172,26 @@ class SupportScreen extends StatelessWidget {
                 ),
                 child: Icon(icon, color: AppColors.primary, size: 22),
               ),
-              const SizedBox(width: AppSpacing.medium),
+              SizedBox(width: AppSpacing.medium),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                         color: AppColors.title,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(subtitle, style: AppTextStyle.subtitle.copyWith(fontSize: 12)),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.subtitle),
+              Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.subtitle),
             ],
           ),
         ),
@@ -204,16 +204,16 @@ class SupportScreen extends StatelessWidget {
       // Cleans out the unwanted default top/bottom accent border lines on ExpansionTile widgets
       data: ThemeData().copyWith(dividerColor: Colors.transparent),
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+        margin: EdgeInsets.only(bottom: AppSpacing.medium),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: AppColors.card,
           borderRadius: BorderRadius.circular(AppRadius.large),
           border: Border.all(color: AppColors.border),
         ),
         child: ExpansionTile(
           title: Text(
             question,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -222,14 +222,13 @@ class SupportScreen extends StatelessWidget {
           ),
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.subtitle,
-          childrenPadding: const EdgeInsets.only(
+          childrenPadding: EdgeInsets.only(
             left: AppSpacing.medium,
             right: AppSpacing.medium,
             bottom: AppSpacing.medium,
           ),
           expandedAlignment: Alignment.topLeft,
-          children: const [
-            Text(
+          children: [Text(
               'You can securely manage details or update changes directly through the system dashboard interface.',
               style: TextStyle(
                 fontFamily: 'Plus Jakarta Sans',

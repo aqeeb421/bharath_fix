@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../ui/theme/app_colors.dart';
@@ -19,12 +20,23 @@ class RatingDialog extends StatefulWidget {
 }
 
 class _RatingDialogState extends State<RatingDialog> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   int _selectedStars = 5;
   final _reviewController = TextEditingController();
   bool _isSubmitting = false;
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _reviewController.dispose();
     super.dispose();
   }
@@ -86,13 +98,13 @@ class _RatingDialogState extends State<RatingDialog> {
     return AlertDialog(
       backgroundColor: AppColors.background,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.large)),
-      title: const Text("Rate Your Service Visit", style: AppTextStyle.sectionHeader),
+      title: Text("Rate Your Service Visit", style: AppTextStyle.sectionHeader),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text("How satisfied were you with the technician's work?", style: AppTextStyle.subtitle),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -108,15 +120,15 @@ class _RatingDialogState extends State<RatingDialog> {
                 );
               }),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             TextField(
               controller: _reviewController,
               maxLines: 3,
-              style: const TextStyle(color: AppColors.title),
+              style: TextStyle(color: AppColors.title),
               decoration: InputDecoration(
                 hintText: "Write a short review or feedback (optional)",
-                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
               ),
             ),
@@ -126,14 +138,14 @@ class _RatingDialogState extends State<RatingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Skip"),
+          child: Text("Skip"),
         ),
         ElevatedButton(
           onPressed: _isSubmitting ? null : _submitRating,
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
           child: _isSubmitting
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text("Submit Review", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : Text("Submit Review", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       ],
     );

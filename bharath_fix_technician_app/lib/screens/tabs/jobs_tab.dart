@@ -7,6 +7,8 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_text_style.dart';
+import '../../models/technician_booking_lifecycle.dart';
+import '../../widgets/technician_state_widgets.dart';
 import '../job_detail_screen.dart';
 
 class JobsTab extends StatefulWidget {
@@ -124,25 +126,25 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _assignedJobsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const TechLoadingStateWidget(message: 'Loading assigned tasks...');
+        }
+
+        if (snapshot.hasError) {
+          return TechErrorStateWidget(
+            title: 'Assigned Jobs Sync Error',
+            errorMessage: snapshot.error.toString(),
+          );
         }
 
         final docs = snapshot.data?.docs ?? [];
         final activeDocs = docs.where((doc) => doc.data()['status'] != 'completed' && doc.data()['status'] != 'cancelled').toList();
 
         if (activeDocs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.assignment_turned_in_rounded, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text("No active assigned jobs", style: AppTextStyle.sectionHeader),
-                const SizedBox(height: 4),
-                Text("Check the Available Open Pool to claim new requests.", style: AppTextStyle.subtitle),
-              ],
-            ),
+          return const TechEmptyStateWidget(
+            title: 'No Active Assigned Jobs',
+            message: 'Check the Available Open Pool tab to claim new customer requests.',
+            icon: Icons.assignment_turned_in_rounded,
           );
         }
 
@@ -397,12 +399,9 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
     final date = data['dateTime'] ?? data['date'] ?? 'Scheduled Slot';
     final status = (data['status'] ?? 'pending').toString();
 
-    Color statusColor = AppColors.primary;
-    final stLower = status.toLowerCase();
-    if (stLower == 'pending' || stLower == 'booked') statusColor = Colors.amber.shade800;
-    if (stLower == 'accepted') statusColor = Colors.blue;
-    if (stLower == 'in_progress' || stLower == 'in_transit' || stLower == 'arrived') statusColor = Colors.orange;
-    if (stLower == 'completed' || stLower == 'paid_and_closed') statusColor = Colors.green;
+    final techStatus = TechBookingStatus.parse(status);
+    final Color statusColor = techStatus.color;
+    final String displayStatusLabel = techStatus.label;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.medium),
@@ -520,11 +519,21 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
+                        String tName = "Technician Partner";
+                        String tPhone = "+91 9876543210";
+                        try {
+                          final doc = await FirebaseFirestore.instance.collection('providers').doc(widget.techId).get();
+                          if (doc.exists && doc.data() != null) {
+                            tName = doc.data()?['name'] as String? ?? tName;
+                            tPhone = doc.data()?['phone'] as String? ?? tPhone;
+                          }
+                        } catch (_) {}
+
                         await _firestoreService.claimJob(
                           bookingId,
                           widget.techId,
-                          "Technician Partner",
-                          "+91 9876543210",
+                          tName,
+                          tPhone,
                         );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

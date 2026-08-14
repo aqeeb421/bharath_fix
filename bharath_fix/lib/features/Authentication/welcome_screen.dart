@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../ui/theme/app_colors.dart';
@@ -17,7 +18,19 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     _checkExistingSession();
   }
@@ -49,7 +62,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               image: DecorationImage(
                 image: NetworkImage(
                   'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1000',
@@ -77,7 +90,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           // Content Layout
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.large,
                 vertical: AppSpacing.medium,
               ),
@@ -85,7 +98,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Text(
+                  Text(
                     'BharathFix',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -95,8 +108,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.small),
-                  const Text(
+                  SizedBox(height: AppSpacing.small),
+                  Text(
                     'Home services,\ndone right.',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -106,7 +119,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.medium),
+                  SizedBox(height: AppSpacing.medium),
                   Text(
                     'Book trusted pros for cleaning, AC, plumbing, salon and more — starting ₹199.',
                     style: TextStyle(
@@ -117,7 +130,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.extraLarge),
+                  SizedBox(height: AppSpacing.extraLarge),
                   CommonButton(
                     label: 'Get Started',
                     onPressed: () {
@@ -127,13 +140,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   Center(
                     child: TextButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/register');
                       },
-                      child: const Text(
+                      child: Text(
                         'New here? Create an account',
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
@@ -144,7 +157,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.small),
                 ],
               ),
             ),

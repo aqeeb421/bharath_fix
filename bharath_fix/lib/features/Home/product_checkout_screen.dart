@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -30,6 +31,10 @@ class ProductCheckoutScreen extends StatefulWidget {
 }
 
 class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   late Razorpay _razorpay;
   int _selectedDateIndex = 0;
 
@@ -46,6 +51,8 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+    super.initState();
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
@@ -53,6 +60,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _razorpay.clear();
     super.dispose();
   }
@@ -108,21 +116,21 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.account_circle_rounded, color: AppColors.primary, size: 26),
               SizedBox(width: 8),
               Text('Login Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'You are exploring in Guest Mode. Please sign in with your mobile number to complete your product purchase.',
             style: TextStyle(fontSize: 14, height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -130,7 +138,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
                 Navigator.pushNamed(context, AppRoutes.login);
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Sign In to Proceed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text('Sign In to Proceed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -145,21 +153,21 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.assignment_ind_rounded, color: AppColors.primary, size: 26),
               SizedBox(width: 8),
               Text('Registration Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Please complete your profile registration details before purchasing a product.',
             style: TextStyle(fontSize: 14, height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -171,7 +179,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Complete Registration', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text('Complete Registration', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -213,8 +221,8 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Shipping Address', style: AppTextStyle.bodyBold),
-        const SizedBox(height: AppSpacing.small),
+        Text('Shipping Address', style: AppTextStyle.bodyBold),
+        SizedBox(height: AppSpacing.small),
         InkWell(
           onTap: () async {
             // Wait for user to tap an address inside AddressListScreen
@@ -232,9 +240,9 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
           borderRadius: BorderRadius.circular(AppRadius.large),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(color: _isAddressSelected ? AppColors.primary : AppColors.border, width: _isAddressSelected ? 1.5 : 1),
             ),
@@ -247,7 +255,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
                     style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w500, fontSize: 14, color: _isAddressSelected ? AppColors.title : AppColors.subtitle),
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
               ],
             ),
           ),
@@ -278,36 +286,36 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Order Summary', style: AppTextStyle.sectionHeader),
+        title: Text('Order Summary', style: AppTextStyle.sectionHeader),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildProductSummaryCard(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildShippingAddressSection(),
-                  const SizedBox(height: AppSpacing.large),
-                  const Text('Select Delivery Slot', style: AppTextStyle.bodyBold),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.large),
+                  Text('Select Delivery Slot', style: AppTextStyle.bodyBold),
+                  SizedBox(height: AppSpacing.small),
                   _buildDeliveryDateCarousel(),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildPromoCouponSection(),
-                  const SizedBox(height: AppSpacing.large),
-                  const Text('Delivery Instructions (Optional)', style: AppTextStyle.bodyBold),
-                  const SizedBox(height: AppSpacing.small),
+                  SizedBox(height: AppSpacing.large),
+                  Text('Delivery Instructions (Optional)', style: AppTextStyle.bodyBold),
+                  SizedBox(height: AppSpacing.small),
                   const CommonTextField(hintText: 'Gate code, drop off with security, etc.'),
-                  const SizedBox(height: AppSpacing.large),
+                  SizedBox(height: AppSpacing.large),
                   _buildItemizedTaxInvoiceSection(invoice),
-                  const SizedBox(height: AppSpacing.medium),
+                  SizedBox(height: AppSpacing.medium),
                 ],
               ),
             ),
@@ -320,23 +328,23 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
 
   Widget _buildProductSummaryCard() {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.medium),
+      padding: EdgeInsets.all(AppSpacing.medium),
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.large), border: Border.all(color: AppColors.border)),
       child: Row(
         children: [
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(AppRadius.medium), image: DecorationImage(image: NetworkImage(widget.productImage), fit: BoxFit.contain)),
+            decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.medium), image: DecorationImage(image: NetworkImage(widget.productImage), fit: BoxFit.contain)),
           ),
-          const SizedBox(width: AppSpacing.medium),
+          SizedBox(width: AppSpacing.medium),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(widget.productName, style: AppTextStyle.cardTitle),
-                const SizedBox(height: 4),
-                const Text('Includes Free Delivery & On-Site Installation', style: AppTextStyle.subtitle),
+                SizedBox(height: 4),
+                Text('Includes Free Delivery & On-Site Installation', style: AppTextStyle.subtitle),
               ],
             ),
           ),
@@ -358,13 +366,13 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
             onTap: () => setState(() => _selectedDateIndex = index),
             child: Container(
               width: 85,
-              margin: const EdgeInsets.only(right: AppSpacing.small),
+              margin: EdgeInsets.only(right: AppSpacing.small),
               decoration: BoxDecoration(color: isSelected ? AppColors.primary : AppColors.background, borderRadius: BorderRadius.circular(AppRadius.medium), border: Border.all(color: isSelected ? AppColors.primary : AppColors.border)),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('${_deliveryDates[index]['day']}, ${_deliveryDates[index]['month']}', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: isSelected ? Colors.white70 : AppColors.subtitle, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(_deliveryDates[index]['num']!, style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 18, color: isSelected ? Colors.white : AppColors.title, fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -379,19 +387,19 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Apply Coupon', style: AppTextStyle.bodyBold),
-        const SizedBox(height: AppSpacing.small),
+        Text('Apply Coupon', style: AppTextStyle.bodyBold),
+        SizedBox(height: AppSpacing.small),
         Row(
           children: [
-            const Expanded(child: CommonTextField(hintText: 'PURIFIER20')),
-            const SizedBox(width: AppSpacing.medium),
+            Expanded(child: CommonTextField(hintText: 'PURIFIER20')),
+            SizedBox(width: AppSpacing.medium),
             InkWell(
               onTap: () {},
               borderRadius: BorderRadius.circular(AppRadius.medium),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(AppRadius.medium)),
-                child: const Text('Apply', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                child: Text('Apply', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ),
           ],
@@ -404,25 +412,25 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Bill Details (Inclusive of Taxes)', style: AppTextStyle.bodyBold),
-        const SizedBox(height: AppSpacing.medium),
+        Text('Bill Details (Inclusive of Taxes)', style: AppTextStyle.bodyBold),
+        SizedBox(height: AppSpacing.medium),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Item Base Price', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text(invoice['base']!, style: AppTextStyle.subtitle.copyWith(fontSize: 14, color: AppColors.title))]),
-        const SizedBox(height: AppSpacing.small),
+        SizedBox(height: AppSpacing.small),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Integrated GST (18%)', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text(invoice['gst']!, style: AppTextStyle.subtitle.copyWith(fontSize: 14, color: AppColors.title))]),
-        const SizedBox(height: AppSpacing.small),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery & Installation', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), const Text('FREE', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))]),
-        const SizedBox(height: AppSpacing.small),
-        const Divider(color: AppColors.border, thickness: 1),
-        const SizedBox(height: AppSpacing.small),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Total Payable Amount', style: AppTextStyle.bodyBold), Text(widget.priceString, style: AppTextStyle.mainTitle.copyWith(fontSize: 20, color: AppColors.primary))]),
+        SizedBox(height: AppSpacing.small),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery & Installation', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text('FREE', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))]),
+        SizedBox(height: AppSpacing.small),
+        Divider(color: AppColors.border, thickness: 1),
+        SizedBox(height: AppSpacing.small),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Total Payable Amount', style: AppTextStyle.bodyBold), Text(widget.priceString, style: AppTextStyle.mainTitle.copyWith(fontSize: 20, color: AppColors.primary))]),
       ],
     );
   }
 
   Widget _buildRazorpayStickyBottomBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
-      decoration: const BoxDecoration(color: AppColors.background, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
+      decoration: BoxDecoration(color: AppColors.card, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
       child: SafeArea(
         top: false,
         child: CommonButton(label: 'Pay via Razorpay ${widget.priceString}', onPressed: () => _initiateProductPurchasePayment()),

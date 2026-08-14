@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 // lib/Address/manage_address_screen.dart
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
@@ -18,6 +19,10 @@ class ManageAddressScreen extends StatefulWidget {
 }
 
 class _ManageAddressScreenState extends State<ManageAddressScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   final _formKey = GlobalKey<FormState>();
 
   final _houseController = TextEditingController();
@@ -30,6 +35,8 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     if (widget.isEditing && widget.addressData != null) {
       _selectedTag = widget.addressData!['tag'] ?? 'Home';
@@ -44,6 +51,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _houseController.dispose();
     _streetController.dispose();
     _landmarkController.dispose();
@@ -99,7 +107,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(widget.isEditing ? 'Edit Address' : 'Add New Address', style: AppTextStyle.sectionHeader),
@@ -110,34 +118,34 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(AppSpacing.medium),
+                padding: EdgeInsets.all(AppSpacing.medium),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Save address as', style: AppTextStyle.bodyBold),
-                      const SizedBox(height: AppSpacing.small),
+                      Text('Save address as', style: AppTextStyle.bodyBold),
+                      SizedBox(height: AppSpacing.small),
                       _buildTagSelectorRow(),
-                      const SizedBox(height: AppSpacing.large),
+                      SizedBox(height: AppSpacing.large),
                       CommonTextField(
                         label: 'House / Flat / Block No.',
                         hintText: 'e.g. Flat 302, 3rd Floor',
                         controller: _houseController,
                       ),
-                      const SizedBox(height: AppSpacing.medium),
+                      SizedBox(height: AppSpacing.medium),
                       CommonTextField(
                         label: 'Street / Area / Colony',
                         hintText: 'e.g. Prestige Falcon City',
                         controller: _streetController,
                       ),
-                      const SizedBox(height: AppSpacing.medium),
+                      SizedBox(height: AppSpacing.medium),
                       CommonTextField(
                         label: 'Landmark (Optional)',
                         hintText: 'e.g. Near Metro Station',
                         controller: _landmarkController,
                       ),
-                      const SizedBox(height: AppSpacing.medium),
+                      SizedBox(height: AppSpacing.medium),
                       CommonTextField(
                         label: 'Pincode',
                         hintText: 'e.g. 560062',
@@ -151,7 +159,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.medium),
+              padding: EdgeInsets.all(AppSpacing.medium),
               child: CommonButton(
                 label: widget.isEditing ? 'Update Address' : 'Save Address',
                 onPressed: _submitAddressForm,
@@ -170,7 +178,7 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
         final isSelected = _selectedTag == tag;
         return Padding(
           key: ValueKey(tag),
-          padding: const EdgeInsets.only(right: AppSpacing.small),
+          padding: EdgeInsets.only(right: AppSpacing.small),
           child: ChoiceChip(
             label: Text(tag),
             selected: isSelected,

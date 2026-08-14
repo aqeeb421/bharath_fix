@@ -36,11 +36,11 @@ class TitleSection extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: AppSpacing.lg),
 
         Text(title,style: AppTextStyle.heading),
 
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: AppSpacing.sm),
 
         Text(
           subtitle,

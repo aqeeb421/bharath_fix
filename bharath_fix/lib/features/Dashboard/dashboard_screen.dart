@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,16 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
   bool _hasCheckedArguments = false;
@@ -42,6 +53,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     super.initState();
     _determineUserPositionWorkflow(showDialogOnFail: false);
   }
@@ -149,7 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.location_off_rounded, color: AppColors.primary),
             SizedBox(width: 8),
@@ -163,7 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Location services are currently turned off on your device. Please turn on Location Services to automatically detect your service address and assign nearby technicians.',
           style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
@@ -175,7 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Cancel',
               style: TextStyle(color: AppColors.subtitle),
             ),
@@ -191,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
+            child: Text(
               'Open Location Settings',
               style: TextStyle(
                 color: Colors.white,
@@ -209,7 +222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.security_rounded, color: AppColors.primary),
             SizedBox(width: 8),
@@ -227,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           permanently
               ? 'Location permission is permanently denied in app settings. Please enable Location permissions in App Settings so BharathFix can locate nearby technicians.'
               : 'Location permission is required to detect your current service area. Please grant location access.',
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 14,
             color: AppColors.subtitle,
@@ -237,7 +250,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Dismiss',
               style: TextStyle(color: AppColors.subtitle),
             ),
@@ -259,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Text(
               permanently ? 'Open App Settings' : 'Grant Permission',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
@@ -294,7 +307,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     if (_isLoadingLocation) {
       return const Scaffold(
-        backgroundColor: AppColors.background,
         body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
@@ -346,34 +358,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await SystemNavigator.pop();
       },
       child: Scaffold(
-        backgroundColor: AppColors.background,
         body: IndexedStack(index: _currentIndex, children: screens),
         bottomNavigationBar: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
-              top: BorderSide(color: AppColors.border, width: 1.0),
+              top: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkBorder
+                    : AppColors.border,
+                width: 1.0,
+              ),
             ),
           ),
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: (index) => setState(() => _currentIndex = index),
-            backgroundColor: AppColors.background,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.subtitle,
             type: BottomNavigationBarType.fixed,
             elevation: 0,
-            selectedLabelStyle: const TextStyle(
+            selectedLabelStyle: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),
-            unselectedLabelStyle: const TextStyle(
+            unselectedLabelStyle: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontWeight: FontWeight.w500,
               fontSize: 11,
             ),
-            items: const [
-              BottomNavigationBarItem(
+            items: [BottomNavigationBarItem(
                 icon: Icon(Icons.home_outlined),
                 activeIcon: Icon(Icons.home_rounded),
                 label: 'Home',

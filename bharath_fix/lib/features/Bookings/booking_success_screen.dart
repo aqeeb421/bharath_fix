@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import '../../models/BookingEntry.dart';
 import '../../ui/theme/app_colors.dart';
@@ -22,6 +23,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
   @override
   void initState() {
     super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -40,8 +42,13 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     _animController.dispose();
     super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -58,7 +65,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(
+          padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.large,
             vertical: AppSpacing.medium,
           ),
@@ -73,22 +80,22 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                 child: Container(
                   height: 96,
                   width: 96,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.accentGreen,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_rounded,
                     color: AppColors.primary,
                     size: 64,
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.large),
+              SizedBox(height: AppSpacing.large),
 
               ScaleTransition(
                 scale: _scaleAnimation,
-                child: const Text(
+                child: Text(
                   'Booking Successful!',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -99,21 +106,21 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: AppSpacing.small),
+              SizedBox(height: AppSpacing.small),
 
               Text(
                 'We have logged your order. A background-verified professional is being assigned.',
                 style: AppTextStyle.subtitle,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.extraLarge),
+              SizedBox(height: AppSpacing.extraLarge),
 
               // Detailed Bill Details Receipt Card
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.medium),
+                  padding: EdgeInsets.all(AppSpacing.medium),
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.large),
@@ -124,25 +131,25 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                     children: [
                       Text(
                         'Booking ID: ${booking.id}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 11,
                           color: AppColors.subtitle,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      const Divider(color: AppColors.border, height: 1),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
+                      Divider(color: AppColors.border, height: 1),
+                      SizedBox(height: 12),
 
                       _buildReceiptRow(
                         'Service / Product',
                         booking.title,
                         isBold: true,
                       ),
-                      const SizedBox(height: AppSpacing.small),
+                      SizedBox(height: AppSpacing.small),
                       _buildReceiptRow('Schedule Date', booking.dateTime),
-                      const SizedBox(height: AppSpacing.small),
+                      SizedBox(height: AppSpacing.small),
                       _buildReceiptRow(
                         'Total Paid',
                         booking.cost,
@@ -151,7 +158,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                       ),
 
                       if (booking.address.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.small),
+                        SizedBox(height: AppSpacing.small),
                         _buildReceiptRow('Location', booking.address),
                       ],
                     ],
@@ -178,7 +185,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                       },
                     ),
 
-                    const SizedBox(height: AppSpacing.small),
+                    SizedBox(height: AppSpacing.small),
                     OutlinedButton(
                       onPressed: () {
                         Navigator.pushNamedAndRemoveUntil(
@@ -190,7 +197,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                       },
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 54),
-                        side: const BorderSide(
+                        side: BorderSide(
                           color: AppColors.primary,
                           width: 1.5,
                         ),
@@ -198,7 +205,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                           borderRadius: BorderRadius.circular(AppRadius.button),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Back to Home',
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
@@ -230,14 +237,14 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 13,
             color: AppColors.subtitle,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(width: AppSpacing.large),
+        SizedBox(width: AppSpacing.large),
         Expanded(
           child: Text(
             value,

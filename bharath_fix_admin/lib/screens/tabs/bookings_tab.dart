@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/admin_booking_lifecycle.dart';
 import '../../services/firebase_service.dart';
+import '../../widgets/admin_state_widgets.dart';
 
 class BookingsTab extends StatefulWidget {
   const BookingsTab({super.key});
@@ -16,7 +18,32 @@ class _BookingsTabState extends State<BookingsTab> {
   String _searchQuery = '';
   String _filterStatus = 'All';
 
-  final List<String> _statuses = ['All', 'Pending', 'Processing', 'Completed', 'Cancelled'];
+  final List<String> _statuses = [
+    'All',
+    'Draft',
+    'Booked',
+    'Unfulfilled (Refunded)',
+    'Accepted',
+    'On The Way',
+    'Arrived',
+    'Customer Unreachable',
+    'Inspection In Progress',
+    'Quotation Pending',
+    'Quotation Rejected',
+    'Visit Only Completed',
+    'Repair In Progress',
+    'Parts Awaited (Paused)',
+    'Unrepairable / BER',
+    'Safety Hazard Halt',
+    'Payment Pending Verification',
+    'Completed',
+    'Reviewed',
+    'Warranty Claimed',
+    'Warranty Rework',
+    'Warranty Refunded',
+    'Emergency Released (Re-pooled)',
+    'Admin Audit Hold',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -109,15 +136,13 @@ class _BookingsTabState extends State<BookingsTab> {
               stream: _service.getBookingsCombinedStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF6C4CF1)));
+                  return const AdminLoadingStateWidget(message: 'Syncing Admin Command Bookings...');
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error loading bookings: ${snapshot.error}',
-                      style: GoogleFonts.plusJakartaSans(color: Colors.redAccent),
-                    ),
+                  return AdminErrorStateWidget(
+                    title: 'Booking Data Sync Error',
+                    errorMessage: snapshot.error.toString(),
                   );
                 }
 
@@ -137,11 +162,19 @@ class _BookingsTabState extends State<BookingsTab> {
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No bookings match these parameters.',
-                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFFA29EB6)),
-                    ),
+                  if (_searchQuery.isNotEmpty) {
+                    return AdminNoSearchResultsWidget(
+                      query: _searchQuery,
+                      onClearSearch: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    );
+                  }
+                  return const AdminEmptyStateWidget(
+                    title: 'No Bookings Logged',
+                    message: 'Customer service orders will appear here in real-time.',
                   );
                 }
 

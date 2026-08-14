@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:bharath_fix/ui/theme/app_colors.dart';
 import 'package:bharath_fix/ui/theme/app_spacing.dart';
 import 'package:bharath_fix/ui/widgets/common_button.dart';
@@ -18,6 +19,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   final TextEditingController phoneController = TextEditingController();
   bool isValid = false;
   bool _isLoading = false;
@@ -30,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
     phoneController.dispose();
     super.dispose();
   }
@@ -91,17 +103,17 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
                 const TitleSection(
                   icon: Icons.handyman_rounded,
                   title: AppStrings.loginTitle,
                   subtitle: AppStrings.loginSubtitle,
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                SizedBox(height: AppSpacing.xl),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 17,
                       ),
@@ -110,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: Border.all(color: const Color(0xFFEAEAEA)),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Text(
+                      child: Text(
                         "+91",
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
@@ -120,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: CommonTextField(
                         controller: phoneController,
@@ -132,14 +144,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                const Text(
+                SizedBox(height: AppSpacing.md),
+                Text(
                   "By continuing you agree to our Terms & Privacy Policy.",
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
                 _isLoading
-                    ? const Center(
+                    ? Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primary,
                         ),
@@ -148,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: AppStrings.continueText,
                         onPressed: isValid ? _handlePhoneContinue : () {},
                       ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),

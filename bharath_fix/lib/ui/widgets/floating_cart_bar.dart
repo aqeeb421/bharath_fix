@@ -20,8 +20,8 @@ class FloatingCartBar extends StatelessWidget {
         final totalPrice = cartService.totalPrice;
 
         return Container(
-          margin: const EdgeInsets.all(AppSpacing.medium),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: 12),
+          margin: EdgeInsets.all(AppSpacing.medium),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: 12),
           decoration: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(16),
@@ -39,25 +39,25 @@ class FloatingCartBar extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.shopping_bag_outlined,
                       color: Colors.white,
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.medium),
+                  SizedBox(width: AppSpacing.medium),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         '$count ${count == 1 ? 'Service' : 'Services'} Added',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -66,7 +66,7 @@ class FloatingCartBar extends StatelessWidget {
                       ),
                       Text(
                         '₹${totalPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           color: Colors.white70,
                           fontWeight: FontWeight.w600,
@@ -98,9 +98,9 @@ class FloatingCartBar extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Text(
                       'View Cart',

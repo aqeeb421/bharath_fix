@@ -1,3 +1,4 @@
+import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../ui/theme/app_colors.dart';
@@ -89,6 +90,22 @@ class OffersScreen extends StatefulWidget {
 }
 
 class _OffersScreenState extends State<OffersScreen> {
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
+
   final TextEditingController _codeController = TextEditingController();
 
   void _applyCoupon(CouponModel coupon) {
@@ -101,19 +118,19 @@ class _OffersScreenState extends State<OffersScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white),
-              const SizedBox(width: 10),
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Coupon code "${coupon.code}" copied to clipboard!',
-                  style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold),
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           backgroundColor: const Color(0xFF2E7D32),
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
+          margin: EdgeInsets.all(16),
         ),
       );
     }
@@ -150,20 +167,20 @@ class _OffersScreenState extends State<OffersScreen> {
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.title, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Offers & Coupons', style: AppTextStyle.sectionHeader),
+        title: Text('Offers & Coupons', style: AppTextStyle.sectionHeader),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. Search / Promo Input Box
             Container(
-              padding: const EdgeInsets.all(AppSpacing.small),
+              padding: EdgeInsets.all(AppSpacing.small),
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(AppRadius.large),
@@ -175,8 +192,8 @@ class _OffersScreenState extends State<OffersScreen> {
                     child: TextField(
                       controller: _codeController,
                       textCapitalization: TextCapitalization.characters,
-                      style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: AppColors.title),
-                      decoration: const InputDecoration(
+                      style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, color: AppColors.title),
+                      decoration: InputDecoration(
                         hintText: 'ENTER PROMO CODE',
                         hintStyle: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.subtitle, fontSize: 13),
                         border: InputBorder.none,
@@ -188,27 +205,27 @@ class _OffersScreenState extends State<OffersScreen> {
                     onTap: _handleCustomApply,
                     borderRadius: BorderRadius.circular(AppRadius.medium),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(AppRadius.medium),
                       ),
-                      child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      child: Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: AppSpacing.large),
+            SizedBox(height: AppSpacing.large),
 
-            const Text('Best Offers For You', style: AppTextStyle.sectionHeader),
-            const SizedBox(height: AppSpacing.small),
+            Text('Best Offers For You', style: AppTextStyle.sectionHeader),
+            SizedBox(height: AppSpacing.small),
             Text(
               'Apply promo codes at checkout to get instant discounts on service fees.',
               style: AppTextStyle.subtitle.copyWith(fontSize: 12),
             ),
-            const SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.medium),
 
             // 2. Coupon Cards List
             ListView.builder(
@@ -228,13 +245,12 @@ class _OffersScreenState extends State<OffersScreen> {
 
   Widget _buildCouponCard(CouponModel coupon) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+      margin: EdgeInsets.only(bottom: AppSpacing.medium),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.large),
         border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
+        boxShadow: [BoxShadow(
             color: Color(0x0A000000),
             blurRadius: 10,
             offset: Offset(0, 4),
@@ -245,8 +261,8 @@ class _OffersScreenState extends State<OffersScreen> {
         children: [
           // Top Header Banner
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
-            decoration: const BoxDecoration(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
+            decoration: BoxDecoration(
               color: Color(0xFF000062),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.large),
@@ -258,11 +274,11 @@ class _OffersScreenState extends State<OffersScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.local_offer_rounded, color: Color(0xFFFFD700), size: 16),
-                    const SizedBox(width: 6),
+                    Icon(Icons.local_offer_rounded, color: Color(0xFFFFD700), size: 16),
+                    SizedBox(width: 6),
                     Text(
                       coupon.discountTag,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         color: Color(0xFFFFD700),
                         fontWeight: FontWeight.bold,
@@ -273,7 +289,7 @@ class _OffersScreenState extends State<OffersScreen> {
                 ),
                 Text(
                   coupon.expiryDate,
-                  style: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white70, fontSize: 11),
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
@@ -281,7 +297,7 @@ class _OffersScreenState extends State<OffersScreen> {
 
           // Main Card Content
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.medium),
+            padding: EdgeInsets.all(AppSpacing.medium),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -294,14 +310,14 @@ class _OffersScreenState extends State<OffersScreen> {
                         children: [
                           Text(
                             coupon.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: AppColors.title,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             coupon.description,
                             style: AppTextStyle.subtitle.copyWith(fontSize: 12, height: 1.3),
@@ -311,16 +327,16 @@ class _OffersScreenState extends State<OffersScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.medium),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: AppSpacing.medium),
+                SizedBox(height: AppSpacing.medium),
+                Divider(color: AppColors.border, height: 1),
+                SizedBox(height: AppSpacing.medium),
 
                 // Dashed Code Pill & Action Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8ECF8),
                         borderRadius: BorderRadius.circular(8),
@@ -328,7 +344,7 @@ class _OffersScreenState extends State<OffersScreen> {
                       ),
                       child: Text(
                         coupon.code,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -341,7 +357,7 @@ class _OffersScreenState extends State<OffersScreen> {
                       onTap: () => _applyCoupon(coupon),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
@@ -349,7 +365,7 @@ class _OffersScreenState extends State<OffersScreen> {
                         ),
                         child: Text(
                           widget.isSelectionMode ? 'APPLY CODE' : 'COPY CODE',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,

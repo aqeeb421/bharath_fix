@@ -286,42 +286,32 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
     }
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // 7. Start OTP & Quotation
+    // 7. Technician Enters Start OTP & Unlocks Job
     try {
       final snap = await db.collection('bookings').doc(bookingId).get();
       final startOtp = snap.data()?['startOtp']?.toString();
 
       if (startOtp == '4829') {
-        final quoteItems = [
-          {'name': 'AC Gas Refill (R32)', 'price': 350.0, 'isSparePart': true},
-        ];
-
-        final serviceData = {
-          'status': 'in_progress',
-          'quotation': {
-            'items': quoteItems,
-            'totalAmount': 350.0,
-            'isApprovedByCustomer': true,
-          },
-          'quoteTotal': 350.0,
-          'additionalCost': 350.0,
+        final startData = {
+          'status': 'inspection_in_progress',
+          'workStartedAt': FieldValue.serverTimestamp(),
         };
 
         final batch = db.batch();
-        batch.update(db.collection('bookings').doc(bookingId), serviceData);
+        batch.update(db.collection('bookings').doc(bookingId), startData);
         batch.set(
           db
               .collection('users')
               .doc(customerUid)
               .collection('bookings')
               .doc(bookingId),
-          serviceData,
+          startData,
           SetOptions(merge: true),
         );
         await batch.commit();
 
         _addLog(
-          "Stage 7: Start OTP & Quotation -> Validated Start OTP '4829' -> Status 'in_progress' & ₹350 quotation added.",
+          "Stage 7: Start OTP Verification -> Validated Start OTP '4829'. Status updated to 'inspection_in_progress'.",
         );
       } else {
         _addLog("Stage 7: Start OTP mismatch.", isFail: true);
@@ -331,20 +321,98 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
     }
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // 8. Completion OTP & Settlement
+    // 8. Technician Submits Repair Quotation & Spare Parts Estimate
+    try {
+      final quoteItems = [
+        {'title': 'AC Compressor Gas Refill (R32)', 'price': 350.0, 'isSparePart': true, 'warrantyDays': 90},
+      ];
+
+      final quoteData = {
+        'status': 'quotation_pending',
+        'quotationStatus': 'pending',
+        'quotation': {
+          'items': quoteItems,
+          'totalAmount': 350.0,
+          'status': 'pending',
+          'submittedAt': FieldValue.serverTimestamp(),
+        },
+        'quoteTotal': 350.0,
+      };
+
+      final batch = db.batch();
+      batch.update(db.collection('bookings').doc(bookingId), quoteData);
+      batch.set(
+        db
+            .collection('users')
+            .doc(customerUid)
+            .collection('bookings')
+            .doc(bookingId),
+        quoteData,
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+
+      _addLog(
+        "Stage 8: Repair Quotation Submission -> Partner submitted ₹350 quote for Gas Refill. Status: 'quotation_pending'.",
+      );
+    } catch (e) {
+      _addLog("Stage 8 Error: $e", isFail: true);
+    }
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // 9. Customer Quotation Checkout & Payment Success Dialog Flow
+    try {
+      final quoteTotal = 350.0;
+      final visitingFee = 199.0;
+      final finalBill = visitingFee + quoteTotal; // ₹549 total
+      final topupBal = 1000.0; // Top up wallet balance to pay total
+      final newBal = topupBal - finalBill; // ₹451 remaining balance
+
+      final paymentData = {
+        'quotation.status': 'approved',
+        'quotationStatus': 'approved',
+        'status': 'repair_in_progress',
+        'quoteTotal': quoteTotal,
+        'finalAmountPaid': finalBill,
+        'paymentMode': 'WALLET',
+        'isFinalBillPaid': true,
+        'isVisitingFeePaid': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = db.batch();
+      batch.update(db.collection('bookings').doc(bookingId), paymentData);
+      batch.set(
+        db
+            .collection('users')
+            .doc(customerUid)
+            .collection('bookings')
+            .doc(bookingId),
+        paymentData,
+        SetOptions(merge: true),
+      );
+      batch.update(db.collection('users').doc(customerUid), {
+        'walletBalance': newBal,
+      });
+      await batch.commit();
+
+      _addLog(
+        "Stage 9: Customer Quotation Checkout & Payment -> Approved via Wallet (₹$finalBill). Quotation: 'approved'. Payment Success Dialog triggered!",
+      );
+    } catch (e) {
+      _addLog("Stage 9 Error: $e", isFail: true);
+    }
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // 10. Completion OTP & Final Work Settlement
     try {
       final snap = await db.collection('bookings').doc(bookingId).get();
       final completionOtp = snap.data()?['completionOtp']?.toString();
 
       if (completionOtp == '8921') {
-        final finalBill = 199.0 + 350.0; // ₹549 total
-        final currentBal = 500.0;
-        final newBal = currentBal - finalBill;
-
         final closeData = {
           'status': 'completed',
           'isFinalBillPaid': true,
-          'finalAmountPaid': finalBill,
           'completedAt': FieldValue.serverTimestamp(),
         };
 
@@ -359,23 +427,20 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
           closeData,
           SetOptions(merge: true),
         );
-        batch.update(db.collection('users').doc(customerUid), {
-          'walletBalance': newBal,
-        });
         await batch.commit();
 
         _addLog(
-          "Stage 8: Completion OTP & Settlement -> Validated OTP '8921'. Status set to 'completed' & bill settled.",
+          "Stage 10: Completion OTP & Settlement -> Validated Completion OTP '8921'. Status set to 'completed' & order closed.",
         );
       } else {
-        _addLog("Stage 8: Completion OTP mismatch.", isFail: true);
+        _addLog("Stage 10: Completion OTP mismatch.", isFail: true);
       }
     } catch (e) {
-      _addLog("Stage 8 Error: $e", isFail: true);
+      _addLog("Stage 10 Error: $e", isFail: true);
     }
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // 9. Customer Rating & Review Engine
+    // 11. Customer Rating & Review Engine
     try {
       final reviewData = {
         'rating': 5,
@@ -388,10 +453,10 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
 
       await db.collection('reviews').doc(bookingId).set(reviewData);
       _addLog(
-        "Stage 9: Customer Rating & Review Engine -> 5-Star rating written to Firestore.",
+        "Stage 11: Customer Rating & Review Engine -> 5-Star review and feedback written to Firestore.",
       );
     } catch (e) {
-      _addLog("Stage 9 Error: $e", isFail: true);
+      _addLog("Stage 11 Error: $e", isFail: true);
     }
 
     setState(() {
@@ -405,12 +470,12 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Multi-App E2E Integration Suite'),
+          title: Text('Multi-App E2E Integration Suite'),
           backgroundColor: const Color(0xFF000062),
           foregroundColor: Colors.white,
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh_rounded),
+              icon: Icon(Icons.refresh_rounded),
               onPressed: _isRunning ? null : _startFullWorkflowTest,
             ),
           ],
@@ -418,14 +483,14 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
         body: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               color: const Color(0xFFE8ECF8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   Text(
                     "Total Passed: $_passed",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                       fontSize: 16,
@@ -433,14 +498,14 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
                   ),
                   Text(
                     "Total Failed: $_failed",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
                       fontSize: 16,
                     ),
                   ),
                   if (_isRunning)
-                    const SizedBox(
+                    SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
@@ -450,7 +515,7 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 itemCount: _logs.length,
                 itemBuilder: (context, index) {
                   final log = _logs[index];
@@ -458,12 +523,12 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
                   final isFail = log.startsWith("❌");
 
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+                    margin: EdgeInsets.only(bottom: 8),
                     color: isPass
                         ? const Color(0xFFE8F5E9)
                         : (isFail ? const Color(0xFFFFEBEE) : Colors.white),
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12),
                       child: Text(
                         log,
                         style: TextStyle(
