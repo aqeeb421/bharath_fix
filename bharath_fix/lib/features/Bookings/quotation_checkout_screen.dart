@@ -2,6 +2,8 @@ import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../services/payment_service.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -23,9 +25,12 @@ class QuotationCheckoutScreen extends StatefulWidget {
 }
 
 class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
+  late Razorpay _razorpay;
+
   @override
   void dispose() {
     ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    _razorpay.clear();
     super.dispose();
   }
 
@@ -37,10 +42,80 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleRazorpaySuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handleRazorpayError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleRazorpayExternalWallet);
   }
 
   String _selectedPaymentMethod = 'RAZORPAY';
   bool _isProcessing = false;
+
+  void _handleRazorpaySuccess(PaymentSuccessResponse response) async {
+    final quotation = widget.bookingData['quotation'] as Map<String, dynamic>?;
+    final double quoteTotal = (quotation?['totalAmount'] as num?)?.toDouble() ??
+        (widget.bookingData['quoteTotal'] as num?)?.toDouble() ??
+        0.0;
+    final double visitingFee = (widget.bookingData['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final bool isFeePaid = widget.bookingData['isVisitingFeePaid'] == true || widget.bookingData['isVisitingFeePaid'] == 1;
+    final double totalPayable = quoteTotal + (isFeePaid ? 0.0 : visitingFee);
+
+    await _finalizeQuotationApproval(
+      totalPayableAmount: totalPayable,
+      quoteTotal: quoteTotal,
+      paymentMode: 'RAZORPAY',
+      paymentId: response.paymentId,
+    );
+  }
+
+  void _handleRazorpayError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Razorpay Payment Failed: ${response.message ?? 'Transaction cancelled'}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleRazorpayExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("External Wallet Selected: ${response.walletName}")),
+      );
+    }
+  }
+
+  void _openRazorpayCheckout(double amount) {
+    final user = FirebaseAuth.instance.currentUser;
+    var options = {
+      'key': PaymentService.razorpayKey,
+      'amount': (amount * 100).round(),
+      'name': 'BharathFix',
+      'description': 'Payment for Repair Quotation #${widget.bookingId}',
+      'prefill': {
+        'contact': user?.phoneNumber ?? widget.bookingData['customerPhone'] ?? widget.bookingData['userPhone'] ?? '',
+        'email': user?.email ?? 'customer@bharathfix.com',
+      },
+      'external': {
+        'wallets': ['paytm']
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      debugPrint('Error launching Razorpay SDK: $e');
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error opening Razorpay SDK: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +222,7 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
                               children: [
                                 Text(name, style: AppTextStyle.cardTitle.copyWith(fontSize: 13)),
                                 Text(
-                                  '🛡️ Admin Rate Card Verified • Guarantee Included',
+                                  'Admin Rate Card Verified • Guarantee Included',
                                   style: TextStyle(color: Colors.green.shade700, fontSize: 11),
                                 ),
                               ],
@@ -252,7 +327,7 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'UPI / Cards / NetBanking',
+                        'UPI / Cards / NetBanking (Razorpay)',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
@@ -432,7 +507,13 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
           (data['quoteTotal'] as num?)?.toDouble() ??
           0.0;
 
-      // Wallet deduction check
+      // Option A: Razorpay Checkout
+      if (_selectedPaymentMethod == 'RAZORPAY') {
+        _openRazorpayCheckout(totalPayableAmount);
+        return;
+      }
+
+      // Option B: Wallet deduction check
       if (_selectedPaymentMethod == 'WALLET') {
         final currentWallet = await DatabaseService().getWalletBalance();
         if (currentWallet < totalPayableAmount) {
@@ -468,7 +549,34 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         }
       }
 
-      final bool isPaidOnline = _selectedPaymentMethod == 'WALLET' || _selectedPaymentMethod == 'RAZORPAY';
+      // Finalize approval for WALLET and COD
+      await _finalizeQuotationApproval(
+        totalPayableAmount: totalPayableAmount,
+        quoteTotal: quoteTotal,
+        paymentMode: _selectedPaymentMethod,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to process payment: $e"), backgroundColor: Colors.red),
+        );
+      }
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  Future<void> _finalizeQuotationApproval({
+    required double totalPayableAmount,
+    required double quoteTotal,
+    required String paymentMode,
+    String? paymentId,
+  }) async {
+    try {
+      final bookingId = widget.bookingId;
+      final data = widget.bookingData;
+      final bool isPaidOnline = paymentMode == 'WALLET' || paymentMode == 'RAZORPAY';
 
       final updates = <String, dynamic>{
         'quotation.status': 'approved',
@@ -476,9 +584,10 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         'status': 'repair_in_progress',
         'quoteTotal': quoteTotal,
         'finalAmountPaid': totalPayableAmount,
-        'paymentMode': _selectedPaymentMethod,
+        'paymentMode': paymentMode,
         'isFinalBillPaid': isPaidOnline,
         'isVisitingFeePaid': true,
+        if (paymentId != null) 'razorpayPaymentId': paymentId,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -498,7 +607,7 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
       final providerId = data['providerId']?.toString();
       if (providerId != null && providerId.isNotEmpty) {
         final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
-        final modeLabel = _selectedPaymentMethod == 'WALLET' ? 'Wallet' : _selectedPaymentMethod == 'RAZORPAY' ? 'Online' : 'Cash';
+        final modeLabel = paymentMode == 'WALLET' ? 'Wallet' : paymentMode == 'RAZORPAY' ? 'Online Razorpay' : 'Cash';
         await FirebaseFirestore.instance
             .collection('providers')
             .doc(providerId)
@@ -515,7 +624,11 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         });
       }
 
-      final modeLabel = _selectedPaymentMethod == 'WALLET' ? 'BharathFix Wallet' : _selectedPaymentMethod == 'RAZORPAY' ? 'Online UPI / Card' : 'Cash After Service';
+      final modeLabel = paymentMode == 'WALLET'
+          ? 'BharathFix Wallet'
+          : paymentMode == 'RAZORPAY'
+              ? 'Online Razorpay UPI / Card'
+              : 'Cash After Service';
 
       if (mounted) {
         await showDialog(
@@ -610,15 +723,8 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         );
 
         if (mounted) {
-          // Redirect back to Bookings / Details Screen with payment done
           Navigator.pop(context, true);
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to process payment: $e"), backgroundColor: Colors.red),
-        );
       }
     } finally {
       if (mounted) {

@@ -46,15 +46,29 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _launchDirections(String address) async {
-    final encodedAddr = Uri.encodeComponent(address);
+    final cleanAddr = address.trim().isEmpty ? "Hassan, Karnataka" : address.trim();
+    final encodedAddr = Uri.encodeComponent(cleanAddr);
     final googleMapsUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$encodedAddr");
-    if (await canLaunchUrl(googleMapsUrl)) {
-      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not launch Google Maps")),
-        );
+
+    try {
+      final launched = await launchUrl(
+        googleMapsUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint("Google Maps HTTPS launch failed: $e");
+      try {
+        final geoUrl = Uri.parse("geo:0,0?q=$encodedAddr");
+        await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
+      } catch (err) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Could not launch Google Maps for address: $cleanAddr")),
+          );
+        }
       }
     }
   }
@@ -136,7 +150,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
-  void _showCompletionOtpDialog() {
+  void _showCompletionOtpDialog({String? paymentMode, bool? isFinalBillPaid, double? totalAmount}) {
+    final bool isCash = (paymentMode == 'COD' || paymentMode == 'CASH' || isFinalBillPaid == false);
     showDialog(
       context: context,
       builder: (context) {
@@ -147,6 +162,29 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text("Ask the customer for their 4-digit Completion OTP once work is done.", style: AppTextStyle.subtitle),
+              if (isCash && totalAmount != null && totalAmount > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(AppRadius.medium),
+                    border: Border.all(color: Colors.amber.shade400),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.payments_rounded, color: Colors.amber),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Collect ₹${totalAmount.toStringAsFixed(0)} Cash from customer upon completion.",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 controller: _completionOtpController,
@@ -683,12 +721,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ),
                   ),
 
-                if (status.toLowerCase() == 'in_progress' || status.toLowerCase() == 'work_in_progress')
+                if (['in_progress', 'work_in_progress', 'repair_in_progress', 'work_started', 'inspection_in_progress'].contains(status.toLowerCase()))
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
-                      onPressed: _showCompletionOtpDialog,
+                      onPressed: () => _showCompletionOtpDialog(
+                        paymentMode: data['paymentMode']?.toString(),
+                        isFinalBillPaid: data['isFinalBillPaid'] == true,
+                        totalAmount: (data['finalAmountPaid'] as num?)?.toDouble() ?? (data['quoteTotal'] as num?)?.toDouble() ?? quotationTotal,
+                      ),
                       icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
                       label: const Text("Finish: Enter Completion OTP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),

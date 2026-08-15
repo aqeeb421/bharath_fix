@@ -139,6 +139,12 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
 
         final docs = snapshot.data?.docs ?? [];
         final activeDocs = docs.where((doc) => doc.data()['status'] != 'completed' && doc.data()['status'] != 'cancelled').toList();
+        activeDocs.sort((a, b) {
+          final aTime = (a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          final bTime = (b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          if (aTime != 0 || bTime != 0) return bTime.compareTo(aTime);
+          return b.id.compareTo(a.id);
+        });
 
         if (activeDocs.isEmpty) {
           return const TechEmptyStateWidget(
@@ -197,6 +203,13 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
           // STRICT SKILL MATCHING RULE: Job must match technician's active skills array
           return JobMatchingService.isTechnicianExpertForJob(_techData, data);
         }).toList();
+
+        openDocs.sort((a, b) {
+          final aTime = (a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          final bTime = (b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          if (aTime != 0 || bTime != 0) return bTime.compareTo(aTime);
+          return b.id.compareTo(a.id);
+        });
 
         if (openDocs.isEmpty) {
           return Center(

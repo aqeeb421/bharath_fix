@@ -10,6 +10,7 @@ class FcmEngine {
     this.messaging = admin.messaging();
     this.isListening = false;
     this.unsubscribe = null;
+    this.lastNotifiedStatus = new Map();
   }
 
   /**
@@ -25,6 +26,11 @@ class FcmEngine {
       (snapshot) => {
         if (isInitialLoad) {
           isInitialLoad = false;
+          // Seed initial statuses to prevent spamming on server startup
+          snapshot.docs.forEach((doc) => {
+            const st = (doc.data()?.status || '').toLowerCase().trim();
+            this.lastNotifiedStatus.set(doc.id, st);
+          });
           console.log(`📡 FCM Engine synchronized with ${snapshot.size} existing active bookings.`);
           return;
         }
@@ -32,12 +38,20 @@ class FcmEngine {
         snapshot.docChanges().forEach(async (change) => {
           const bookingData = change.doc.data();
           const bookingId = change.doc.id;
+          const status = (bookingData.status || '').toLowerCase().trim();
 
           if (change.type === 'added') {
             console.log(`📋 New Booking Created: #${bookingId}`);
+            this.lastNotifiedStatus.set(bookingId, status);
             await this.handleNewBooking(bookingId, bookingData);
           } else if (change.type === 'modified') {
-            console.log(`🔄 Booking #${bookingId} state updated to [${bookingData.status}]`);
+            const previousStatus = this.lastNotifiedStatus.get(bookingId);
+            if (previousStatus === status) {
+              // Status has not changed (e.g. live GPS or timestamp update); skip duplicate FCM push!
+              return;
+            }
+            this.lastNotifiedStatus.set(bookingId, status);
+            console.log(`🔄 Booking #${bookingId} state updated: [${previousStatus || 'initial'}] -> [${status}]`);
             await this.handleStatusTransition(bookingId, bookingData);
           }
         });
@@ -51,7 +65,7 @@ class FcmEngine {
   }
 
   /**
-   * Handle new booking creation -> Notify available technicians in category
+   * Handle new booking creation -> Notify available technicians in category & Admin
    */
   async handleNewBooking(bookingId, booking) {
     const category = booking.title || booking.category || 'Appliance Service';
@@ -72,6 +86,13 @@ class FcmEngine {
         data: { bookingId, type: 'BOOKING_CONFIRMED' }
       });
     }
+
+    // Record Admin Panel Notification
+    await this.recordAdminNotification({
+      title: '📋 New Booking Placed',
+      body: `New ${category} request (#${bookingId}) placed in ${address}.`,
+      data: { bookingId, type: 'NEW_BOOKING' }
+    });
   }
 
   /**
@@ -94,6 +115,11 @@ class FcmEngine {
             data: { bookingId, type: 'TECHNICIAN_ASSIGNED' }
           });
         }
+        await this.recordAdminNotification({
+          title: '⚡ Job Accepted',
+          body: `Technician ${techName} accepted Booking #${bookingId}.`,
+          data: { bookingId, type: 'JOB_ACCEPTED' }
+        });
         break;
 
       case 'on_the_way':
@@ -129,6 +155,7 @@ class FcmEngine {
         break;
 
       case 'quotation_pending':
+      case 'quotation_pending_approval':
         if (userId) {
           await this.sendToUser(userId, {
             title: '📄 Repair Quotation Submitted',
@@ -136,6 +163,11 @@ class FcmEngine {
             data: { bookingId, type: 'QUOTATION_PENDING', quoteTotal: String(quoteTotal) }
           });
         }
+        await this.recordAdminNotification({
+          title: '📄 Quotation Submitted',
+          body: `Quotation of ₹${quoteTotal} submitted by ${techName} for Booking #${bookingId}.`,
+          data: { bookingId, type: 'QUOTATION_SUBMITTED' }
+        });
         break;
 
       case 'repair_in_progress':
@@ -146,6 +178,11 @@ class FcmEngine {
             data: { bookingId, type: 'QUOTATION_APPROVED' }
           });
         }
+        await this.recordAdminNotification({
+          title: '✅ Quotation Approved',
+          body: `Customer approved repair estimate (₹${quoteTotal}) for Booking #${bookingId}.`,
+          data: { bookingId, type: 'QUOTATION_APPROVED' }
+        });
         break;
 
       case 'visit_only_completed':
@@ -156,6 +193,11 @@ class FcmEngine {
             data: { bookingId, type: 'QUOTATION_REJECTED' }
           });
         }
+        await this.recordAdminNotification({
+          title: '❌ Quotation Declined',
+          body: `Customer declined repair estimate for Booking #${bookingId}. Closed as Visit-Only.`,
+          data: { bookingId, type: 'QUOTATION_REJECTED' }
+        });
         break;
 
       case 'completed':
@@ -173,6 +215,11 @@ class FcmEngine {
             data: { bookingId, type: 'JOB_COMPLETED' }
           });
         }
+        await this.recordAdminNotification({
+          title: '🎉 Service Completed',
+          body: `Booking #${bookingId} successfully completed by ${techName}.`,
+          data: { bookingId, type: 'JOB_COMPLETED' }
+        });
         break;
 
       case 'reviewed':
@@ -195,10 +242,35 @@ class FcmEngine {
             data: { bookingId, type: 'WARRANTY_CLAIMED' }
           });
         }
+        await this.recordAdminNotification({
+          title: '🛡️ Warranty Claim Filed',
+          body: `Customer filed warranty claim for Booking #${bookingId}.`,
+          data: { bookingId, type: 'WARRANTY_CLAIMED' }
+        });
         break;
 
       default:
         console.log(`Unhandled or internal status: ${status}`);
+    }
+  }
+
+  /**
+   * Record real-time notification document for Admin Panel
+   */
+  async recordAdminNotification(payload) {
+    try {
+      const notifId = `notif_admin_${Date.now()}`;
+      await this.db.collection('admin_notifications').doc(notifId).set({
+        id: notifId,
+        title: payload.title,
+        body: payload.body,
+        data: payload.data || {},
+        isRead: false,
+        createdAt: this.admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log(`📡 Admin notification recorded: [${payload.title}]`);
+    } catch (error) {
+      console.error('❌ Record Admin Notification failed:', error.message);
     }
   }
 

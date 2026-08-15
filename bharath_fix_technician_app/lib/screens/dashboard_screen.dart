@@ -40,6 +40,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _setupNotificationListener() {
+    NotificationService.onNotificationTap = (data) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = 0; // Redirect to Jobs tab on notification click
+        });
+      }
+    };
+
     final techId = _authService.currentUser?.uid;
     if (techId != null) {
       bool isInitial = true;
@@ -49,65 +57,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             isInitial = false;
             return;
           }
-          for (var change in snapshot.docChanges) {
-            if (change.type == DocumentChangeType.added) {
-              final data = change.doc.data();
-              if (data != null) {
-                final title = data['title'] as String? ?? 'BharatFix Alert';
-                final body = data['body'] as String? ?? '';
-                _showNotificationAlert(title, body);
-              }
-            }
-          }
+          if (mounted) setState(() {});
         },
       );
     }
   }
 
-  void _showNotificationAlert(String title, String body) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: const Color(0xFF000062),
-        content: Row(
-          children: [
-            const Icon(
-              Icons.notifications_active,
-              color: Colors.amber,
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    body,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   StreamSubscription? _profileSub;
 

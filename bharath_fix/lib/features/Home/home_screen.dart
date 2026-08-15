@@ -72,19 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _setupNotificationListener() {
-    NotificationService.onNotificationReceived = (message) {
-      _showNotificationAlert(
-        message.notification?.title ?? 'Notification',
-        message.notification?.body ?? '',
-      );
-    };
-
+    // Silent notification sync (System tray push notifications handled by FCM & local notifications)
     final user = FirebaseAuth.instance.currentUser;
     final uid = user?.uid ?? 'guest_user';
     _notifSub = NotificationService.listenForInAppNotifications(
       userId: uid,
       onNewNotification: (title, body) {
-        _showNotificationAlert(title, body);
+        if (mounted) setState(() {});
       },
     );
   }

@@ -1,4 +1,5 @@
 import '../../services/theme_service.dart';
+import '../../services/notification_service.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,7 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
+    NotificationService.onNotificationTap = (data) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = 1;
+        });
+      }
+    };
     _determineUserPositionWorkflow(showDialogOnFail: false);
   }
 

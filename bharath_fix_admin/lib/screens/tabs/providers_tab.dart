@@ -57,6 +57,7 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
       builder: (context) {
         return AlertDialog(
           backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Review Partner KYC & Skills', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
@@ -139,6 +140,7 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text('Onboard New Provider', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold)),
               content: Form(
                 key: _formKey,
@@ -281,7 +283,7 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     'Manage technician status, review KYC (Aadhaar/PAN/Bank), and approve partner accounts.',
                     style: GoogleFonts.plusJakartaSans(
@@ -346,7 +348,8 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
             hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF9E9E9E)),
             prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF757575)),
             filled: true,
-            fillColor: const Color(0xFFF7F8FA),
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFEAEAEA)),
@@ -391,97 +394,188 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                 );
               }
 
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFEAEAEA)),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: SingleChildScrollView(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(const Color(0xFFF7F8FA)),
-                        dataRowMinHeight: 64,
-                        dataRowMaxHeight: 76,
-                        columns: [
-                          DataColumn(label: Text('Full Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Skill Category', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Telephone Phone', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Completed Jobs', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Rating', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Status', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                        ],
-                        rows: filteredDocs.map((doc) {
-                          final data = doc.data();
-                          final id = doc.id;
-                          final name = data['name'] as String? ?? '';
-                          final category = data['category'] as String? ?? 'Appliance Repair';
-                          final phone = data['phone'] as String? ?? '';
-                          final completedJobs = data['completedJobs'] as int? ?? 0;
-                          final rating = data['rating']?.toString() ?? '5.0';
-                          final status = data['status'] as String? ?? 'Active';
-
-                          return DataRow(
-                            cells: [
-                              DataCell(
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: const Color(0xFF000062).withOpacity(0.08),
-                                      child: Text(
-                                        name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                        style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontSize: 12, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
-                              DataCell(Text(category, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13))),
-                              DataCell(Text(phone, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13))),
-                              DataCell(Text(completedJobs.toString(), style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13))),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(rating, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
-                              DataCell(_buildStatusBadge(status)),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.description_outlined, color: Color(0xFF000062), size: 18),
-                                      onPressed: () => _showKycReviewDialog(id, data),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
-                                      onPressed: () => _confirmDeleteProvider(id, name),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth > 800;
+                  if (isDesktop) {
+                    return _buildDesktopProvidersTable(filteredDocs);
+                  } else {
+                    return _buildMobileProvidersList(filteredDocs);
+                  }
+                },
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDesktopProvidersTable(List filteredDocs) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFEAEAEA)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF7F8FA)),
+              dataRowMinHeight: 64,
+              dataRowMaxHeight: 76,
+              columns: [
+                DataColumn(label: Text('Full Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Skill Category', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Mobile Phone', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Completed Jobs', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Rating', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Status', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+              ],
+              rows: filteredDocs.map((doc) {
+                final data = doc.data();
+                final id = doc.id;
+                final name = data['name'] as String? ?? '';
+                final category = data['category'] as String? ?? 'Appliance Repair';
+                final phone = data['phone'] as String? ?? '';
+                final completedJobs = data['completedJobs'] as int? ?? 0;
+                final rating = data['rating']?.toString() ?? '4.9';
+                final status = data['status'] as String? ?? 'Active';
+
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: const Color(0xFF000062).withValues(alpha: 0.08),
+                            child: Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    DataCell(Text(category, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13))),
+                    DataCell(Text(phone, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13))),
+                    DataCell(Text(completedJobs.toString(), style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13))),
+                    DataCell(
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text(rating, style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    DataCell(_buildStatusBadge(status)),
+                    DataCell(
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.badge_rounded, color: Color(0xFF000062), size: 20),
+                            tooltip: 'Review KYC & Skill Profile',
+                            onPressed: () => _showKycReviewDialog(id, data),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              status == 'Active' ? Icons.block_rounded : Icons.check_circle_rounded,
+                              color: status == 'Active' ? Colors.redAccent : Colors.green,
+                              size: 18,
+                            ),
+                            tooltip: status == 'Active' ? 'Deactivate Account' : 'Activate Account',
+                            onPressed: () async {
+                              final newStatus = status == 'Active' ? 'Inactive' : 'Active';
+                              await _service.updateProviderStatus(id, newStatus);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Updated $name to $newStatus')),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileProvidersList(List filteredDocs) {
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      itemCount: filteredDocs.length,
+      itemBuilder: (context, index) {
+        final doc = filteredDocs[index];
+        final data = doc.data();
+        final id = doc.id;
+        final name = data['name'] as String? ?? '';
+        final category = data['category'] as String? ?? 'Appliance Repair';
+        final phone = data['phone'] as String? ?? '';
+        final rating = data['rating']?.toString() ?? '4.9';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFEAEAEA)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: const Color(0xFF000062).withValues(alpha: 0.08),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 14, color: const Color(0xFF111111)))),
+                        Row(
+                          children: [
+                            const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                            const SizedBox(width: 2),
+                            Text(rating, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text('$category • $phone', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575))),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.badge_rounded, color: Color(0xFF000062), size: 20),
+                onPressed: () => _showKycReviewDialog(id, data),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -495,8 +589,9 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
 
         final docs = snapshot.data?.docs ?? [];
         final pendingDocs = docs.where((doc) {
-          final st = (doc.data()['status'] ?? '').toString().trim().toLowerCase();
-          return st == 'pending_verification' || st == 'pending';
+          final data = doc.data();
+          final status = (data['status'] as String? ?? '').trim().toLowerCase();
+          return status == 'pending_verification' || status == 'pending';
         }).toList();
 
         if (pendingDocs.isEmpty) {
@@ -504,62 +599,51 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.verified_user_outlined, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text('No Pending Partner Approvals', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text('New technician registrations will appear here for KYC verification.', style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 13)),
+                const Icon(Icons.verified_rounded, color: Colors.green, size: 48),
+                const SizedBox(height: 12),
+                Text('No Pending KYC Applications', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('All partner registrations are currently verified and active.', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: Colors.grey)),
               ],
             ),
           );
         }
 
         return ListView.builder(
+          physics: const BouncingScrollPhysics(),
           itemCount: pendingDocs.length,
           itemBuilder: (context, index) {
             final doc = pendingDocs[index];
             final data = doc.data();
+            final id = doc.id;
             final name = data['name'] ?? 'Partner';
-            final email = data['email'] ?? 'N/A';
             final phone = data['phone'] ?? 'N/A';
-            final skills = (data['skills'] as List<dynamic>?) ?? [];
+            final category = data['category'] ?? 'Appliance Specialist';
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.shade300, width: 1.5),
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.amber.shade300),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15)),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                            child: const Text('KYC PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text("Email: $email • Phone: $phone", style: GoogleFonts.plusJakartaSans(color: Colors.grey, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text("Skills: ${skills.join(', ')}", style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
+                  const Icon(Icons.pending_actions_rounded, color: Colors.amber, size: 32),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text('$category • Phone: $phone', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey.shade800)),
+                      ],
+                    ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showKycReviewDialog(doc.id, data),
-                    icon: const Icon(Icons.find_in_page_outlined, color: Colors.white, size: 16),
-                    label: const Text('Review & Approve KYC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ElevatedButton(
+                    onPressed: () => _showKycReviewDialog(id, data),
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062)),
+                    child: const Text('Review KYC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               ),
@@ -571,76 +655,13 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color;
-    Color bg;
-
-    switch (status.toLowerCase()) {
-      case 'active':
-        color = const Color(0xFF34A853);
-        bg = const Color(0xFF34A853).withOpacity(0.1);
-        break;
-      case 'inactive':
-        color = Colors.redAccent;
-        bg = Colors.redAccent.withOpacity(0.1);
-        break;
-      case 'pending':
-      case 'pending_verification':
-      default:
-        color = const Color(0xFFFF9900);
-        bg = const Color(0xFFFF9900).withOpacity(0.1);
-        break;
-    }
+    Color bg = status == 'Active' ? Colors.green.shade50 : Colors.red.shade50;
+    Color fg = status == 'Active' ? Colors.green.shade800 : Colors.red.shade800;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: GoogleFonts.plusJakartaSans(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteProvider(String id, String name) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: Text('Delete Provider Profile', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold)),
-          content: Text(
-            'Are you sure you want to delete "$name" from the providers directory?',
-            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575))),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await _service.deleteProvider(id);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Deleted provider $name.')),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-              child: Text('Delete', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(status.toUpperCase(), style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }

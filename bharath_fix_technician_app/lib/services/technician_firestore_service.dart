@@ -175,11 +175,14 @@ class TechnicianFirestoreService {
     double totalQuotationAmount,
   ) async {
     await _updateBookingDual(bookingId, {
+      'status': 'quotation_pending',
+      'quotationStatus': 'pending',
+      'quoteTotal': totalQuotationAmount,
       'quotation': {
         'items': items,
         'totalAmount': totalQuotationAmount,
+        'status': 'pending',
         'submittedAt': FieldValue.serverTimestamp(),
-        'isApprovedByCustomer': true,
       },
       'additionalCost': totalQuotationAmount,
     });

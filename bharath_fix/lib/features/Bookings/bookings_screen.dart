@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/invoice_service.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -144,10 +145,27 @@ class _BookingsScreenState extends State<BookingsScreen> {
     }
   }
 
+  double _calculateBookingTotal(Map<String, dynamic> data) {
+    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final quotationMap = data['quotation'] as Map<String, dynamic>?;
+    final double quoteTotal = (quotationMap?['totalAmount'] as num?)?.toDouble() ??
+        (data['quoteTotal'] as num?)?.toDouble() ??
+        (data['additionalCost'] as num?)?.toDouble() ??
+        0.0;
+    final double finalAmount = (data['finalAmountPaid'] as num?)?.toDouble() ?? 0.0;
+
+    if (finalAmount > 0) return finalAmount;
+    if (quoteTotal > 0) {
+      final bool isFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
+      return quoteTotal + (isFeePaid ? 0.0 : visitingFee);
+    }
+    return visitingFee;
+  }
+
   void _showBookingDetailModal(Map<String, dynamic> data, String bookingId) {
     final title = data['title'] ?? 'Appliance Service';
-    final fee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
-    final cost = data['cost']?.toString() ?? '₹${fee.toStringAsFixed(0)}';
+    final double totalAmount = _calculateBookingTotal(data);
+    final cost = '₹${totalAmount.toStringAsFixed(0)}';
     final dateTime = data['dateTime'] ?? 'Scheduled Slot';
     final address = data['address'] ?? '';
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
@@ -156,7 +174,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
     final String rawTechPhone = (data['providerPhone'] ?? data['techPhone'] ?? data['technicianPhone'] ?? data['provider_phone'])?.toString() ?? '';
     final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
-        ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+        ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
 
     final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
     final techPhone = rawTechPhone.isNotEmpty ? rawTechPhone : (isAssigned ? '+91 9876543210' : '');
@@ -202,14 +220,37 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 Text("Booking ID: $bookingId", style: TextStyle(fontSize: 12, color: Colors.grey)),
                 // OTP Display Box for Customer (Kept visible for all active stages)
 
-                if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()))
+                if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()))
                   _buildCustomerOtpBox(startOtp, completionOtp, status),
 
                 SizedBox(height: 12),
                 _buildStatusTimeline(status, techName),
 
-                if (['completed', 'work_completed'].contains(status.toLowerCase())) ...[
-                  SizedBox(height: 16),
+                if (['completed', 'work_completed', 'paid_and_closed'].contains(status.toLowerCase())) ...[
+                  SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        InvoiceService.generateAndShowInvoice(
+                          context: context,
+                          bookingData: data,
+                          bookingId: bookingId,
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.primary, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: Icon(Icons.picture_as_pdf_rounded, color: AppColors.primary, size: 20),
+                      label: Text(
+                        "Download / View Tax Invoice (PDF)",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -817,6 +858,20 @@ class _BookingsScreenState extends State<BookingsScreen> {
             return data;
           }).toList();
 
+          // Sort latest created booking at the top
+          bookingDocs.sort((a, b) {
+            final aTime = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+                (a['timestamp'] as num?)?.toInt() ??
+                0;
+            final bTime = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+                (b['timestamp'] as num?)?.toInt() ??
+                0;
+            if (aTime != 0 || bTime != 0) {
+              return bTime.compareTo(aTime);
+            }
+            return b['id'].toString().compareTo(a['id'].toString());
+          });
+
           if (bookingDocs.isEmpty) {
             return const EmptyStateWidget(
               title: 'No Active Bookings',
@@ -836,14 +891,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
               final bookingId = data['id']?.toString() ?? 'bf_$index';
               final title = data['title']?.toString() ?? 'Appliance Repair';
               final dateTime = data['dateTime']?.toString() ?? 'Scheduled Slot';
-              final fee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
-              final cost = data['cost']?.toString() ?? '₹${fee.toStringAsFixed(0)}';
+              final double totalAmount = _calculateBookingTotal(data);
+              final cost = '₹${totalAmount.toStringAsFixed(0)}';
               final status = (data['status'] ?? 'pending').toString().toLowerCase();
               final startOtp = data['startOtp']?.toString() ?? '';
               final completionOtp = data['completionOtp']?.toString() ?? '';
               final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
               final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
-                  ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+                  ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
               final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
 
               final IconData displayIcon = title.contains('Fridge') || title.contains('Refrigerator')
@@ -919,10 +974,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ),
 
                         // Display OTP Banner on Card if technician is assigned, on the way, arrived, or in progress
-                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending_approval', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
                           SizedBox(height: 12),
                           Builder(builder: (context) {
-                            final bool showEndOtp = ['in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
+                            final bool showEndOtp = ['repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
                             final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
                             final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
 

@@ -39,6 +39,9 @@ dependencies:
   provider: ^6.1.2
   image: ^4.8.0
   http: ^1.2.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
+  fl_chart: ^0.70.2
 
 
 dev_dependencies:

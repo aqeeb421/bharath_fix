@@ -36,7 +36,27 @@ class NotificationService {
       // Initialize local notifications settings for Android system tray
       const androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidInitSettings);
-      await _localNotifications.initialize(initSettings);
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (details) {
+          debugPrint('Local notification clicked: ${details.payload}');
+          _handleNotificationRedirection({'type': 'SYSTEM_TRAY_CLICK'});
+        },
+      );
+
+      // Listen for notification taps when app is in background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('FCM Notification Clicked (Background App): ${message.data}');
+        _handleNotificationRedirection(message.data);
+      });
+
+      // Listen for notification tap on cold app launch
+      FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+        if (message != null) {
+          debugPrint('FCM Notification Clicked (Initial App Launch): ${message.data}');
+          _handleNotificationRedirection(message.data);
+        }
+      });
 
       // Register high importance channel on Android OS
       await _localNotifications
@@ -112,6 +132,15 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('NotificationService initialize safe catch: $e');
+    }
+  }
+
+  static Function(Map<String, dynamic>)? onNotificationTap;
+
+  static void _handleNotificationRedirection(Map<String, dynamic> data) {
+    debugPrint('Notification clicked with payload data: $data');
+    if (onNotificationTap != null) {
+      onNotificationTap!(data);
     }
   }
 

@@ -1,6 +1,7 @@
 // lib/screens/dashboard_shell.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
 import '../screens/login_screen.dart';
 import '../screens/tabs/dashboard_tab.dart';
@@ -46,14 +47,23 @@ class _DashboardShellState extends State<DashboardShell> {
     final isDesktop = size.width > 950;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0C20), // Premium Dark space background
+      backgroundColor: const Color(0xFF0F0C20),
       appBar: !isDesktop
           ? AppBar(
               backgroundColor: const Color(0xFF000062),
               elevation: 0,
-              title: Text(
-                _navigationItems[_selectedTabIndex]['title'],
-                style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              title: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset('assets/images/app_icon.jpg', width: 28, height: 28, fit: BoxFit.cover),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _navigationItems[_selectedTabIndex]['title'],
+                    style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
               ),
               iconTheme: const IconThemeData(color: Colors.white),
             )
@@ -63,9 +73,9 @@ class _DashboardShellState extends State<DashboardShell> {
         children: [
           if (isDesktop)
             Container(
-              width: 260,
+              width: 270,
               decoration: const BoxDecoration(
-                color: Color(0xFF000062), // Royal Blue desktop drawer
+                color: Color(0xFF000062),
                 border: Border(right: BorderSide(color: Color(0xFF1A1A80), width: 1.5)),
               ),
               child: _buildSidebarContent(),
@@ -74,7 +84,7 @@ class _DashboardShellState extends State<DashboardShell> {
           Expanded(
             child: SafeArea(
               child: Container(
-                color: const Color(0xFFF7F8FA), // Light background for main contents
+                color: const Color(0xFFF7F8FA),
                 child: _navigationItems[_selectedTabIndex]['widget'],
               ),
             ),
@@ -91,36 +101,66 @@ class _DashboardShellState extends State<DashboardShell> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logo Header
+          // Logo Header with Live Dot
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.handyman_rounded, color: Colors.white, size: 22),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset('assets/images/app_icon.jpg', width: 36, height: 36, fit: BoxFit.cover),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'BharathFix Console',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'BHARATHFIX',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF00E676),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Live Operations',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 36),
 
           // Nav Items
           Expanded(
@@ -138,32 +178,70 @@ class _DashboardShellState extends State<DashboardShell> {
                         _selectedTabIndex = index;
                       });
                       if (Navigator.canPop(context)) {
-                        Navigator.pop(context); // Close mobile drawer if open
+                        Navigator.pop(context);
                       }
                     },
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.white : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ]
+                            : null,
                       ),
                       child: Row(
                         children: [
                           Icon(
                             item['icon'],
-                            color: isSelected ? const Color(0xFF000062) : Colors.white.withOpacity(0.64),
+                            color: isSelected ? const Color(0xFF000062) : Colors.white.withValues(alpha: 0.64),
                             size: 20,
                           ),
-                          const SizedBox(width: 16),
-                          Text(
-                            item['title'],
-                            style: GoogleFonts.plusJakartaSans(
-                              color: isSelected ? const Color(0xFF000062) : Colors.white.withOpacity(0.64),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              fontSize: 14,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              item['title'],
+                              style: GoogleFonts.plusJakartaSans(
+                                color: isSelected ? const Color(0xFF000062) : Colors.white.withValues(alpha: 0.75),
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
+                          if (item['title'] == 'Bookings')
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('bookings')
+                                  .where('status', isEqualTo: 'pending')
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                                if (count == 0) return const SizedBox();
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFF000062) : Colors.amber,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.black,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                         ],
                       ),
                     ),
@@ -182,7 +260,7 @@ class _DashboardShellState extends State<DashboardShell> {
               child: Row(
                 children: [
                   const Icon(Icons.logout_rounded, color: Color(0xFFFF8A80), size: 20),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   Text(
                     'Log Out',
                     style: GoogleFonts.plusJakartaSans(

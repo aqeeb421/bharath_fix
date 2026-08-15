@@ -1,7 +1,7 @@
 // lib/services/payment_service.dart
 
 class PaymentService {
-  static const String _razorpayKey = 'rzp_test_dENdzkIZ1Qkpqv';
+  static const String razorpayKey = 'rzp_test_dENdzkIZ1Qkpqv';
 
   /// Simulates order creation payload against Razorpay gateway structure
   static Future<Map<String, dynamic>?> createOrder({
@@ -17,7 +17,7 @@ class PaymentService {
         'id': mockOrderId,
         'amount': amountInPaise,
         'currency': currency,
-        'key': _razorpayKey,
+        'key': razorpayKey,
         'status': 'created'
       };
     } catch (e) {
