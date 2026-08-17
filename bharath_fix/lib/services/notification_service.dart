@@ -6,9 +6,56 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'fcm_direct_service.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('Handling background message: ${message.messageId}');
+  try {
+    await Firebase.initializeApp();
+    debugPrint('FCM Terminated/Background Message received [Customer]: ${message.messageId}');
+    
+    final notification = message.notification;
+    final title = notification?.title ?? message.data['title'] as String? ?? 'BharatFix Alert';
+    final body = notification?.body ?? message.data['body'] as String? ?? '';
+    
+    if (title.isNotEmpty || body.isNotEmpty) {
+      final localNotifications = FlutterLocalNotificationsPlugin();
+      const androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initSettings = InitializationSettings(android: androidInitSettings);
+      await localNotifications.initialize(initSettings);
+
+      const channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'This channel is used for important system push notifications.',
+        importance: Importance.max,
+        playSound: true,
+      );
+
+      await localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      await localNotifications.show(
+        message.hashCode,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            icon: '@mipmap/ic_launcher',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint('Customer App background message handler exception: $e');
+  }
 }
 
 class NotificationService {

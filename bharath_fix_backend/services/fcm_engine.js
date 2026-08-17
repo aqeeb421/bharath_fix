@@ -57,11 +57,37 @@ class FcmEngine {
         });
       },
       (error) => {
-        console.error('❌ Firestore FCM Listener Error:', error);
+        console.error('❌ Firestore FCM Listener Error:', error?.message || error);
+        this.isListening = false;
+        if (this.unsubscribe) {
+          try {
+            this.unsubscribe();
+          } catch (_) {}
+          this.unsubscribe = null;
+        }
+        // Auto-reconnect after 5 seconds to recover from stream drops
+        console.log('🔄 Firestore listener dropped. Auto-reconnecting FCM Engine in 5 seconds...');
+        setTimeout(() => {
+          this.startListener();
+        }, 5000);
       }
     );
 
     this.isListening = true;
+  }
+
+  /**
+   * Stop Firestore real-time listener
+   */
+  stopListener() {
+    if (this.unsubscribe) {
+      try {
+        this.unsubscribe();
+      } catch (_) {}
+      this.unsubscribe = null;
+    }
+    this.isListening = false;
+    console.log('🛑 Firestore FCM Real-Time Listener stopped.');
   }
 
   /**
@@ -409,6 +435,22 @@ class FcmEngine {
             title: payload.title,
             body: payload.body,
             ...(payload.data || {})
+          },
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'high_importance_channel',
+              sound: 'default',
+              priority: 'max'
+            }
+          },
+          apns: {
+            payload: {
+              aps: {
+                contentAvailable: true,
+                sound: 'default'
+              }
+            }
           }
         });
         console.log(`📢 Broadcasted FCM to ${tokens.length} technicians.`);

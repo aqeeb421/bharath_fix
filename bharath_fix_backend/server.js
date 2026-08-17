@@ -89,4 +89,24 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 BharathFix Backend Server listening on http://localhost:${PORT}`);
   console.log(`📊 Health Check: http://localhost:${PORT}/health`);
+
+  // Render.com Free Tier Keep-Alive Self-Ping (Prevents server from sleeping after 15 min idle)
+  const renderExternalUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL;
+  if (renderExternalUrl) {
+    const healthEndpoint = `${renderExternalUrl.replace(/\/$/, '')}/health`;
+    const TEN_MINUTES = 10 * 60 * 1000;
+
+    console.log(`⏰ Initialized Keep-Alive Self-Ping for Render: ${healthEndpoint} (Interval: 10m)`);
+
+    setInterval(() => {
+      const httpClient = healthEndpoint.startsWith('https') ? require('https') : require('http');
+      httpClient.get(healthEndpoint, (res) => {
+        console.log(`⏰ Keep-Alive Ping Sent to ${healthEndpoint} -> HTTP ${res.statusCode}`);
+      }).on('error', (err) => {
+        console.error(`⚠️ Keep-Alive Ping Failed: ${err.message}`);
+      });
+    }, TEN_MINUTES);
+  } else {
+    console.log('💡 TIP: Set RENDER_EXTERNAL_URL environment variable on Render dashboard to enable automated keep-alive self-pings.');
+  }
 });

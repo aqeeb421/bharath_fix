@@ -26,13 +26,24 @@ class FcmDirectService {
       final payload = {
         'to': targetToken,
         'priority': 'high',
+        'content_available': true,
         'notification': {
           'title': title,
           'body': body,
           'sound': 'default',
           'channel_id': 'high_importance_channel',
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
+        },
+        'android': {
+          'priority': 'high',
+          'notification': {
+            'channel_id': 'high_importance_channel',
+            'sound': 'default',
+            'priority': 'high',
+            'notification_priority': 'PRIORITY_MAX',
+            'default_sound': true,
+            'default_vibrate_timings': true,
+          },
         },
         'data': {
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',
