@@ -1,9 +1,18 @@
 /**
- * Bharath Fix - Official Marketing Website JavaScript Logic
- * Handles interactive elements, price calculations, booking modal, and WhatsApp integration.
+ * Bharath Fix - Official Marketing Website & Service Portal
+ * Fast, lightweight, SEO-optimized interactive logic.
+ * Direct WhatsApp & Helpline Booking Engine (No login required for 100% conversion & instant lead generation).
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Set default date picker to today
+  const modalDate = document.getElementById('modalDate');
+  if (modalDate) {
+    const today = new Date().toISOString().split('T')[0];
+    modalDate.value = today;
+    modalDate.min = today;
+  }
+
   // Mobile Navigation Drawer Toggle
   const mobileToggle = document.getElementById('mobileToggle');
   const navMenu = document.getElementById('navMenu');
@@ -18,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Close menu when clicking nav link
     document.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', () => {
         navMenu.classList.remove('active');
@@ -46,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Service Pricing Matrix & Estimator Logic
+  // Service Pricing Matrix & Estimator Map
   const servicePriceMap = {
     'ac': { name: 'AC Servicing & Repair', startPrice: 499, options: ['Jet Servicing (₹599)', 'Gas Refill (₹1,499)', 'AC Repair & Diagnosis (₹499)', 'Uninstallation / Installation (₹799)'] },
     'washing-machine': { name: 'Washing Machine Repair', startPrice: 199, options: ['General Checkup (₹199)', 'Drum/Spin Repair (₹499)', 'PCB Repair (₹899)', 'Water Inlet Fix (₹299)'] },
@@ -58,12 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
     'air-cooler': { name: 'Air Cooler Servicing', startPrice: 199, options: ['Pump Replacement (₹399)', 'Cooling Pad Change (₹299)', 'Motor Repair (₹499)', 'Full Cleaning (₹199)'] }
   };
 
-  // Booking Modal Logic
+  // Service Booking Modal Controls
   const modalOverlay = document.getElementById('bookingModal');
   const modalCloseBtn = document.getElementById('modalClose');
   const modalServiceSelect = document.getElementById('modalService');
 
-  // Function to open modal with specific service selected
   window.openBookingModal = function(serviceKey) {
     if (modalOverlay) {
       if (serviceKey && modalServiceSelect) {
@@ -86,13 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (modalOverlay) {
     modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        closeBookingModal();
-      }
+      if (e.target === modalOverlay) closeBookingModal();
     });
   }
 
-  // Update Modal Sub-service options
   function updateModalOptions(serviceKey) {
     const subOptionSelect = document.getElementById('modalSubOption');
     if (!subOptionSelect) return;
@@ -120,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Quick Form Submission (Hero Section Form)
+  // Handle Quick Hero Booking Form Submission
   const heroForm = document.getElementById('quickBookingForm');
   if (heroForm) {
     heroForm.addEventListener('submit', (e) => {
@@ -135,15 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       sendWhatsAppBooking({
-        service: servicePriceMap[service]?.name || service,
+        category: servicePriceMap[service]?.name || service,
         phone: phone,
         pincode: pincode,
-        notes: 'Quick Home Service Request from Website Hero Banner'
+        notes: 'Quick Service Request from Hero Banner'
       });
     });
   }
 
-  // Handle Modal Form Submission
+  // Handle Service Modal Form Submission
   const modalForm = document.getElementById('modalBookingForm');
   if (modalForm) {
     modalForm.addEventListener('submit', (e) => {
@@ -161,34 +165,86 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       sendWhatsAppBooking({
-        service: `${servicePriceMap[serviceKey]?.name || serviceKey} (${subOption})`,
+        category: servicePriceMap[serviceKey]?.name || serviceKey,
+        subOption: subOption,
         name: name,
         phone: phone,
         address: address,
-        date: preferredDate,
-        notes: 'Full Service Booking Request from Modal'
+        date: preferredDate
       });
 
       closeBookingModal();
     });
   }
 
-  // Helper Function: Send Direct WhatsApp Message & Trigger Call Option
+  // Helper Function: Dispatch Instant WhatsApp Booking Message
   function sendWhatsAppBooking(data) {
-    const phoneNumber = '919148699386'; // Official Helpline
-    let text = `*NEW BOOKING REQUEST - BHARATH FIX*\n\n`;
-    text += `🛠️ *Service*: ${data.service}\n`;
+    const phoneNumber = '919148699386'; // Official BharathFix Helpline
+    let text = `*NEW BOOKING REQUEST - BHARATH FIX WEBSITE*\n\n`;
+    text += `🛠️ *Service*: ${data.category}\n`;
+    if (data.subOption) text += `📌 *Option*: ${data.subOption}\n`;
     if (data.name) text += `👤 *Customer Name*: ${data.name}\n`;
     text += `📞 *Phone*: ${data.phone}\n`;
     if (data.pincode) text += `📍 *Pincode*: ${data.pincode}\n`;
     if (data.address) text += `🏠 *Address*: ${data.address}\n`;
     if (data.date) text += `📅 *Preferred Date*: ${data.date}\n`;
-    text += `\nPlease confirm technician assignment and arrival time!`;
+    text += `\nPlease confirm technician assignment & slot availability!`;
 
     const encodedText = encodeURIComponent(text);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedText}`;
-
-    // Open WhatsApp in a new tab
     window.open(whatsappUrl, '_blank');
+  }
+
+  // ==========================================
+  // Appliance Sales Store Modal & Order Handler
+  // ==========================================
+  const salesModal = document.getElementById('salesModal');
+  window.openSalesModal = function(productId, productName, category, price) {
+    if (salesModal) {
+      document.getElementById('salesProductId').value = productId;
+      document.getElementById('salesProductName').value = productName;
+      document.getElementById('salesProductCategory').value = category;
+      document.getElementById('salesProductPrice').value = price;
+
+      document.getElementById('salesModalTitle').textContent = `Order ${productName}`;
+      document.getElementById('salesModalPriceTag').textContent = `Price: ₹${price.toLocaleString()} • 6 Months Warranty`;
+
+      salesModal.classList.add('active');
+    }
+  };
+
+  window.closeSalesModal = function() {
+    if (salesModal) salesModal.classList.remove('active');
+  };
+
+  if (salesModal) {
+    salesModal.addEventListener('click', (e) => {
+      if (e.target === salesModal) closeSalesModal();
+    });
+  }
+
+  const salesForm = document.getElementById('salesOrderForm');
+  if (salesForm) {
+    salesForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const productName = document.getElementById('salesProductName').value;
+      const price = document.getElementById('salesProductPrice').value;
+
+      const name = document.getElementById('salesName').value;
+      const phone = document.getElementById('salesPhone').value;
+      const address = document.getElementById('salesAddress').value;
+      const pincode = document.getElementById('salesPincode').value;
+
+      if (!phone || phone.length < 10) {
+        alert('Please enter a valid 10-digit mobile number.');
+        return;
+      }
+
+      closeSalesModal();
+
+      // Dispatch direct WhatsApp order inquiry
+      const text = `*NEW APPLIANCE STORE ORDER - BHARATH FIX*\n\n🛒 *Product*: ${productName}\n💰 *Offer Price*: ₹${price}\n👤 *Customer*: ${name}\n📞 *Phone*: ${phone}\n🏠 *Address*: ${address}\n📍 *Pincode*: ${pincode}\n\nPlease confirm availability, delivery slot, and free installation!`;
+      window.open(`https://wa.me/919148699386?text=${encodeURIComponent(text)}`, '_blank');
+    });
   }
 });

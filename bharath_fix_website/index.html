@@ -129,12 +129,22 @@
       </a>
 
       <nav class="nav-menu" id="navMenu">
-        <a href="#home" class="nav-link">Home</a>
-        <a href="#services" class="nav-link">Services</a>
-        <a href="#why-us" class="nav-link">Why Choose Us</a>
-        <a href="#how-it-works" class="nav-link">How It Works</a>
-        <a href="#location" class="nav-link">Locations</a>
-        <a href="#faq" class="nav-link">FAQ</a>
+        <a href="#home" class="nav-link">Home <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#services" class="nav-link">Services <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#sales-store" class="nav-link"><i class="fa-solid fa-store" style="color: var(--accent-blue);"></i> Appliance Store <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#why-us" class="nav-link">Why Choose Us <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#how-it-works" class="nav-link">How It Works <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#location" class="nav-link">Locations <i class="fa-solid fa-angle-right"></i></a>
+        <a href="#faq" class="nav-link">FAQ <i class="fa-solid fa-angle-right"></i></a>
+
+        <div class="mobile-menu-actions">
+          <a href="tel:9148699386" class="btn btn-secondary btn-sm" style="width: 100%;">
+            <i class="fa-solid fa-phone"></i> Call +91 9148699386
+          </a>
+          <button onclick="openBookingModal('ac')" class="btn btn-primary btn-sm" style="width: 100%;">
+            <i class="fa-solid fa-calendar-check"></i> Book Technician
+          </button>
+        </div>
       </nav>
 
       <div class="nav-actions">
@@ -364,6 +374,171 @@
           <button onclick="openBookingModal('air-cooler')" class="btn btn-secondary btn-sm" style="width: 100%;">
             Book Cooler Service
           </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Appliance Sales & Refurbished Store Section -->
+  <section class="section sales-section" id="sales-store">
+    <div class="container">
+      <div class="text-center center-block">
+        <span class="section-tag"><i class="fa-solid fa-tag"></i> Certified Quality Store</span>
+        <h2 class="section-title">Buy Refurbished & Brand New Appliances</h2>
+        <p class="section-subtitle center-block">
+          Inspected by certified BharathFix engineers. 6-Month Warranty, Free Doorstep Delivery & Installation included.
+        </p>
+      </div>
+
+      <div class="sales-grid">
+        <!-- 1. AC Store Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">6 Months Warranty</span>
+          <span class="product-discount-tag">57% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/air_condition.png" alt="1.5 Ton Inverter Split AC">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Air Conditioners</span>
+            <h3 class="product-title">1.5 Ton Inverter Split AC (5 Star)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> Copper Condenser & 100% Tested</li>
+              <li><i class="fa-solid fa-circle-check"></i> Fresh Gas Charged (R32 / R410)</li>
+              <li><i class="fa-solid fa-truck-ram"></i> Free Doorstep Delivery & Standard Fitting</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹14,999</span>
+              <span class="product-old-price">₹34,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_ac_15t', '1.5 Ton Inverter Split AC (5 Star)', 'Air Conditioners', 14999)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Washing Machine Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">6 Months Warranty</span>
+          <span class="product-discount-tag">60% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/washing_machine.png" alt="Fully Automatic Washing Machine">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Washing Machines</span>
+            <h3 class="product-title">Fully Automatic Front/Top Load (7 kg)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> Bosch / IFB / LG Certified Units</li>
+              <li><i class="fa-solid fa-circle-check"></i> Stainless Steel Drum & Smart Inverter</li>
+              <li><i class="fa-solid fa-shield-halved"></i> Includes Inlet Hose & Demo</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹8,999</span>
+              <span class="product-old-price">₹22,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_wm_7kg', 'Fully Automatic Washing Machine (7 kg)', 'Washing Machines', 8999)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Refrigerator Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">6 Months Warranty</span>
+          <span class="product-discount-tag">62% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/refrigerator.png" alt="Double Door Refrigerator">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Refrigerators</span>
+            <h3 class="product-title">Double Door Frost Free Refrigerator (265 L)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> Whirlpool / Samsung / LG Brand</li>
+              <li><i class="fa-solid fa-circle-check"></i> Smart Inverter Compressor</li>
+              <li><i class="fa-solid fa-truck-ram"></i> Sanitized & Deep Cleaned Inside</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹9,499</span>
+              <span class="product-old-price">₹24,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_fridge_265', 'Double Door Frost Free Refrigerator (265 L)', 'Refrigerators', 9499)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Water Purifier Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">Brand New Box Pack</span>
+          <span class="product-discount-tag">61% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/water_purifer.png" alt="RO Water Purifier">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Water Purifiers</span>
+            <h3 class="product-title">Copper + Zinc RO+UV+UF Purifier (12 L)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> 100% Brand New Box Sealed Unit</li>
+              <li><i class="fa-solid fa-circle-check"></i> TDS Controller & Alkaline Booster</li>
+              <li><i class="fa-solid fa-screwdriver-wrench"></i> Free Wall Mounting & Demo</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹4,999</span>
+              <span class="product-old-price">₹12,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_ro_12l', 'Copper RO+UV+UF Water Purifier (12 L)', 'Water Purifiers', 4999)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Geyser Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">Brand New Unit</span>
+          <span class="product-discount-tag">56% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/water_heater.png" alt="Storage Geyser">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Water Heaters</span>
+            <h3 class="product-title">Storage Electric Geyser (25 L)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> Glasslined Enamel Tank (8 Bar Pressure)</li>
+              <li><i class="fa-solid fa-circle-check"></i> 5-Star Rated Energy Efficiency</li>
+              <li><i class="fa-solid fa-shield-halved"></i> 2-Year Manufacturer Warranty</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹3,499</span>
+              <span class="product-old-price">₹7,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_geyser_25l', 'Storage Electric Geyser (25 L)', 'Water Heaters', 3499)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. Microwave Card -->
+        <div class="product-card">
+          <span class="product-badge-corner">6 Months Warranty</span>
+          <span class="product-discount-tag">60% OFF</span>
+          <div class="product-image-wrap">
+            <img src="assets/icons/microwave.png" alt="Microwave Oven">
+          </div>
+          <div class="product-body">
+            <span class="product-category">Microwave Ovens</span>
+            <h3 class="product-title">Convection Microwave Oven (28 L)</h3>
+            <ul class="product-specs">
+              <li><i class="fa-solid fa-circle-check"></i> Baking, Grilling & Heating Modes</li>
+              <li><i class="fa-solid fa-circle-check"></i> Stainless Steel Cavity & Touch Control</li>
+              <li><i class="fa-solid fa-truck-ram"></i> Fully Tested & Certified Unit</li>
+            </ul>
+            <div class="product-price-row">
+              <span class="product-price">₹3,999</span>
+              <span class="product-old-price">₹9,999</span>
+            </div>
+            <button onclick="openSalesModal('prod_micro_28l', 'Convection Microwave Oven (28 L)', 'Microwave Ovens', 3999)" class="btn btn-primary btn-sm" style="width: 100%;">
+              <i class="fa-solid fa-cart-shopping"></i> Order / Buy Appliance
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -762,6 +937,51 @@
 
         <button type="submit" class="btn btn-primary" style="width: 100%;">
           <i class="fa-brands fa-whatsapp"></i> Confirm & Book via WhatsApp
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Appliance Sales Purchase Order Modal -->
+  <div class="modal-overlay" id="salesModal">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeSalesModal()" aria-label="Close modal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="modal-header">
+        <h3 class="modal-title" id="salesModalTitle">Order Appliance</h3>
+        <p class="modal-subtitle" id="salesModalPriceTag">6-Month Warranty & Free Doorstep Installation</p>
+      </div>
+
+      <form id="salesOrderForm">
+        <input type="hidden" id="salesProductId">
+        <input type="hidden" id="salesProductName">
+        <input type="hidden" id="salesProductCategory">
+        <input type="hidden" id="salesProductPrice">
+
+        <div class="form-group">
+          <label class="form-label" for="salesName">Full Name</label>
+          <input type="text" id="salesName" class="form-control" placeholder="Enter your name" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="salesPhone">Mobile Phone Number</label>
+          <input type="tel" id="salesPhone" class="form-control" placeholder="10-digit phone number" required pattern="[0-9]{10}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="salesAddress">Delivery Address</label>
+          <input type="text" id="salesAddress" class="form-control" placeholder="House No, Street, Area" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="salesPincode">Pincode</label>
+          <input type="text" id="salesPincode" class="form-control" placeholder="573201" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-brands fa-whatsapp"></i> Confirm & Order via WhatsApp
         </button>
       </form>
     </div>
