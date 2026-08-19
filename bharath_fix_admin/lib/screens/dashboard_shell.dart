@@ -10,6 +10,7 @@ import '../screens/tabs/users_tab.dart';
 import '../screens/tabs/providers_tab.dart';
 import '../screens/tabs/catalog_tab.dart';
 import '../screens/tabs/payouts_tab.dart';
+import '../screens/tabs/orders_tab.dart';
 
 class DashboardShell extends StatefulWidget {
   const DashboardShell({super.key});
@@ -24,6 +25,7 @@ class _DashboardShellState extends State<DashboardShell> {
 
   final List<Map<String, dynamic>> _navigationItems = [
     {'title': 'Dashboard', 'icon': Icons.space_dashboard_rounded, 'widget': const DashboardTab()},
+    {'title': 'Product Orders', 'icon': Icons.local_shipping_rounded, 'widget': const OrdersTab()},
     {'title': 'Bookings', 'icon': Icons.assignment_rounded, 'widget': const BookingsTab()},
     {'title': 'Clients', 'icon': Icons.people_alt_rounded, 'widget': const UsersTab()},
     {'title': 'Providers', 'icon': Icons.business_center_rounded, 'widget': const ProvidersTab()},
@@ -59,9 +61,13 @@ class _DashboardShellState extends State<DashboardShell> {
                     child: Image.asset('assets/images/app_icon.jpg', width: 28, height: 28, fit: BoxFit.cover),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    _navigationItems[_selectedTabIndex]['title'],
-                    style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  Expanded(
+                    child: Text(
+                      _navigationItems[_selectedTabIndex]['title'],
+                      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),

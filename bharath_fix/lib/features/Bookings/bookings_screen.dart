@@ -14,6 +14,8 @@ import '../../ui/widgets/rating_review_dialog.dart';
 import '../../ui/widgets/app_state_widgets.dart';
 import '../Chat/chat_screen.dart';
 import 'quotation_checkout_screen.dart';
+import '../../models/OrderModel.dart';
+import 'tax_invoice_widget.dart';
 
 
 class BookingsScreen extends StatefulWidget {
@@ -25,6 +27,9 @@ class BookingsScreen extends StatefulWidget {
 }
 
 class _BookingsScreenState extends State<BookingsScreen> {
+  final _dbService = DatabaseService();
+  late Stream<List<OrderModel>> _ordersStream;
+
   @override
   void dispose() {
     ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
@@ -39,9 +44,8 @@ class _BookingsScreenState extends State<BookingsScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+    _ordersStream = _dbService.streamOrders().asBroadcastStream();
   }
-
-  final _dbService = DatabaseService();
 
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -829,207 +833,734 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    final int initialTab = (ModalRoute.of(context)?.settings.arguments as int?) ?? 0;
+
+    return DefaultTabController(
+      length: 2,
+      initialIndex: initialTab,
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0,
-        centerTitle: false,
-        title: Text('My bookings', style: AppTextStyle.mainTitle),
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _dbService.getUserBookingsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingStateWidget(message: 'Syncing your bookings...');
-          }
-
-          if (snapshot.hasError) {
-            return ErrorStateWidget(
-              title: 'Booking Sync Error',
-              errorMessage: snapshot.error.toString(),
-            );
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          final List<Map<String, dynamic>> bookingDocs = docs.map((doc) {
-            final data = Map<String, dynamic>.from(doc.data());
-            data['id'] = doc.id;
-            return data;
-          }).toList();
-
-          // Sort latest created booking at the top
-          bookingDocs.sort((a, b) {
-            final aTime = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                (a['timestamp'] as num?)?.toInt() ??
-                0;
-            final bTime = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
-                (b['timestamp'] as num?)?.toInt() ??
-                0;
-            if (aTime != 0 || bTime != 0) {
-              return bTime.compareTo(aTime);
-            }
-            return b['id'].toString().compareTo(a['id'].toString());
-          });
-
-          if (bookingDocs.isEmpty) {
-            return const EmptyStateWidget(
-              title: 'No Active Bookings',
-              message: 'Your scheduled service appointments will appear here.',
-              icon: Icons.calendar_today_rounded,
-            );
-          }
-
-          return ListView.builder(
-            padding: EdgeInsets.all(AppSpacing.medium),
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          centerTitle: false,
+          title: Text('My Bookings & Orders', style: AppTextStyle.mainTitle),
+          bottom: TabBar(
+            indicatorColor: AppColors.primary,
+            indicatorWeight: 3,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.subtitle,
+            labelStyle: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
-            itemCount: bookingDocs.length,
-            itemBuilder: (context, index) {
-              final data = bookingDocs[index];
-              final bookingId = data['id']?.toString() ?? 'bf_$index';
-              final title = data['title']?.toString() ?? 'Appliance Repair';
-              final dateTime = data['dateTime']?.toString() ?? 'Scheduled Slot';
-              final double totalAmount = _calculateBookingTotal(data);
-              final cost = '₹${totalAmount.toStringAsFixed(0)}';
-              final status = (data['status'] ?? 'pending').toString().toLowerCase();
-              final startOtp = data['startOtp']?.toString() ?? '';
-              final completionOtp = data['completionOtp']?.toString() ?? '';
-              final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
-              final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
-                  ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
-              final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
+            tabs: const [
+              Tab(text: 'Service Bookings'),
+              Tab(text: 'My Orders'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildServiceBookingsTab(),
+            _buildProductOrdersTab(),
+          ],
+        ),
+      ),
+    );
+  }
 
-              final IconData displayIcon = title.contains('Fridge') || title.contains('Refrigerator')
-                  ? Icons.kitchen_rounded
-                  : title.contains('Wash') || title.contains('Machine')
-                  ? Icons.local_laundry_service_rounded
-                  : title.contains('Purifier')
-                  ? Icons.water_drop_rounded
-                  : Icons.handyman_rounded;
+  Widget _buildServiceBookingsTab() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _dbService.getUserBookingsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LoadingStateWidget(message: 'Syncing your bookings...');
+        }
 
-              final cfg = _getStatusConfig(status, techName);
-              Color statusBg = cfg['bg'];
-              Color statusText = cfg['color'];
-              String displayStatusText = cfg['label'];
+        if (snapshot.hasError) {
+          return ErrorStateWidget(
+            title: 'Booking Sync Error',
+            errorMessage: snapshot.error.toString(),
+          );
+        }
 
-              return Container(
-                margin: EdgeInsets.only(bottom: AppSpacing.medium),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppRadius.large),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.large),
-                  onTap: () => _showBookingDetailModal(data, bookingId),
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.medium),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+        final docs = snapshot.data?.docs ?? [];
+        final List<Map<String, dynamic>> bookingDocs = docs.map((doc) {
+          final data = Map<String, dynamic>.from(doc.data());
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        bookingDocs.sort((a, b) {
+          final aTime = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+              (a['timestamp'] as num?)?.toInt() ??
+              0;
+          final bTime = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ??
+              (b['timestamp'] as num?)?.toInt() ??
+              0;
+          if (aTime != 0 || bTime != 0) {
+            return bTime.compareTo(aTime);
+          }
+          return b['id'].toString().compareTo(a['id'].toString());
+        });
+
+        if (bookingDocs.isEmpty) {
+          return const EmptyStateWidget(
+            title: 'No Active Bookings',
+            message: 'Your scheduled service appointments will appear here.',
+            icon: Icons.calendar_today_rounded,
+          );
+        }
+
+        return ListView.builder(
+          padding: EdgeInsets.all(AppSpacing.medium),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          itemCount: bookingDocs.length,
+          itemBuilder: (context, index) {
+            final data = bookingDocs[index];
+            final bookingId = data['id']?.toString() ?? 'bf_$index';
+            final title = data['title']?.toString() ?? 'Appliance Repair';
+            final dateTime = data['dateTime']?.toString() ?? 'Scheduled Slot';
+            final double totalAmount = _calculateBookingTotal(data);
+            final cost = '₹${totalAmount.toStringAsFixed(0)}';
+            final status = (data['status'] ?? 'pending').toString().toLowerCase();
+            final startOtp = data['startOtp']?.toString() ?? '';
+            final completionOtp = data['completionOtp']?.toString() ?? '';
+            final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
+            final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
+                ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
+            final techName = rawTechName.isNotEmpty ? rawTechName : (isAssigned ? 'Master Technician' : '');
+
+            final IconData displayIcon = title.contains('Fridge') || title.contains('Refrigerator')
+                ? Icons.kitchen_rounded
+                : title.contains('Wash') || title.contains('Machine')
+                ? Icons.local_laundry_service_rounded
+                : title.contains('Purifier')
+                ? Icons.water_drop_rounded
+                : Icons.handyman_rounded;
+
+            final cfg = _getStatusConfig(status, techName);
+            Color statusBg = cfg['bg'];
+            Color statusText = cfg['color'];
+            String displayStatusText = cfg['label'];
+
+            return Container(
+              margin: EdgeInsets.only(bottom: AppSpacing.medium),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                onTap: () => _showBookingDetailModal(data, bookingId),
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.medium),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(AppRadius.medium),
+                            ),
+                            child: Icon(displayIcon, color: AppColors.primary, size: 26),
+                          ),
+                          SizedBox(width: AppSpacing.medium),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(title, style: AppTextStyle.cardTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                SizedBox(height: 4),
+                                Text(dateTime, style: AppTextStyle.subtitle),
+                                SizedBox(height: 6),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusBg,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    displayStatusText.toUpperCase(),
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      color: statusText,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: AppSpacing.small),
+                          Text(cost, style: AppTextStyle.mainTitle.copyWith(fontSize: 18, color: AppColors.primary)),
+                        ],
+                      ),
+
+                      if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                        SizedBox(height: 12),
+                        Builder(builder: (context) {
+                          final bool showEndOtp = ['repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
+                          final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
+                          final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
+
+                          return Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: showEndOtp ? Colors.green.shade50 : AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: showEndOtp ? Colors.green.shade300 : AppColors.primary.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.key_rounded, size: 16, color: showEndOtp ? Colors.green.shade800 : AppColors.primary),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "$otpLabel: $otpVal",
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: showEndOtp ? Colors.green.shade900 : AppColors.primary),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  showEndOtp ? "Share upon completion ►" : "Share with technician ►",
+                                  style: TextStyle(fontSize: 11, color: showEndOtp ? Colors.green.shade800 : AppColors.primary, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+
+                      if (techName.isNotEmpty) ...[
+                        SizedBox(height: 8),
                         Row(
                           children: [
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(AppRadius.medium),
-                              ),
-                              child: Icon(displayIcon, color: AppColors.primary, size: 26),
-                            ),
-                            SizedBox(width: AppSpacing.medium),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(title, style: AppTextStyle.cardTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  SizedBox(height: 4),
-                                  Text(dateTime, style: AppTextStyle.subtitle),
-                                  SizedBox(height: 6),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: statusBg,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      displayStatusText.toUpperCase(),
-                                      style: TextStyle(
-                                        fontFamily: 'Plus Jakarta Sans',
-                                        color: statusText,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: AppSpacing.small),
-                            Text(cost, style: AppTextStyle.mainTitle.copyWith(fontSize: 18, color: AppColors.primary)),
+                            Icon(Icons.engineering_rounded, size: 14, color: AppColors.subtitle),
+                            SizedBox(width: 4),
+                            Text("Technician: $techName", style: AppTextStyle.subtitle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
                           ],
                         ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-                        // Display OTP Banner on Card if technician is assigned, on the way, arrived, or in progress
-                        if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
-                          SizedBox(height: 12),
-                          Builder(builder: (context) {
-                            final bool showEndOtp = ['repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
-                            final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
-                            final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
+  Widget _buildProductOrdersTab() {
+    return StreamBuilder<List<OrderModel>>(
+      stream: _ordersStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LoadingStateWidget(message: 'Loading your orders...');
+        }
 
-                            return Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: showEndOtp ? Colors.green.shade50 : AppColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: showEndOtp ? Colors.green.shade300 : AppColors.primary.withValues(alpha: 0.3)),
+        if (snapshot.hasError) {
+          return ErrorStateWidget(
+            title: 'Order Sync Error',
+            errorMessage: snapshot.error.toString(),
+          );
+        }
+
+        final orders = snapshot.data ?? [];
+        if (orders.isEmpty) {
+          return const EmptyStateWidget(
+            title: 'No Orders Placed Yet',
+            message: 'Your purchased appliances and store orders will appear here.',
+            icon: Icons.local_shipping_outlined,
+          );
+        }
+
+        return ListView.builder(
+          padding: EdgeInsets.all(AppSpacing.medium),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          itemCount: orders.length,
+          itemBuilder: (context, index) {
+            final order = orders[index];
+            final statusStr = order.orderStatus.toDisplayString();
+
+            Color statusColor = Colors.orange.shade800;
+            Color statusBg = Colors.orange.shade50;
+            if (order.orderStatus == OrderStatus.shipped) {
+              statusColor = Colors.blue.shade800;
+              statusBg = Colors.blue.shade50;
+            } else if (order.orderStatus == OrderStatus.outForDelivery) {
+              statusColor = Colors.indigo.shade800;
+              statusBg = Colors.indigo.shade50;
+            } else if (order.orderStatus == OrderStatus.delivered) {
+              statusColor = Colors.green.shade800;
+              statusBg = Colors.green.shade50;
+            } else if (order.orderStatus == OrderStatus.cancelled) {
+              statusColor = Colors.red.shade800;
+              statusBg = Colors.red.shade50;
+            }
+
+            return Container(
+              margin: EdgeInsets.only(bottom: AppSpacing.medium),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                onTap: () => _showOrderDetailModal(order),
+                child: Padding(
+                  padding: EdgeInsets.all(AppSpacing.medium),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.medium),
+                            child: Image.network(
+                              order.productImage.isNotEmpty
+                                  ? order.productImage
+                                  : 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=200',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 60,
+                                height: 60,
+                                color: Colors.grey.shade200,
+                                child: Icon(Icons.inventory_2_rounded, color: Colors.grey),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.key_rounded, size: 16, color: showEndOtp ? Colors.green.shade800 : AppColors.primary),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        "$otpLabel: $otpVal",
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: showEndOtp ? Colors.green.shade900 : AppColors.primary),
-                                      ),
-                                    ],
+                            ),
+                          ),
+                          SizedBox(width: AppSpacing.medium),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  order.productName,
+                                  style: AppTextStyle.cardTitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  order.expectedDeliveryDate ?? 'Delivery in 2-3 Days',
+                                  style: AppTextStyle.subtitle,
+                                ),
+                                SizedBox(height: 6),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusBg,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  Text(
-                                    showEndOtp ? "Share upon completion ►" : "Share with technician ►",
-                                    style: TextStyle(fontSize: 11, color: showEndOtp ? Colors.green.shade800 : AppColors.primary, fontWeight: FontWeight.bold),
+                                  child: Text(
+                                    statusStr,
+                                    style: TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      color: statusColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ],
-                              ),
-                            );
-                          }),
-                        ],
-
-                        if (techName.isNotEmpty) ...[
-                          SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(Icons.engineering_rounded, size: 14, color: AppColors.subtitle),
-                              SizedBox(width: 4),
-                              Text("Technician: $techName", style: AppTextStyle.subtitle.copyWith(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: AppSpacing.small),
+                          Text(
+                            '₹${order.totalPaid.toStringAsFixed(0)}',
+                            style: AppTextStyle.mainTitle.copyWith(
+                              fontSize: 18,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ],
+                      ),
+                      SizedBox(height: AppSpacing.medium),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentGreen.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.vpn_key_rounded, size: 16, color: AppColors.primary),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Delivery OTP: ${order.deliveryOtp}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'Tap for details ►',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (order.deliveryPartnerName != null &&
+                          order.deliveryPartnerName!.isNotEmpty &&
+                          (order.orderStatus == OrderStatus.shipped ||
+                              order.orderStatus == OrderStatus.outForDelivery ||
+                              order.orderStatus == OrderStatus.delivered)) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: AppColors.primary,
+                                child: Icon(Icons.engineering_rounded, size: 16, color: Colors.white),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Delivery & Installation Agent',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.subtitle,
+                                      ),
+                                    ),
+                                    Text(
+                                      order.deliveryPartnerName!,
+                                      style: AppTextStyle.bodyBold.copyWith(fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (order.deliveryPartnerPhone != null && order.deliveryPartnerPhone!.isNotEmpty)
+                                IconButton(
+                                  icon: Icon(Icons.phone_rounded, color: AppColors.primary, size: 20),
+                                  onPressed: () => _makePhoneCall(order.deliveryPartnerPhone!),
+                                ),
+                            ],
+                          ),
+                        ),
                       ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showOrderDetailModal(OrderModel order) {
+    final statusStr = order.orderStatus.toDisplayString();
+
+    Color statusColor = Colors.orange.shade800;
+    Color statusBg = Colors.orange.shade50;
+    IconData statusIcon = Icons.inventory_2_rounded;
+
+    if (order.orderStatus == OrderStatus.shipped) {
+      statusColor = Colors.blue.shade800;
+      statusBg = Colors.blue.shade50;
+      statusIcon = Icons.local_shipping_rounded;
+    } else if (order.orderStatus == OrderStatus.outForDelivery) {
+      statusColor = Colors.indigo.shade800;
+      statusBg = Colors.indigo.shade50;
+      statusIcon = Icons.directions_bike_rounded;
+    } else if (order.orderStatus == OrderStatus.delivered) {
+      statusColor = Colors.green.shade800;
+      statusBg = Colors.green.shade50;
+      statusIcon = Icons.check_circle_rounded;
+    } else if (order.orderStatus == OrderStatus.cancelled) {
+      statusColor = Colors.red.shade800;
+      statusBg = Colors.red.shade50;
+      statusIcon = Icons.cancel_rounded;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.all(AppSpacing.medium),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
+                SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        order.productName,
+                        style: AppTextStyle.mainTitle.copyWith(fontSize: 18),
+                      ),
+                    ),
+                    Text(
+                      '₹${order.totalPaid.toStringAsFixed(0)}',
+                      style: AppTextStyle.mainTitle.copyWith(
+                        fontSize: 20,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text("Order ID: #${order.id}", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                SizedBox(height: 12),
+
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(AppRadius.medium),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 22),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              statusStr,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: statusColor,
+                              ),
+                            ),
+                            Text(
+                              order.expectedDeliveryDate ?? 'Expected delivery within 2-3 business days',
+                              style: TextStyle(fontSize: 11, color: AppColors.subtitle),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12),
+
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(AppRadius.medium),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.shield_rounded, color: AppColors.primary, size: 22),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Delivery Verification OTP',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.subtitle,
+                              ),
+                            ),
+                            Text(
+                              order.deliveryOtp,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 4,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        'Share at delivery',
+                        style: TextStyle(fontSize: 11, color: AppColors.subtitle),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 24),
+
+                if (order.deliveryPartnerName != null &&
+                    order.deliveryPartnerName!.isNotEmpty &&
+                    (order.orderStatus == OrderStatus.shipped ||
+                        order.orderStatus == OrderStatus.outForDelivery ||
+                        order.orderStatus == OrderStatus.delivered)) ...[
+                  Text("Assigned Delivery & Setup Agent", style: AppTextStyle.bodyBold),
+                  SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: AppColors.primary,
+                          child: Icon(Icons.person_rounded, color: Colors.white),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(order.deliveryPartnerName!, style: AppTextStyle.bodyBold),
+                              if (order.deliveryPartnerPhone != null && order.deliveryPartnerPhone!.isNotEmpty)
+                                Text(order.deliveryPartnerPhone!, style: AppTextStyle.subtitle),
+                            ],
+                          ),
+                        ),
+                        if (order.deliveryPartnerPhone != null && order.deliveryPartnerPhone!.isNotEmpty)
+                          IconButton(
+                            icon: Icon(Icons.phone_rounded, color: AppColors.primary),
+                            onPressed: () => _makePhoneCall(order.deliveryPartnerPhone!),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 24),
+                ],
+
+                _buildInfoRow(Icons.location_on_outlined, "Delivery Address", order.deliveryAddress),
+                SizedBox(height: 10),
+                _buildInfoRow(
+                  Icons.payment_rounded,
+                  "Payment Summary",
+                  "Item Price: ₹${order.price.toStringAsFixed(0)} • Total Paid: ₹${order.totalPaid.toStringAsFixed(0)} (${order.paymentMode})",
+                ),
+                if (order.orderStatus == OrderStatus.delivered) ...[
+                  SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        InvoiceService.generateAndShowOrderInvoice(
+                          context: context,
+                          order: order,
+                        );
+                      },
+                      icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                      label: const Text(
+                        "Download Tax Invoice (PDF)",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded, size: 18, color: Colors.amber.shade900),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Tax Invoice PDF download will be available once delivery & setup is completed.',
+                            style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                    ),
+                    child: Text("Close Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

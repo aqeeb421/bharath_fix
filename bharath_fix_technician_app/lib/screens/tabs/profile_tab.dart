@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -7,7 +8,6 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_text_style.dart';
 import '../login_screen.dart';
 import '../edit_technician_profile_screen.dart';
-import '../../services/job_matching_service.dart';
 
 class ProfileTab extends StatelessWidget {
   final String techName;
@@ -175,6 +175,60 @@ class ProfileTab extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.local_shipping_rounded, color: AppColors.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      "Appliance Delivery & Setup",
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                    Text(
+                                      "Receive product delivery tasks from Admin",
+                                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: (data['canDeliver'] != false && data['isDeliveryPartner'] != false),
+                          activeColor: AppColors.primary,
+                          onChanged: (val) async {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
+                              await FirebaseFirestore.instance
+                                  .collection('providers')
+                                  .doc(user.uid)
+                                  .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -282,13 +336,16 @@ class ProfileTab extends StatelessWidget {
                               color: AppColors.primary,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              skill,
-                              style: const TextStyle(
-                                fontFamily: 'Plus Jakarta Sans',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: AppColors.primary,
+                            Flexible(
+                              child: Text(
+                                skill,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           ],

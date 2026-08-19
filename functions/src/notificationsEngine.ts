@@ -32,8 +32,9 @@ export const onUserNotificationCreated = functions.firestore
         },
         data: {
           click_action: 'FLUTTER_NOTIFICATION_CLICK',
-          type: notifData.data?.type || 'CUSTOMER_ALERT',
-          jobId: notifData.data?.jobId || '',
+          type: notifData.type || notifData.data?.type || 'CUSTOMER_ALERT',
+          jobId: notifData.bookingId || notifData.data?.jobId || '',
+          orderId: notifData.orderId || notifData.data?.orderId || '',
         },
         android: {
           priority: 'high',

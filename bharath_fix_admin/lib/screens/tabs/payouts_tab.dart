@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 class PayoutsTab extends StatefulWidget {
   const PayoutsTab({super.key});
@@ -11,6 +14,9 @@ class PayoutsTab extends StatefulWidget {
 
 class _PayoutsTabState extends State<PayoutsTab> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _latestDocs = [];
+
+  static const double _platformFeePercent = 15.0; // 15% BharathFix platform fee
 
   Future<void> _updatePayoutStatus(String docId, String status) async {
     await _db.collection('providers').doc(docId).set({
@@ -25,35 +31,110 @@ class _PayoutsTabState extends State<PayoutsTab> {
     }
   }
 
+  void _exportPayoutsCsv() {
+    if (_latestDocs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No payout data to export.')),
+      );
+      return;
+    }
+
+    final rows = <List<String>>[
+      ['Technician Name', 'Phone', 'Bank Name', 'Account Holder', 'Account Number', 'IFSC Code', 'Gross Earnings (₹)', 'Platform Fee 15% (₹)', 'Net Payout 85% (₹)', 'Status'],
+    ];
+
+    for (final doc in _latestDocs) {
+      final data = doc.data();
+      final name = data['name'] as String? ?? 'Partner';
+      final phone = data['phone'] as String? ?? '';
+      final completedJobs = (data['completedJobs'] as num?)?.toInt() ?? 0;
+      final double gross = (data['walletBalance'] as num?)?.toDouble() ?? (completedJobs * 450.0);
+      final double platformFee = (gross * _platformFeePercent / 100);
+      final double net = gross - platformFee;
+      final bankMap = data['bankDetails'] as Map<String, dynamic>? ?? {};
+      final bankName = bankMap['bankName'] as String? ?? '';
+      final accountHolder = bankMap['accountHolder'] as String? ?? '';
+      final accountNo = bankMap['accountNumber'] as String? ?? bankMap['accountNo'] as String? ?? '';
+      final ifsc = bankMap['ifscCode'] as String? ?? bankMap['ifsc'] as String? ?? '';
+      final status = data['payoutStatus'] as String? ?? 'Pending';
+
+      rows.add([name, phone, bankName, accountHolder, accountNo, ifsc, gross.toStringAsFixed(2), platformFee.toStringAsFixed(2), net.toStringAsFixed(2), status]);
+    }
+
+    final csvContent = rows.map((row) => row.map((cell) => '"$cell"').join(',')).join('\n');
+    final bytes = utf8.encode(csvContent);
+    final blob = html.Blob([bytes], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'bharathfix_payouts_${DateTime.now().toIso8601String().substring(0, 10)}.csv')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payout CSV downloaded!'), backgroundColor: Color(0xFF34A853)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 700;
+              final headerText = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Technician Wallet & Settlement Payouts',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 24,
+                      fontSize: isMobile ? 20 : 24,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF111111),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Review and process weekly bank account settlements for verified service partners live.',
-                    style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13),
+                    'Review and process weekly bank account settlements for verified service partners. Platform fee: 15% | Net to Technician: 85%.',
+                    style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
                   ),
                 ],
-              ),
-            ],
+              );
+
+              final exportBtn = ElevatedButton.icon(
+                onPressed: _exportPayoutsCsv,
+                icon: const Icon(Icons.download_rounded, size: 16, color: Colors.white),
+                label: Text(isMobile ? 'Export CSV' : 'Export Batch CSV', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF34A853),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+              );
+
+              if (isMobile) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headerText,
+                    const SizedBox(height: 12),
+                    SizedBox(width: double.infinity, child: exportBtn),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: headerText),
+                  const SizedBox(width: 16),
+                  exportBtn,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -65,6 +146,8 @@ class _PayoutsTabState extends State<PayoutsTab> {
                 }
 
                 final docs = snapshot.data?.docs ?? [];
+                _latestDocs = docs; // Store for CSV export
+
                 if (docs.isEmpty) {
                   return Center(
                     child: Text('No technician payout records found.', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575))),
@@ -104,30 +187,34 @@ class _PayoutsTabState extends State<PayoutsTab> {
             scrollDirection: Axis.horizontal,
             child: DataTable(
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF7F8FA)),
-              dataRowMinHeight: 64,
-              dataRowMaxHeight: 80,
+              dataRowMinHeight: 72,
+              dataRowMaxHeight: 90,
               columns: [
-                DataColumn(label: Text('Partner ID', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Technician Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Technician', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Bank Details', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
                 DataColumn(label: Text('Completed Jobs', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Net Earnings', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Payout Status', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Gross Earnings', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Platform 15%', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Net Payout 85%', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Status', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Action', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
               ],
               rows: docs.map((doc) {
                 final data = doc.data();
                 final name = data['name'] as String? ?? 'Partner';
                 final phone = data['phone'] as String? ?? 'N/A';
                 final completedJobs = (data['completedJobs'] as num?)?.toInt() ?? 0;
-                final double earnings = (data['walletBalance'] as num?)?.toDouble() ?? (completedJobs * 450.0);
+                final double gross = (data['walletBalance'] as num?)?.toDouble() ?? (completedJobs * 450.0);
+                final double platformFee = gross * _platformFeePercent / 100;
+                final double netPayout = gross - platformFee;
                 final bankMap = data['bankDetails'] as Map<String, dynamic>? ?? {};
                 final bankName = bankMap['bankName'] as String? ?? 'Pending Setup';
+                final accountNo = bankMap['accountNumber'] as String? ?? bankMap['accountNo'] as String? ?? '—';
+                final ifsc = bankMap['ifscCode'] as String? ?? bankMap['ifsc'] as String? ?? '—';
                 final payoutStatus = data['payoutStatus'] as String? ?? 'Pending';
 
                 return DataRow(
                   cells: [
-                    DataCell(Text('#${doc.id.substring(0, doc.id.length > 8 ? 8 : doc.id.length)}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontSize: 12, fontWeight: FontWeight.bold))),
                     DataCell(
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,15 +225,25 @@ class _PayoutsTabState extends State<PayoutsTab> {
                         ],
                       ),
                     ),
-                    DataCell(Text(bankName, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12))),
-                    DataCell(Text('$completedJobs Services', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13))),
-                    DataCell(Text('₹${earnings.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF34A853), fontSize: 13, fontWeight: FontWeight.bold))),
+                    DataCell(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(bankName, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12)),
+                          if (accountNo != '—') Text('A/C: $accountNo', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF9E9E9E))),
+                          if (ifsc != '—') Text('IFSC: $ifsc', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF9E9E9E))),
+                        ],
+                      ),
+                    ),
+                    DataCell(Text('$completedJobs', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13))),
+                    DataCell(Text('₹${gross.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 13, fontWeight: FontWeight.bold))),
+                    DataCell(Text('₹${platformFee.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.bold))),
+                    DataCell(Text('₹${netPayout.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF34A853), fontSize: 13, fontWeight: FontWeight.bold))),
                     DataCell(_buildStatusBadge(payoutStatus)),
                     DataCell(
-                      Row(
-                        children: [
-                          if (payoutStatus != 'Settled')
-                            ElevatedButton(
+                      payoutStatus != 'Settled'
+                          ? ElevatedButton(
                               onPressed: () => _updatePayoutStatus(doc.id, 'Settled'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF34A853),
@@ -154,10 +251,7 @@ class _PayoutsTabState extends State<PayoutsTab> {
                               ),
                               child: const Text('Transfer Settlement', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                             )
-                          else
-                            const Text('Settled', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
+                          : const Text('Settled ✓', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 );
@@ -178,7 +272,9 @@ class _PayoutsTabState extends State<PayoutsTab> {
         final data = doc.data();
         final name = data['name'] as String? ?? 'Partner';
         final completedJobs = (data['completedJobs'] as num?)?.toInt() ?? 0;
-        final double earnings = (data['walletBalance'] as num?)?.toDouble() ?? (completedJobs * 450.0);
+        final double gross = (data['walletBalance'] as num?)?.toDouble() ?? (completedJobs * 450.0);
+        final double platformFee = gross * _platformFeePercent / 100;
+        final double netPayout = gross - platformFee;
         final bankMap = data['bankDetails'] as Map<String, dynamic>? ?? {};
         final bankName = bankMap['bankName'] as String? ?? 'Pending Setup';
         final payoutStatus = data['payoutStatus'] as String? ?? 'Pending';
@@ -197,23 +293,54 @@ class _PayoutsTabState extends State<PayoutsTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF111111))),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF111111)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   _buildStatusBadge(payoutStatus),
                 ],
               ),
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Text('Bank: $bankName', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575))),
-                  const Spacer(),
-                  Text('₹${earnings.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF34A853))),
+                  Expanded(
+                    child: Text(
+                      'Bank: $bankName',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Commission split
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Gross: ₹${gross.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF111111), fontWeight: FontWeight.w600)),
+                  Text('Fee: ₹${platformFee.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.orange.shade800, fontWeight: FontWeight.w600)),
+                  Text('Net: ₹${netPayout.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF34A853), fontWeight: FontWeight.bold)),
                 ],
               ),
               const Divider(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('$completedJobs completed services', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575))),
+                  Expanded(
+                    child: Text(
+                      '$completedJobs completed services',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   if (payoutStatus != 'Settled')
                     ElevatedButton(
                       onPressed: () => _updatePayoutStatus(doc.id, 'Settled'),

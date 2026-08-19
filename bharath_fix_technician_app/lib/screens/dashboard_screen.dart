@@ -8,7 +8,6 @@ import 'tabs/jobs_tab.dart';
 import 'tabs/earnings_tab.dart';
 import 'tabs/profile_tab.dart';
 import '../services/job_matching_service.dart';
-import 'chat/technician_chat_screen.dart';
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';

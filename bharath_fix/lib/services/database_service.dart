@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/BookingEntry.dart';
 import '../models/UserModel.dart';
+import '../models/AddressModel.dart';
+import '../models/OrderModel.dart';
 import 'notification_service.dart';
 
 class DatabaseService {
@@ -162,6 +164,36 @@ class DatabaseService {
             name TEXT,
             email TEXT,
             isLoggedIn INTEGER DEFAULT 0
+          )
+        ''');
+
+        // Create orders table
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS orders(
+            id TEXT PRIMARY KEY,
+            userId TEXT,
+            userName TEXT,
+            userPhone TEXT,
+            userEmail TEXT,
+            deliveryAddress TEXT,
+            productId TEXT,
+            productName TEXT,
+            productImage TEXT,
+            price REAL,
+            quantity INTEGER,
+            discountAmount REAL,
+            totalPaid REAL,
+            orderStatus TEXT,
+            deliveryPartnerId TEXT,
+            deliveryPartnerName TEXT,
+            deliveryPartnerPhone TEXT,
+            deliveryOtp TEXT,
+            paymentMode TEXT,
+            isPaid INTEGER,
+            createdAt TEXT,
+            expectedDeliveryDate TEXT,
+            deliveredAt TEXT,
+            isSynced INTEGER DEFAULT 0
           )
         ''');
       },
@@ -438,13 +470,25 @@ class DatabaseService {
 
   // ==================== ADDRESS WORKFLOW ====================
 
-  Future<void> insertAddress(String id, String details, String tag) async {
+  Future<void> insertAddress(
+    String id,
+    String details,
+    String tag, {
+    AddressModel? addressModel,
+  }) async {
     final db = await database;
 
+    final model = addressModel ??
+        AddressModel(
+          id: id,
+          details: details,
+          tag: tag,
+        );
+
     final addressMap = {
-      'id': id,
-      'details': details,
-      'tag': tag,
+      'id': model.id,
+      'details': model.details,
+      'tag': model.tag,
       'isSynced': 0,
     };
 
@@ -456,40 +500,102 @@ class DatabaseService {
 
     if (_isFirebaseAvailable) {
       try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_currentUserUid)
-            .collection('addresses')
-            .doc(id)
-            .set({'id': id, 'details': details, 'tag': tag});
+        final uid = _currentUserUid;
+        if (uid != 'guest_user') {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('addresses')
+              .doc(model.id)
+              .set(model.toMap());
 
-        await db.update(
-          'addresses',
-          {'isSynced': 1},
-          where: 'id = ?',
-          whereArgs: [id],
-        );
+          if (model.isDefault) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .set({
+              'defaultAddress': model.details,
+              'address': model.details,
+            }, SetOptions(merge: true));
+          }
+
+          await db.update(
+            'addresses',
+            {'isSynced': 1},
+            where: 'id = ?',
+            whereArgs: [model.id],
+          );
+        }
       } catch (e) {
         debugPrint('Firebase address sync failed (will retry later): $e');
       }
     }
   }
 
-  Future<List<Map<String, String>>> fetchAddresses() async {
+  Future<List<AddressModel>> fetchAddresses() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('addresses');
+    final List<AddressModel> resultList =
+        maps.map((m) => AddressModel.fromMap(m)).toList();
 
-    if (maps.isEmpty) {
-      return [];
+    if (_isFirebaseAvailable) {
+      try {
+        final uid = _currentUserUid;
+        if (uid != 'guest_user') {
+          final List<AddressModel> remoteList = [];
+
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('addresses')
+              .get();
+
+          for (var doc in snap.docs) {
+            remoteList.add(AddressModel.fromMap(doc.data(), docId: doc.id));
+          }
+
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+
+          if (userDoc.exists && userDoc.data() != null) {
+            final userModel = UserModel.fromMap(userDoc.data()!, docId: uid);
+            for (var addr in userModel.addresses) {
+              final existsInRemote = remoteList.any(
+                (a) => a.id == addr.id || a.details.trim() == addr.details.trim(),
+              );
+              if (!existsInRemote) {
+                remoteList.add(addr);
+              }
+            }
+          }
+
+          for (var remote in remoteList) {
+            final alreadyInLocal = resultList.any(
+              (l) => l.id == remote.id || l.details.trim() == remote.details.trim(),
+            );
+            if (!alreadyInLocal) {
+              resultList.add(remote);
+              await db.insert(
+                'addresses',
+                {
+                  'id': remote.id,
+                  'details': remote.details,
+                  'tag': remote.tag,
+                  'isSynced': 1,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching addresses from Firestore: $e');
+      }
     }
 
-    return List.generate(maps.length, (i) {
-      return {
-        'id': maps[i]['id'] as String? ?? '',
-        'details': maps[i]['details'] as String? ?? '',
-        'tag': maps[i]['tag'] as String? ?? 'Home',
-      };
-    });
+    return resultList;
   }
 
   Future<void> deleteAddress(String id) async {
@@ -498,14 +604,223 @@ class DatabaseService {
 
     if (_isFirebaseAvailable) {
       try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_currentUserUid)
-            .collection('addresses')
-            .doc(id)
-            .delete();
+        final uid = _currentUserUid;
+        if (uid != 'guest_user') {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('addresses')
+              .doc(id)
+              .delete();
+        }
       } catch (e) {
         debugPrint('Firebase address delete failed: $e');
+      }
+    }
+  }
+
+  // ==================== ORDERS WORKFLOW ====================
+
+  Future<void> insertOrder(OrderModel order) async {
+    final db = await database;
+
+    await db.insert(
+      'orders',
+      {
+        'id': order.id,
+        'userId': order.userId,
+        'userName': order.userName,
+        'userPhone': order.userPhone,
+        'userEmail': order.userEmail,
+        'deliveryAddress': order.deliveryAddress,
+        'productId': order.productId,
+        'productName': order.productName,
+        'productImage': order.productImage,
+        'price': order.price,
+        'quantity': order.quantity,
+        'discountAmount': order.discountAmount,
+        'totalPaid': order.totalPaid,
+        'orderStatus': order.orderStatus.name,
+        'deliveryPartnerId': order.deliveryPartnerId,
+        'deliveryPartnerName': order.deliveryPartnerName,
+        'deliveryPartnerPhone': order.deliveryPartnerPhone,
+        'deliveryOtp': order.deliveryOtp,
+        'paymentMode': order.paymentMode,
+        'isPaid': order.isPaid ? 1 : 0,
+        'createdAt': order.createdAt?.toIso8601String(),
+        'expectedDeliveryDate': order.expectedDeliveryDate,
+        'deliveredAt': order.deliveredAt?.toIso8601String(),
+        'isSynced': 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    if (_isFirebaseAvailable) {
+      try {
+        final uid = _currentUserUid;
+        final firestoreMap = order.toMap();
+
+        // 1. Dual-write to root 'orders' collection (for Delivery Partners)
+        await FirebaseFirestore.instance
+            .collection('orders')
+            .doc(order.id)
+            .set(firestoreMap);
+
+        // 2. Dual-write to user subcollection 'users/{uid}/orders'
+        if (uid != 'guest_user') {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('orders')
+              .doc(order.id)
+              .set(firestoreMap);
+        }
+
+        await db.update(
+          'orders',
+          {'isSynced': 1},
+          where: 'id = ?',
+          whereArgs: [order.id],
+        );
+      } catch (e) {
+        debugPrint('Firebase order sync failed: $e');
+      }
+    }
+  }
+
+  Future<List<OrderModel>> fetchOrders() async {
+    final db = await database;
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS orders(
+          id TEXT PRIMARY KEY,
+          userId TEXT,
+          userName TEXT,
+          userPhone TEXT,
+          userEmail TEXT,
+          deliveryAddress TEXT,
+          productId TEXT,
+          productName TEXT,
+          productImage TEXT,
+          price REAL,
+          quantity INTEGER,
+          discountAmount REAL,
+          totalPaid REAL,
+          orderStatus TEXT,
+          deliveryPartnerId TEXT,
+          deliveryPartnerName TEXT,
+          deliveryPartnerPhone TEXT,
+          deliveryOtp TEXT,
+          paymentMode TEXT,
+          isPaid INTEGER,
+          createdAt TEXT,
+          expectedDeliveryDate TEXT,
+          deliveredAt TEXT,
+          isSynced INTEGER DEFAULT 0
+        )
+      ''');
+    } catch (_) {}
+
+    final List<Map<String, dynamic>> maps =
+        await db.query('orders', orderBy: 'rowid DESC');
+    final List<OrderModel> resultList =
+        maps.map((m) => OrderModel.fromMap(m)).toList();
+
+    if (_isFirebaseAvailable) {
+      try {
+        final uid = _currentUserUid;
+        if (uid != 'guest_user') {
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('orders')
+              .get();
+
+          for (var doc in snap.docs) {
+            final remote = OrderModel.fromMap(doc.data(), docId: doc.id);
+            final alreadyInLocal = resultList.any((l) => l.id == remote.id);
+            if (!alreadyInLocal) {
+              resultList.add(remote);
+              await db.insert(
+                'orders',
+                {
+                  'id': remote.id,
+                  'userId': remote.userId,
+                  'userName': remote.userName,
+                  'userPhone': remote.userPhone,
+                  'userEmail': remote.userEmail,
+                  'deliveryAddress': remote.deliveryAddress,
+                  'productId': remote.productId,
+                  'productName': remote.productName,
+                  'productImage': remote.productImage,
+                  'price': remote.price,
+                  'quantity': remote.quantity,
+                  'discountAmount': remote.discountAmount,
+                  'totalPaid': remote.totalPaid,
+                  'orderStatus': remote.orderStatus.name,
+                  'deliveryPartnerId': remote.deliveryPartnerId,
+                  'deliveryPartnerName': remote.deliveryPartnerName,
+                  'deliveryPartnerPhone': remote.deliveryPartnerPhone,
+                  'deliveryOtp': remote.deliveryOtp,
+                  'paymentMode': remote.paymentMode,
+                  'isPaid': remote.isPaid ? 1 : 0,
+                  'createdAt': remote.createdAt?.toIso8601String(),
+                  'expectedDeliveryDate': remote.expectedDeliveryDate,
+                  'deliveredAt': remote.deliveredAt?.toIso8601String(),
+                  'isSynced': 1,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching orders from Firestore: $e');
+      }
+    }
+
+    return resultList;
+  }
+
+  Stream<List<OrderModel>> streamOrders() async* {
+    final initialList = await fetchOrders();
+    yield initialList;
+
+    if (_isFirebaseAvailable) {
+      final uid = _currentUserUid;
+      if (uid != 'guest_user') {
+        yield* FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('orders')
+            .snapshots()
+            .asyncMap((snap) async {
+          final List<OrderModel> remoteOrders = [];
+          for (var doc in snap.docs) {
+            final order = OrderModel.fromMap(doc.data(), docId: doc.id);
+            remoteOrders.add(order);
+
+            try {
+              final db = await database;
+              await db.update(
+                'orders',
+                {
+                  'orderStatus': order.orderStatus.name,
+                  'deliveryPartnerId': order.deliveryPartnerId,
+                  'deliveryPartnerName': order.deliveryPartnerName,
+                  'deliveryPartnerPhone': order.deliveryPartnerPhone,
+                  'isSynced': 1,
+                },
+                where: 'id = ?',
+                whereArgs: [order.id],
+              );
+            } catch (_) {}
+          }
+          if (remoteOrders.isNotEmpty) {
+            return remoteOrders;
+          }
+          return initialList;
+        });
       }
     }
   }
@@ -948,6 +1263,19 @@ class DatabaseService {
     }
   }
 
+  Future<void> decrementProductStock(String productId, [int count = 1]) async {
+    if (productId.isEmpty) return;
+    try {
+      final docRef = FirebaseFirestore.instance.collection('products').doc(productId);
+      await docRef.update({
+        'stockQuantity': FieldValue.increment(-count),
+      });
+      debugPrint('Successfully decremented product $productId stock by $count');
+    } catch (e) {
+      debugPrint('Error decrementing product stock for $productId: $e');
+    }
+  }
+
   Future<void> seedDefaultData() async {
     debugPrint("Firestore database service ready.");
   }
@@ -956,3 +1284,4 @@ class DatabaseService {
     debugPrint("Firestore database service ready.");
   }
 }
+

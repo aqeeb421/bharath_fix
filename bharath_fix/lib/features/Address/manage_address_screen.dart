@@ -1,6 +1,6 @@
 import '../../services/theme_service.dart';
-// lib/Address/manage_address_screen.dart
 import 'package:flutter/material.dart';
+import '../../models/AddressModel.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
@@ -10,9 +10,15 @@ import '../../services/database_service.dart';
 
 class ManageAddressScreen extends StatefulWidget {
   final bool isEditing;
+  final AddressModel? addressModel;
   final Map<String, String>? addressData;
 
-  const ManageAddressScreen({super.key, required this.isEditing, this.addressData});
+  const ManageAddressScreen({
+    super.key,
+    required this.isEditing,
+    this.addressModel,
+    this.addressData,
+  });
 
   @override
   State<ManageAddressScreen> createState() => _ManageAddressScreenState();
@@ -37,15 +43,30 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
-    if (widget.isEditing && widget.addressData != null) {
-      _selectedTag = widget.addressData!['tag'] ?? 'Home';
-      final details = widget.addressData!['details'] ?? '';
-      final parts = details.split(',').map((e) => e.trim()).toList();
-      if (parts.isNotEmpty) _houseController.text = parts[0];
-      if (parts.length > 1) _streetController.text = parts[1];
-      if (parts.length > 2) _landmarkController.text = parts[2];
-      if (parts.length > 3) _pincodeController.text = parts[3];
+    if (widget.isEditing) {
+      if (widget.addressModel != null) {
+        _selectedTag = widget.addressModel!.tag;
+        _houseController.text = widget.addressModel!.house ?? '';
+        _streetController.text = widget.addressModel!.street ?? '';
+        _landmarkController.text = widget.addressModel!.landmark ?? '';
+        _pincodeController.text = widget.addressModel!.pincode ?? '';
+
+        if (_houseController.text.isEmpty && widget.addressModel!.details.isNotEmpty) {
+          final parts = widget.addressModel!.details.split(',').map((e) => e.trim()).toList();
+          if (parts.isNotEmpty) _houseController.text = parts[0];
+          if (parts.length > 1) _streetController.text = parts[1];
+          if (parts.length > 2) _landmarkController.text = parts[2];
+          if (parts.length > 3) _pincodeController.text = parts[3];
+        }
+      } else if (widget.addressData != null) {
+        _selectedTag = widget.addressData!['tag'] ?? 'Home';
+        final details = widget.addressData!['details'] ?? '';
+        final parts = details.split(',').map((e) => e.trim()).toList();
+        if (parts.isNotEmpty) _houseController.text = parts[0];
+        if (parts.length > 1) _streetController.text = parts[1];
+        if (parts.length > 2) _landmarkController.text = parts[2];
+        if (parts.length > 3) _pincodeController.text = parts[3];
+      }
     }
   }
 
@@ -73,28 +94,34 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
           ? '$house, $street, $landmark, $pincode'
           : '$house, $street, $pincode';
 
-      String addressId = (widget.isEditing && widget.addressData != null)
-          ? (widget.addressData!['id'] ?? 'bf_${DateTime.now().millisecondsSinceEpoch}')
-          : 'bf_${DateTime.now().millisecondsSinceEpoch}';
+      String addressId = widget.addressModel?.id ??
+          widget.addressData?['id'] ??
+          'bf_${DateTime.now().millisecondsSinceEpoch}';
+
+      final model = AddressModel(
+        id: addressId,
+        details: consolidatedDetails,
+        tag: _selectedTag,
+        house: house,
+        street: street,
+        landmark: landmark,
+        pincode: pincode,
+        isDefault: widget.addressModel?.isDefault ?? false,
+      );
 
       try {
         await DatabaseService().insertAddress(
           addressId,
           consolidatedDetails,
           _selectedTag,
+          addressModel: model,
         );
       } catch (e) {
         debugPrint('Address save error: $e');
       }
 
-      Map<String, String> returnData = {
-        'id': addressId,
-        'tag': _selectedTag,
-        'details': consolidatedDetails,
-      };
-
       if (!mounted) return;
-      Navigator.pop(context, returnData);
+      Navigator.pop(context, model);
     }
   }
 

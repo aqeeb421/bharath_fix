@@ -1,7 +1,9 @@
 // lib/screens/tabs/providers_tab.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firebase_service.dart';
+
 
 class ProvidersTab extends StatefulWidget {
   const ProvidersTab({super.key});
@@ -51,6 +53,8 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
     final phone = data['phone'] ?? 'N/A';
     final radius = data['operatingRadiusKm'] ?? 15;
     final exp = data['experience'] ?? data['experienceYears'] ?? 3;
+    final aadhaarImg = kyc['aadhaarImageUrl'] as String?;
+    final panImg = kyc['panImageUrl'] as String?;
 
     showDialog(
       context: context,
@@ -58,45 +62,76 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Review Partner KYC & Skills', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildInfoSection('Personal & Contact Info', [
-                  'Full Name: $name',
-                  'Email Address: $email',
-                  'Phone Number: $phone',
-                  'Experience: $exp years',
-                  'Operating Radius: $radius km',
-                ]),
-                const SizedBox(height: 16),
-                _buildInfoSection('Identity Verification (KYC)', [
-                  'Aadhaar Number: ${kyc['aadhaarNumber'] ?? 'N/A'}',
-                  'PAN Number: ${kyc['panNumber'] ?? 'N/A'}',
-                ]),
-                const SizedBox(height: 16),
-                _buildInfoSection('Bank Payout Information', [
-                  'Bank Name: ${bank['bankName'] ?? 'N/A'}',
-                  'Account Holder: ${bank['accountHolder'] ?? 'N/A'}',
-                  'Account Number: ${bank['accountNumber'] ?? bank['accountNo'] ?? 'N/A'}',
-                  'IFSC Code: ${bank['ifscCode'] ?? bank['ifsc'] ?? 'N/A'}',
-                ]),
-                const SizedBox(height: 16),
-                Text('Certified Appliance Skills:', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  children: skills.map((skill) => Chip(label: Text(skill.toString(), style: const TextStyle(fontSize: 12)))).toList(),
-                ),
-              ],
+          title: Row(
+            children: [
+              Expanded(child: Text('Review Partner KYC & Skills', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold))),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildInfoSection('Personal & Contact Info', [
+                    'Full Name: $name',
+                    'Email Address: $email',
+                    'Phone Number: $phone',
+                    'Experience: $exp years',
+                    'Operating Radius: $radius km',
+                  ]),
+                  const SizedBox(height: 16),
+                  _buildInfoSection('Identity Verification (KYC)', [
+                    'Aadhaar Number: ${kyc['aadhaarNumber'] ?? 'N/A'}',
+                    'PAN Number: ${kyc['panNumber'] ?? 'N/A'}',
+                  ]),
+                  // KYC Document Images
+                  if (aadhaarImg != null || panImg != null) ...
+                    [
+                      const SizedBox(height: 10),
+                      Text('KYC Document Images', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF000062), fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (aadhaarImg != null) _buildKycImageTile(context, 'Aadhaar Card', aadhaarImg),
+                          if (aadhaarImg != null && panImg != null) const SizedBox(width: 10),
+                          if (panImg != null) _buildKycImageTile(context, 'PAN Card', panImg),
+                        ],
+                      ),
+                    ],
+                  const SizedBox(height: 16),
+                  _buildInfoSection('Bank Payout Information', [
+                    'Bank Name: ${bank['bankName'] ?? 'N/A'}',
+                    'Account Holder: ${bank['accountHolder'] ?? 'N/A'}',
+                    'Account Number: ${bank['accountNumber'] ?? bank['accountNo'] ?? 'N/A'}',
+                    'IFSC Code: ${bank['ifscCode'] ?? bank['ifsc'] ?? 'N/A'}',
+                  ]),
+                  const SizedBox(height: 16),
+                  Text('Certified Appliance Skills:', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: skills.map((skill) => Chip(label: Text(skill.toString(), style: const TextStyle(fontSize: 12)))).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text('Close', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575))),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _showSuspendDialog(docId, name);
+              },
+              icon: const Icon(Icons.block_rounded, size: 16, color: Colors.redAccent),
+              label: Text('Suspend', style: GoogleFonts.plusJakartaSans(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.redAccent)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -109,7 +144,137 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062)),
-              child: Text('Approve & Activate Partner', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text('Approve & Activate', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildKycImageTile(BuildContext context, String label, String imageUrl) {
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            backgroundColor: Colors.black,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(ctx)),
+                    ],
+                  ),
+                ),
+                Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Padding(padding: EdgeInsets.all(32), child: Text('Image unavailable', style: TextStyle(color: Colors.white60)))),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 110,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF000062).withValues(alpha: 0.3)),
+          color: const Color(0xFFF7F8FA),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(9),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 32)),
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSuspendDialog(String docId, String name) {
+    final reasonCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+              const SizedBox(width: 10),
+              Expanded(child: Text('Suspend Partner Account', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You are about to suspend "$name". They will no longer be able to receive new jobs. Please provide a reason.',
+                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              Text('Suspension Reason', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF111111))),
+              const SizedBox(height: 6),
+              TextField(
+                controller: reasonCtrl,
+                maxLines: 3,
+                style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Customer complaints, KYC fraud, repeated no-shows...',
+                  hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF9E9E9E), fontSize: 12),
+                  filled: true,
+                  fillColor: const Color(0xFFF7F8FA),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575))),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonCtrl.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a suspension reason.')));
+                  return;
+                }
+                Navigator.pop(ctx);
+                await FirebaseFirestore.instance.collection('providers').doc(docId).set({
+                  'status': 'suspended',
+                  'isOnline': false,
+                  'suspensionReason': reason,
+                  'suspendedAt': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$name has been suspended.'), backgroundColor: Colors.redAccent),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: Text('Confirm Suspension', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -265,49 +430,68 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
+          LayoutBuilder(builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 700;
+            final headerText = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Service Providers Directory & KYC',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF111111),
+                    fontSize: isMobile ? 20 : 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Manage technician status, review KYC (Aadhaar/PAN/Bank), and approve partner accounts.',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: const Color(0xFF757575),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            );
+
+            final addBtn = ElevatedButton.icon(
+              onPressed: _showAddProviderDialog,
+              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+              label: Text(
+                'Add Provider',
+                style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF000062),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+
+            if (isMobile) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Service Providers Directory & KYC',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFF111111),
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage technician status, review KYC (Aadhaar/PAN/Bank), and approve partner accounts.',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFF757575),
-                      fontSize: 13,
-                    ),
-                  ),
+                  headerText,
+                  const SizedBox(height: 12),
+                  SizedBox(width: double.infinity, child: addBtn),
                 ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _showAddProviderDialog,
-                icon: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
-                label: Text(
-                  'Add Provider',
-                  style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF000062),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
+              );
+            }
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: headerText),
+                const SizedBox(width: 16),
+                addBtn,
+              ],
+            );
+          }),
           const SizedBox(height: 20),
 
           TabBar(
@@ -627,25 +811,50 @@ class _ProvidersTabState extends State<ProvidersTab> with SingleTickerProviderSt
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.amber.shade300),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.pending_actions_rounded, color: Colors.amber, size: 32),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text('$category • Phone: $phone', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey.shade800)),
-                      ],
-                    ),
-                  ),
-                  ElevatedButton(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 450;
+                  final infoWidget = Row(
+                    children: [
+                      const Icon(Icons.pending_actions_rounded, color: Colors.amber, size: 32),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 15)),
+                            Text('$category • Phone: $phone', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey.shade800)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final actionBtn = ElevatedButton(
                     onPressed: () => _showKycReviewDialog(id, data),
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062)),
                     child: const Text('Review KYC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                  ),
-                ],
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        infoWidget,
+                        const SizedBox(height: 12),
+                        SizedBox(width: double.infinity, child: actionBtn),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: infoWidget),
+                      const SizedBox(width: 12),
+                      actionBtn,
+                    ],
+                  );
+                },
               ),
             );
           },

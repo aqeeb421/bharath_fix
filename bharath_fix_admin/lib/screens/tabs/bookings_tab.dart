@@ -74,7 +74,7 @@ class _BookingsTabState extends State<BookingsTab> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -450,8 +450,15 @@ class _BookingsTabState extends State<BookingsTab> {
                 children: [
                   const Icon(Icons.event_rounded, size: 14, color: Color(0xFF757575)),
                   const SizedBox(width: 4),
-                  Text(dateTime, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575))),
-                  const Spacer(),
+                  Expanded(
+                    child: Text(
+                      dateTime,
+                      style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF757575)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text('₹${totalCost.toStringAsFixed(0)}', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF34A853))),
                 ],
               ),
@@ -471,8 +478,11 @@ class _BookingsTabState extends State<BookingsTab> {
                 ],
               ),
               const Divider(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (isCompleted)
                     TextButton.icon(
@@ -486,7 +496,6 @@ class _BookingsTabState extends State<BookingsTab> {
                       icon: const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Color(0xFF000062)),
                       label: const Text('Invoice PDF', style: TextStyle(color: Color(0xFF000062), fontWeight: FontWeight.bold, fontSize: 12)),
                     ),
-                  const SizedBox(width: 8),
                   DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       hint: Text('Update Status', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF000062))),

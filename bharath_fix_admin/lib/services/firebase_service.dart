@@ -232,6 +232,11 @@ class FirebaseService {
     await _db.collection('products').doc(docId).delete();
   }
 
+  // 4. Product Orders & Retail Sales
+  Stream<QuerySnapshot<Map<String, dynamic>>> getOrdersStream() {
+    return _db.collection('orders').orderBy('createdAt', descending: true).snapshots();
+  }
+
   Future<void> reseedData() async {
     final String hostOrigin = Uri.base.origin;
 

@@ -14,6 +14,7 @@ class CatalogTab extends StatefulWidget {
 class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseService _service = FirebaseService();
+  String _productSearchQuery = '';
 
   @override
   void initState() {
@@ -30,7 +31,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -465,28 +466,73 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
   Widget _buildProductsPanel() {
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
+        // Header: Search + Add Button
+        LayoutBuilder(builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 650;
+          final searchField = TextField(
+            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 14),
+            onChanged: (v) => setState(() => _productSearchQuery = v.toLowerCase().trim()),
+            decoration: InputDecoration(
+              hintText: 'Search products...',
+              hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF9E9E9E), fontSize: 13),
+              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF757575), size: 20),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFEAEAEA))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF000062))),
+            ),
+          );
+          final addBtn = ElevatedButton.icon(
             onPressed: () => _showProductFormDialog(null),
             icon: const Icon(Icons.add_rounded, color: Colors.white, size: 16),
             label: const Text('Add Product', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062)),
-          ),
-        ),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF000062), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+          );
+          if (isMobile) {
+            return Column(
+              children: [
+                searchField,
+                const SizedBox(height: 10),
+                SizedBox(width: double.infinity, child: addBtn),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: searchField),
+              const SizedBox(width: 12),
+              addBtn,
+            ],
+          );
+        }),
         const SizedBox(height: 16),
         Expanded(
           child: StreamBuilder(
             stream: _service.getProductsStream(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final docs = snapshot.data!.docs;
+              final allDocs = snapshot.data!.docs;
+
+              final docs = _productSearchQuery.isEmpty
+                  ? allDocs
+                  : allDocs.where((d) {
+                      final name = (d.data()['name'] as String? ?? '').toLowerCase();
+                      final sub = (d.data()['subCategory'] as String? ?? '').toLowerCase();
+                      return name.contains(_productSearchQuery) || sub.contains(_productSearchQuery);
+                    }).toList();
+
+              if (docs.isEmpty) {
+                return Center(
+                  child: Text('No products found.', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575))),
+                );
+              }
 
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
                   final crossAxisCount = width > 1200 ? 3 : (width > 700 ? 2 : 1);
-                  final childAspectRatio = width > 700 ? 1.6 : 2.0;
+                  final childAspectRatio = width > 700 ? 1.5 : 2.0;
 
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -497,68 +543,97 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                     ),
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
-                  final doc = docs[index];
-                  final data = doc.data();
-                  final name = data['name'] as String? ?? '';
-                  final subCategory = data['subCategory'] as String? ?? '';
-                  final price = data['price'] as String? ?? '';
+                      final doc = docs[index];
+                      final data = doc.data();
+                      final name = data['name'] as String? ?? '';
+                      final subCategory = data['subCategory'] as String? ?? '';
+                      final price = data['price'] as String? ?? '';
+                      final stockQty = (data['stockQuantity'] as num?)?.toInt() ?? -1;
+                      final inStock = data['inStock'] as bool? ?? true;
 
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFEAEAEA)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
-                              Text('Cat: $subCategory', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12)),
-                              const SizedBox(height: 8),
-                              Text(price, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF34A853), fontWeight: FontWeight.bold, fontSize: 16)),
-                            ],
+                      // Stock badge
+                      Widget stockBadge;
+                      if (!inStock || stockQty == 0) {
+                        stockBadge = _buildStockBadge('Out of Stock', Colors.red.shade50, Colors.red.shade800);
+                      } else if (stockQty > 0 && stockQty <= 5) {
+                        stockBadge = _buildStockBadge('Low Stock: $stockQty left', Colors.orange.shade50, Colors.orange.shade900);
+                      } else if (stockQty > 5) {
+                        stockBadge = _buildStockBadge('In Stock: $stockQty', Colors.green.shade50, Colors.green.shade800);
+                      } else {
+                        stockBadge = const SizedBox.shrink(); // no badge if field not set
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: (!inStock || stockQty == 0) ? Colors.red.shade200 : (stockQty > 0 && stockQty <= 5) ? Colors.orange.shade200 : const Color(0xFFEAEAEA),
                           ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
-                              onPressed: () => _showProductFormDialog(doc),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
-                              onPressed: () async => await _service.deleteProduct(doc.id),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                      stockBadge,
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('Cat: $subCategory', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12)),
+                                  const SizedBox(height: 8),
+                                  Text(price, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF34A853), fontWeight: FontWeight.bold, fontSize: 16)),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
+                                  onPressed: () => _showProductFormDialog(doc),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                                  onPressed: () async => await _service.deleteProduct(doc.id),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 },
               );
             },
-          );
-        },
-      ),
-    ),
-  ],
-);
-}
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStockBadge(String label, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
 
   void _showProductFormDialog(dynamic doc) {
     final formKey = GlobalKey<FormState>();
@@ -566,66 +641,101 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     final subCatController = TextEditingController(text: doc != null ? doc['subCategory'] : '');
     final priceController = TextEditingController(text: doc != null ? doc['price'] : '');
     final imageController = TextEditingController(text: doc != null ? doc['image'] : '');
+    final stockQtyController = TextEditingController(text: doc != null ? (doc['stockQuantity']?.toString() ?? '') : '');
+    bool isInStock = doc != null ? (doc['inStock'] as bool? ?? true) : true;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF161230),
-          title: Text(doc == null ? 'Create Product' : 'Edit Product', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(labelText: 'Product Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF161230),
+              title: Text(doc == null ? 'Create Product' : 'Edit Product', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(labelText: 'Product Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
+                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: subCatController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(labelText: 'Sub Category Label', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
+                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: priceController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(labelText: 'Price (e.g. ₹12,999)', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
+                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: imageController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(labelText: 'Product Image URL', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
+                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      // Stock Quantity
+                      TextFormField(
+                        controller: stockQtyController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Stock Quantity (units)',
+                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                          hintText: 'Leave blank if unlimited',
+                          hintStyle: TextStyle(color: Color(0xFF757575), fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // In Stock Toggle
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('In Stock', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 14)),
+                          Switch(
+                            value: isInStock,
+                            activeColor: const Color(0xFF34A853),
+                            onChanged: (v) => setDialogState(() => isInStock = v),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  TextFormField(
-                    controller: subCatController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(labelText: 'Sub Category Label', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: priceController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(labelText: 'Price (e.g. ₹12,999)', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    controller: imageController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(labelText: 'Product Image URL', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                    validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(context);
-                final id = doc != null ? doc['id'] : 'prod_${DateTime.now().millisecondsSinceEpoch}';
-                final data = {
-                  'id': id,
-                  'name': nameController.text.trim(),
-                  'subCategory': subCatController.text.trim(),
-                  'price': priceController.text.trim(),
-                  'image': imageController.text.trim(),
-                };
-                await _service.saveProduct(id, data);
-              },
-              child: const Text('Save'),
-            )
-          ],
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.white60))),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pop(context);
+                    final id = doc != null ? doc['id'] : 'prod_${DateTime.now().millisecondsSinceEpoch}';
+                    final stockQtyVal = int.tryParse(stockQtyController.text.trim());
+                    final data = {
+                      'id': id,
+                      'name': nameController.text.trim(),
+                      'subCategory': subCatController.text.trim(),
+                      'price': priceController.text.trim(),
+                      'image': imageController.text.trim(),
+                      'inStock': isInStock,
+                      if (stockQtyVal != null) 'stockQuantity': stockQtyVal,
+                    };
+                    await _service.saveProduct(id, data);
+                  },
+                  child: const Text('Save'),
+                )
+              ],
+            );
+          },
         );
       },
     );
@@ -639,38 +749,59 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
+        LayoutBuilder(builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 700;
+          final headerText = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Spare Parts & Rate Cards Catalog',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF111111),
+                  fontSize: isMobile ? 16 : 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Manage standard spare part prices, warranties, and rate cards grouped by appliance category.',
+                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
+              ),
+            ],
+          );
+
+          final addBtn = ElevatedButton.icon(
+            onPressed: () => _showSparePartFormDialog(null),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add Spare Part Rate'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF000062),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+
+          if (isMobile) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Spare Parts & Rate Cards Catalog',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: const Color(0xFF111111),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Manage standard spare part prices, warranties, and rate cards grouped by appliance category.',
-                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
-                ),
+                headerText,
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity, child: addBtn),
               ],
-            ),
-            ElevatedButton.icon(
-              onPressed: () => _showSparePartFormDialog(null),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add Spare Part Rate'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF000062),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: headerText),
+              const SizedBox(width: 16),
+              addBtn,
+            ],
+          );
+        }),
         const SizedBox(height: 16),
 
         Expanded(
@@ -786,24 +917,28 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                             children: [
                               // Category Header Bar
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF000062).withValues(alpha: 0.04),
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                                   border: const Border(bottom: BorderSide(color: Color(0xFFEAEAEA))),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 6,
                                   children: [
                                     Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.category_rounded, color: Color(0xFF000062), size: 20),
-                                        const SizedBox(width: 10),
+                                        const Icon(Icons.category_rounded, color: Color(0xFF000062), size: 18),
+                                        const SizedBox(width: 8),
                                         Text(
                                           catName,
                                           style: GoogleFonts.plusJakartaSans(
                                             color: const Color(0xFF111111),
-                                            fontSize: 15,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -841,107 +976,218 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                                 ),
                               ),
 
-                              // Spare Parts Data Table
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: SizedBox(
-                                  width: MediaQuery.of(context).size.width > 900 ? MediaQuery.of(context).size.width - 320 : 800,
-                                  child: DataTable(
-                                    columnSpacing: 20,
-                                    horizontalMargin: 16,
-                                    headingRowHeight: 40,
-                                    dataRowMinHeight: 48,
-                                    dataRowMaxHeight: 56,
-                                    headingRowColor: WidgetStateProperty.all(Colors.transparent),
-                                    columns: [
-                                      DataColumn(label: Text('Part Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
-                                      DataColumn(label: Text('Standard Rate', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
-                                      DataColumn(label: Text('Warranty', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
-                                      DataColumn(label: Text('Description', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
-                                      DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
-                                    ],
-                                    rows: categoryDocs.map((doc) {
-                                      final data = doc.data();
-                                      final name = data['partName'] ?? data['title'] ?? 'Spare Part';
-                                      final price = (data['price'] as num? ?? data['standardPrice'] as num? ?? 0.0).toDouble();
-                                      final warrantyDays = data['warrantyDays'] ?? 90;
-                                      final description = data['description'] ?? 'Standard component replacement';
+                              // Spare Parts List / Table
+                              LayoutBuilder(
+                                builder: (context, cardConstraints) {
+                                  final isMobile = cardConstraints.maxWidth < 750;
 
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.build_circle_outlined, size: 16, color: Color(0xFF000062)),
-                                                const SizedBox(width: 8),
+                                  if (isMobile) {
+                                    return ListView.separated(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.all(12),
+                                      itemCount: categoryDocs.length,
+                                      separatorBuilder: (_, __) => const Divider(height: 16),
+                                      itemBuilder: (context, docIndex) {
+                                        final doc = categoryDocs[docIndex];
+                                        final data = doc.data();
+                                        final name = data['partName'] ?? data['title'] ?? 'Spare Part';
+                                        final price = (data['price'] as num? ?? data['standardPrice'] as num? ?? 0.0).toDouble();
+                                        final warrantyDays = data['warrantyDays'] ?? 90;
+                                        final description = data['description'] ?? 'Standard component replacement';
+
+                                        return Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF9FAFC),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: const Color(0xFFEAEAEA)),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.build_circle_outlined, size: 16, color: Color(0xFF000062)),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      name,
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        color: const Color(0xFF111111),
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '₹${price.toStringAsFixed(0)}',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      color: const Color(0xFF34A853),
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                description,
+                                                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue.withValues(alpha: 0.08),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      '🛡️ $warrantyDays Days',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        color: Colors.blue.shade800,
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        tooltip: 'Edit Spare Part',
+                                                        icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
+                                                        onPressed: () => _showSparePartFormDialog(doc),
+                                                        visualDensity: VisualDensity.compact,
+                                                      ),
+                                                      IconButton(
+                                                        tooltip: 'Delete Spare Part',
+                                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                                                        onPressed: () => _service.deleteSparePart(doc.id),
+                                                        visualDensity: VisualDensity.compact,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }
+
+                                  return SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(minWidth: cardConstraints.maxWidth),
+                                      child: DataTable(
+                                        columnSpacing: 28,
+                                        horizontalMargin: 16,
+                                        headingRowHeight: 40,
+                                        dataRowMinHeight: 48,
+                                        dataRowMaxHeight: 56,
+                                        headingRowColor: WidgetStateProperty.all(Colors.transparent),
+                                        columns: [
+                                          DataColumn(label: Text('Part Name', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                          DataColumn(label: Text('Standard Rate', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                          DataColumn(label: Text('Warranty', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                          DataColumn(label: Text('Description', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                          DataColumn(label: Text('Actions', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF555555), fontWeight: FontWeight.bold, fontSize: 12))),
+                                        ],
+                                        rows: categoryDocs.map((doc) {
+                                          final data = doc.data();
+                                          final name = data['partName'] ?? data['title'] ?? 'Spare Part';
+                                          final price = (data['price'] as num? ?? data['standardPrice'] as num? ?? 0.0).toDouble();
+                                          final warrantyDays = data['warrantyDays'] ?? 90;
+                                          final description = data['description'] ?? 'Standard component replacement';
+
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.build_circle_outlined, size: 16, color: Color(0xFF000062)),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      name,
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        color: const Color(0xFF111111),
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              DataCell(
                                                 Text(
-                                                  name,
+                                                  '₹${price.toStringAsFixed(0)}',
                                                   style: GoogleFonts.plusJakartaSans(
-                                                    color: const Color(0xFF111111),
+                                                    color: const Color(0xFF34A853),
                                                     fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
+                                                    fontSize: 14,
                                                   ),
                                                 ),
-                                              ],
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              '₹${price.toStringAsFixed(0)}',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                color: const Color(0xFF34A853),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
                                               ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.withValues(alpha: 0.08),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                '🛡️ $warrantyDays Days',
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  color: Colors.blue.shade800,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
+                                              DataCell(
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blue.withValues(alpha: 0.08),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    '🛡️ $warrantyDays Days',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      color: Colors.blue.shade800,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              description,
-                                              style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  tooltip: 'Edit Spare Part',
-                                                  icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
-                                                  onPressed: () => _showSparePartFormDialog(doc),
+                                              DataCell(
+                                                Text(
+                                                  description,
+                                                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
-                                                IconButton(
-                                                  tooltip: 'Delete Spare Part',
-                                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
-                                                  onPressed: () => _service.deleteSparePart(doc.id),
+                                              ),
+                                              DataCell(
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      tooltip: 'Edit Spare Part',
+                                                      icon: const Icon(Icons.edit_rounded, color: Color(0xFF000062), size: 18),
+                                                      onPressed: () => _showSparePartFormDialog(doc),
+                                                    ),
+                                                    IconButton(
+                                                      tooltip: 'Delete Spare Part',
+                                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                                                      onPressed: () => _service.deleteSparePart(doc.id),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),

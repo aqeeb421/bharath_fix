@@ -18,6 +18,7 @@ class TechnicianModel {
   final List<String> skills;
   final Map<String, dynamic> bankDetails;
   final Map<String, dynamic> kyc;
+  final bool canDeliver;
   final DateTime? createdAt;
 
   TechnicianModel({
@@ -38,6 +39,7 @@ class TechnicianModel {
     this.skills = const [],
     this.bankDetails = const {},
     this.kyc = const {},
+    this.canDeliver = true,
     this.createdAt,
   });
 
@@ -55,16 +57,16 @@ class TechnicianModel {
       'completedJobs': completedJobs,
       'rating': rating,
       'photoUrl': photoUrl ?? '',
-      // Uniform experience keys
       'experience': experience,
       'experienceYears': int.tryParse(experience) ?? 3,
-      // Uniform address keys
       'address': address,
       'city': address,
       'operatingRadiusKm': operatingRadiusKm,
       'skills': skills,
       'bankDetails': bankDetails,
       'kyc': kyc,
+      'canDeliver': canDeliver,
+      'isDeliveryPartner': canDeliver,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -99,6 +101,7 @@ class TechnicianModel {
       skills: skillsRaw.map((e) => e.toString()).toList(),
       bankDetails: (map['bankDetails'] as Map<String, dynamic>?) ?? {},
       kyc: (map['kyc'] as Map<String, dynamic>?) ?? {},
+      canDeliver: map['canDeliver'] != false && map['isDeliveryPartner'] != false,
       createdAt: parseDate(map['createdAt']),
     );
   }

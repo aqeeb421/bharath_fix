@@ -9,7 +9,6 @@ import 'package:geocoding/geocoding.dart';
 import '../../ui/theme/app_colors.dart';
 import '../Home/home_screen.dart';
 import '../Bookings/bookings_screen.dart';
-import '../Chat/chat_screen.dart';
 import '../Account/profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {

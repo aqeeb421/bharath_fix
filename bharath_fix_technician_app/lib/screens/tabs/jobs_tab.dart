@@ -8,8 +8,10 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_text_style.dart';
 import '../../models/technician_booking_lifecycle.dart';
+import '../../models/technician_order_model.dart';
 import '../../widgets/technician_state_widgets.dart';
 import '../job_detail_screen.dart';
+import '../order_delivery_detail_screen.dart';
 
 class JobsTab extends StatefulWidget {
   final String techId;
@@ -38,7 +40,7 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _initStreams();
     _subscribeTechProfile();
   }
@@ -103,10 +105,11 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
           unselectedLabelColor: Colors.grey,
           indicatorColor: AppColors.primary,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           tabs: const [
-            Tab(text: "Assigned Jobs"),
-            Tab(text: "Available Open Pool"),
+            Tab(text: "Assigned Repairs"),
+            Tab(text: "Deliveries"),
+            Tab(text: "Open Pool"),
           ],
         ),
         Expanded(
@@ -114,6 +117,7 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
             controller: _tabController,
             children: [
               _buildAssignedJobsList(),
+              _buildApplianceDeliveriesList(),
               _buildOpenPoolJobsList(),
             ],
           ),
@@ -161,6 +165,66 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
             final doc = activeDocs[index];
             final data = doc.data();
             return _buildJobCard(doc.id, data, isClaimable: false);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildApplianceDeliveriesList() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .where('deliveryPartnerId', isEqualTo: widget.techId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const TechLoadingStateWidget(message: 'Loading assigned deliveries...');
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final activeOrders = docs
+            .map((doc) => TechnicianOrderModel.fromFirestore(doc))
+            .where((order) => order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+            .toList();
+
+        if (activeOrders.isEmpty) {
+          return const TechEmptyStateWidget(
+            title: 'No Pending Deliveries',
+            message: 'You have no assigned appliance delivery tasks at the moment.',
+            icon: Icons.local_shipping_rounded,
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          itemCount: activeOrders.length,
+          itemBuilder: (context, index) {
+            final order = activeOrders[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  child: const Icon(Icons.local_shipping_rounded, color: AppColors.primary),
+                ),
+                title: Text(order.productName, style: AppTextStyle.cardTitle),
+                subtitle: Text(
+                  'Customer: ${order.userName}\nStatus: ${order.orderStatus.toUpperCase()} • OTP Required',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderDeliveryDetailScreen(order: order),
+                    ),
+                  );
+                },
+              ),
+            );
           },
         );
       },

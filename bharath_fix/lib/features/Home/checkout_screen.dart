@@ -202,7 +202,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final addresses = await DatabaseService().fetchAddresses();
     if (addresses.isNotEmpty && mounted) {
       setState(() {
-        _chosenAddressDetails = addresses.first['details'] ?? '';
+        _chosenAddressDetails = addresses.first.details;
         _isAddressSelected = true;
       });
     }

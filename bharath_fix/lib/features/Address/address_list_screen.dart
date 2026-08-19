@@ -1,6 +1,6 @@
 import '../../services/theme_service.dart';
-// lib/Address/address_list_screen.dart
 import 'package:flutter/material.dart';
+import '../../models/AddressModel.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -22,17 +22,11 @@ class AddressListScreen extends StatefulWidget {
 }
 
 class _AddressListScreenState extends State<AddressListScreen> {
-  @override
-  void dispose() {
-    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
-    super.dispose();
-  }
-
   void _onThemeChanged() {
     if (mounted) setState(() {});
   }
 
-  List<Map<String, String>> _addresses = [];
+  List<AddressModel> _addresses = [];
   bool _isLoading = true;
   String _profileName = "Location details";
 
@@ -40,8 +34,13 @@ class _AddressListScreenState extends State<AddressListScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
     _loadSavedAddresses();
+  }
+
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
   }
 
   Future<void> _loadSavedAddresses() async {
@@ -50,8 +49,8 @@ class _AddressListScreenState extends State<AddressListScreen> {
     if (mounted) {
       setState(() {
         _addresses = list;
-        if (profile != null) {
-          _profileName = profile['name'] ?? "Location details";
+        if (profile != null && (profile['name'] ?? '').trim().isNotEmpty) {
+          _profileName = profile['name']!;
         }
         _isLoading = false;
       });
@@ -59,7 +58,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
   }
 
   void _deleteAddress(int index) async {
-    final addressId = _addresses[index]['id'] ?? '';
+    final addressId = _addresses[index].id;
     await DatabaseService().deleteAddress(addressId);
     _loadSavedAddresses();
     if (mounted) {
@@ -93,142 +92,159 @@ class _AddressListScreenState extends State<AddressListScreen> {
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
-          Expanded(
-            child: _addresses.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.all(AppSpacing.medium),
-              itemCount: _addresses.length,
-              itemBuilder: (context, index) {
-                final item = _addresses[index];
-                return Container(
-                  margin: EdgeInsets.only(bottom: AppSpacing.medium),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.large),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(AppRadius.large),
-                    onTap: () {
-                      // If opened from checkout, tapping the card drops the address string back to the checkout flow
-                      if (widget.isSelectionMode) {
-                        Navigator.pop(context, item['details']);
-                      }
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.medium),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentGreen,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              item['tag'] ?? 'Address',
-                              style: TextStyle(
-                                fontFamily: 'Plus Jakarta Sans',
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                Expanded(
+                  child: _addresses.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.all(AppSpacing.medium),
+                          itemCount: _addresses.length,
+                          itemBuilder: (context, index) {
+                            final item = _addresses[index];
+                            return Container(
+                              margin: EdgeInsets.only(bottom: AppSpacing.medium),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(AppRadius.large),
+                                border: Border.all(
+                                  color: item.isDefault ? AppColors.primary : AppColors.border,
+                                  width: item.isDefault ? 1.5 : 1,
+                                ),
                               ),
-                            ),
-                          ),
-                          SizedBox(width: AppSpacing.medium),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['tag'] == 'Home' ? _profileName : 'Location details',
-                                  style: AppTextStyle.bodyBold,
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  item['details'] ?? '',
-                                  style: AppTextStyle.subtitle.copyWith(height: 1.3),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            onSelected: (value) async {
-                              if (value == 'edit') {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ManageAddressScreen(
-                                      isEditing: true,
-                                      addressData: item,
-                                    ),
-                                  ),
-                                );
-                                if (result != null && result is Map) {
-                                  _loadSavedAddresses();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Address updated successfully'),
-                                        backgroundColor: AppColors.primary,
-                                      ),
-                                    );
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(AppRadius.large),
+                                onTap: () {
+                                  if (widget.isSelectionMode) {
+                                    Navigator.pop(context, item.details);
                                   }
-                                }
-                              } else if (value == 'delete') {
-                                _deleteAddress(index);
-                              }
-                            },
-                            icon: Icon(Icons.more_vert_rounded, color: AppColors.subtitle),
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                },
+                                child: Padding(
+                                  padding: EdgeInsets.all(AppSpacing.medium),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accentGreen,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          item.tag.isNotEmpty ? item.tag : 'Address',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: AppSpacing.medium),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  item.tag == 'Home' ? _profileName : item.tag,
+                                                  style: AppTextStyle.bodyBold,
+                                                ),
+                                                if (item.isDefault) ...[
+                                                  SizedBox(width: 8),
+                                                  Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.primary.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      'Default',
+                                                      style: TextStyle(
+                                                        fontFamily: 'Plus Jakarta Sans',
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: AppColors.primary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            SizedBox(height: 4),
+                                            Text(
+                                              item.details,
+                                              style: AppTextStyle.subtitle.copyWith(height: 1.3),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) async {
+                                          if (value == 'edit') {
+                                            final result = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => ManageAddressScreen(
+                                                  isEditing: true,
+                                                  addressModel: item,
+                                                ),
+                                              ),
+                                            );
+                                            if (result != null) {
+                                              _loadSavedAddresses();
+                                            }
+                                          } else if (value == 'delete') {
+                                            _deleteAddress(index);
+                                          }
+                                        },
+                                        icon: Icon(Icons.more_vert_rounded, color: AppColors.subtitle),
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ],
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: EdgeInsets.all(AppSpacing.medium),
+                  child: SafeArea(
+                    top: false,
+                    child: CommonButton(
+                      label: 'Add New Address',
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ManageAddressScreen(isEditing: false),
                           ),
-                        ],
-                      ),
+                        );
+                        if (result != null) {
+                          _loadSavedAddresses();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Address saved successfully'),
+                                backgroundColor: AppColors.primary,
+                              ),
+                            );
+                          }
+                        }
+                      },
                     ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
-            child: SafeArea(
-              top: false,
-              child: CommonButton(
-                label: 'Add New Address',
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ManageAddressScreen(isEditing: false),
-                    ),
-                  );
-                  if (result != null && result is Map) {
-                    _loadSavedAddresses();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Address saved successfully'),
-                          backgroundColor: AppColors.primary,
-                        ),
-                      );
-                    }
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

@@ -4,9 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../ui/theme/app_colors.dart';
-import '../../ui/theme/app_spacing.dart';
-import '../../ui/theme/app_radius.dart';
-import '../../ui/theme/app_text_style.dart';
 
 class BookingChatDetailScreen extends StatefulWidget {
   final String bookingId;

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../models/OrderModel.dart';
 
 class InvoiceService {
   /// Generate and launch interactive PDF Invoice Viewer / Download / Print modal
@@ -477,6 +478,244 @@ class InvoiceService {
                 children: [
                   pw.Text('Thank you for choosing BharathFix!', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#000062'))),
                   pw.Text('Helpline: +91 9876543210 | www.bharathfix.com', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Generate and launch interactive PDF Tax Invoice for Product Orders
+  static Future<void> generateAndShowOrderInvoice({
+    required BuildContext context,
+    required OrderModel order,
+  }) async {
+    final pdfBytes = await buildOrderInvoicePdf(order: order);
+
+    try {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: 'BharathFix_Invoice_${order.id}.pdf',
+      );
+    } catch (e) {
+      debugPrint('Printing layoutPdf safe catch: $e');
+      try {
+        await Printing.sharePdf(
+          bytes: pdfBytes,
+          filename: 'BharathFix_Invoice_${order.id}.pdf',
+        );
+      } catch (err) {
+        debugPrint('Printing sharePdf safe catch: $err');
+      }
+    }
+  }
+
+  /// Build Product Order Tax Invoice PDF
+  static Future<Uint8List> buildOrderInvoicePdf({
+    required OrderModel order,
+  }) async {
+    final pdf = pw.Document();
+
+    final double totalAmount = order.totalPaid;
+    final double baseAmount = totalAmount / 1.18;
+    final double gstAmount = totalAmount - baseAmount;
+    final double cgst = gstAmount / 2.0;
+    final double sgst = gstAmount / 2.0;
+
+    final invoiceDate = order.createdAt != null
+        ? '${order.createdAt!.day}/${order.createdAt!.month}/${order.createdAt!.year}'
+        : '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}';
+
+    pdf.addPage(
+      pw.Page(
+        pageTheme: const pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.all(32),
+        ),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header Banner with Logo & GST Details
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#000062'),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'BHARATHFIX',
+                          style: pw.TextStyle(color: PdfColors.white, fontSize: 22, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text('Appliances & Electronics Pvt Ltd', style: const pw.TextStyle(color: PdfColors.white, fontSize: 9)),
+                        pw.Text('GSTIN: 29AABCU9603R1ZM • HSN/SAC: 8421', style: const pw.TextStyle(color: PdfColors.amber, fontSize: 9)),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('OFFICIAL TAX INVOICE', style: pw.TextStyle(color: PdfColors.amber, fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                        pw.Text('#INV-${order.id}', style: const pw.TextStyle(color: PdfColors.white, fontSize: 11)),
+                        pw.Text('Date: $invoiceDate', style: const pw.TextStyle(color: PdfColors.white, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Billed To & Order Details
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(12),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('BILLED TO', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+                          pw.SizedBox(height: 4),
+                          pw.Text(order.userName.isNotEmpty ? order.userName : 'Customer', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                          if (order.userPhone.isNotEmpty) pw.Text('Phone: ${order.userPhone}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Address: ${order.deliveryAddress}', style: const pw.TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 12),
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(12),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('ORDER DETAILS', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+                          pw.SizedBox(height: 4),
+                          pw.Text('Order ID: #${order.id}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                          pw.Text('Status: DELIVERED & INSTALLED', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green800)),
+                          pw.Text('Payment Mode: ${order.paymentMode}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Delivery OTP: ${order.deliveryOtp}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Itemized 18% IGST Table
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 1),
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Item Description', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Base Price', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11), textAlign: pw.TextAlign.right)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('IGST Rate', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11), textAlign: pw.TextAlign.right)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Paid (INR)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11), textAlign: pw.TextAlign.right)),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(order.productName, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('INR ${baseAmount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10), textAlign: pw.TextAlign.right)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('18% (9% CGST + 9% SGST)', style: const pw.TextStyle(fontSize: 10), textAlign: pw.TextAlign.right)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('INR ${totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right)),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 12),
+
+              // Tax Summary Box
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Container(
+                    width: 240,
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.grey100,
+                      border: pw.Border.all(color: PdfColors.grey400),
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Base Price:', style: const pw.TextStyle(fontSize: 10)),
+                            pw.Text('INR ${baseAmount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('CGST (9%):', style: const pw.TextStyle(fontSize: 10)),
+                            pw.Text('INR ${cgst.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('SGST (9%):', style: const pw.TextStyle(fontSize: 10)),
+                            pw.Text('INR ${sgst.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                        if (order.discountAmount > 0) ...[
+                          pw.SizedBox(height: 4),
+                          pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('Discount Applied:', style: const pw.TextStyle(fontSize: 10, color: PdfColors.green800)),
+                              pw.Text('-INR ${order.discountAmount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 10, color: PdfColors.green800)),
+                            ],
+                          ),
+                        ],
+                        pw.Divider(height: 12),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Grand Total Paid:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                            pw.Text('INR ${totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.green900)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.Spacer(),
+
+              pw.Divider(color: PdfColors.grey300),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Digitally Generated Tax Invoice • BharathFix Appliances', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#000062'))),
+                  pw.Text('Helpline: +91 9876543210', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
                 ],
               ),
             ],

@@ -3,9 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
-import '../../theme/app_radius.dart';
-import '../../theme/app_text_style.dart';
 
 class TechnicianChatDetailScreen extends StatefulWidget {
   final String bookingId;

@@ -919,6 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     productPrice: prod.price,
                     productImage: prod.image,
                     productSubCategory: prod.subCategory,
+                    product: prod,
                   ),
                 ),
               );

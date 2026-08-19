@@ -1,6 +1,6 @@
 import '../../services/theme_service.dart';
-// lib/Home/product_details_screen.dart
 import 'package:bharath_fix/features/Home/product_checkout_screen.dart';
+import 'package:bharath_fix/models/ProductSaleModel.dart';
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
@@ -12,6 +12,7 @@ class ProductDetailsScreen extends StatefulWidget {
   final String productPrice;
   final String productImage;
   final String productSubCategory;
+  final ProductSaleModel? product;
 
   const ProductDetailsScreen({
     super.key,
@@ -19,6 +20,7 @@ class ProductDetailsScreen extends StatefulWidget {
     required this.productPrice,
     required this.productImage,
     required this.productSubCategory,
+    this.product,
   });
 
   @override
@@ -26,12 +28,6 @@ class ProductDetailsScreen extends StatefulWidget {
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
-  @override
-  void dispose() {
-    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
-    super.dispose();
-  }
-
   void _onThemeChanged() {
     if (mounted) setState(() {});
   }
@@ -43,7 +39,61 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  String _resolveDescription() {
+    if (widget.product?.description.isNotEmpty == true) {
+      return widget.product!.description;
+    }
+    final sub = widget.productSubCategory.toLowerCase();
+    if (sub.contains('ac') || sub.contains('air conditioner')) {
+      return 'Experience rapid cooling and energy savings with the brand new ${widget.productName}. Built with inverter technology, 100% copper condenser coils, and heavy-duty dust filters.';
+    } else if (sub.contains('wash') || sub.contains('laundry')) {
+      return 'Get powerful stain removal and fabric care with the brand new ${widget.productName}. Equipped with smart inverter motor and eco-bubble wash technology.';
+    } else if (sub.contains('refrigerator') || sub.contains('fridge')) {
+      return 'Keep food fresh for days with the brand new ${widget.productName}. Features multi-airflow cooling, digital inverter technology, and spill-proof toughened glass shelves.';
+    }
+    return 'Get 100% authentic and high-performance performance with the brand new ${widget.productName}. Tailored for Indian households with comprehensive manufacturer backing.';
+  }
+
+  Map<String, String> _resolveSpecs() {
+    if (widget.product?.specifications.isNotEmpty == true) {
+      return widget.product!.specifications;
+    }
+    final sub = widget.productSubCategory.toLowerCase();
+    if (sub.contains('ac') || sub.contains('air conditioner')) {
+      return {
+        'Capacity': '1.5 Ton 5-Star Inverter',
+        'Coil Material': '100% Inner Grooved Copper',
+        'Refrigerant': 'Eco-Friendly R32',
+        'Warranty': '1 Year Product + 10 Years Compressor',
+      };
+    } else if (sub.contains('wash') || sub.contains('laundry')) {
+      return {
+        'Washing Capacity': '7.5 Kg Fully Automatic',
+        'Spin Speed': '1200 RPM Fast Drying',
+        'Motor Type': 'Direct Drive Inverter Motor',
+        'Warranty': '2 Years Product + 10 Years Motor',
+      };
+    }
+    return {
+      'Category': widget.productSubCategory,
+      'Condition': 'Brand New Factory Sealed',
+      'Installation': 'Free Technician Setup',
+      'Warranty': widget.product?.warrantyPeriod ?? '1 Year Comprehensive Warranty',
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final specs = _resolveSpecs();
+    final description = _resolveDescription();
+    final isOutOfStock = (widget.product?.stockQuantity ?? 10) <= 0;
+    final warrantyText = widget.product?.warrantyPeriod ?? '1 Year Comprehensive Warranty';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
@@ -60,7 +110,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Sub-category badge + Product Name
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -82,10 +131,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         SizedBox(height: AppSpacing.small),
 
                         Row(
-                          children: [Icon(Icons.gpp_good_rounded, color: AppColors.primary, size: 18),
+                          children: [
+                            Icon(Icons.gpp_good_rounded, color: AppColors.primary, size: 18),
                             SizedBox(width: 6),
                             Text(
-                              '1 Year Comprehensive Warranty',
+                              warrantyText,
                               style: TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 fontWeight: FontWeight.bold,
@@ -100,12 +150,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         Text('Description', style: AppTextStyle.sectionHeader),
                         SizedBox(height: AppSpacing.small),
                         Text(
-                          'Get 100% safe and pure drinking water with the brand new ${widget.productName}. Features multi-stage RO + UV purification technology with an active mineral infusion layer tailored perfectly for Indian households.',
+                          description,
                           style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4, color: AppColors.title),
                         ),
                         SizedBox(height: AppSpacing.large),
 
-                        // Free Delivery & Installation Highlight Box
                         Container(
                           width: double.infinity,
                           padding: EdgeInsets.all(AppSpacing.medium),
@@ -122,7 +171,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [Text(
+                                  children: [
+                                    Text(
                                       'BharathFix Delivery Promise',
                                       style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.title),
                                     ),
@@ -141,10 +191,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
                         Text("Technical Specifications", style: AppTextStyle.sectionHeader),
                         SizedBox(height: AppSpacing.medium),
-                        _buildSpecItem('Purification Flow', 'RO + UV + Copper + Minerals'),
-                        _buildSpecItem('Storage Capacity', '7.5 Liters clear tank'),
-                        _buildSpecItem('Installation Type', 'Wall Mounted / Counter Top'),
-                        _buildSpecItem('Filters Included', 'Pre-Filter, Sediment, Carbon, RO Membrane'),
+                        ...specs.entries.map((e) => _buildSpecItem(e.key, e.value)).toList(),
                       ],
                     ),
                   ),
@@ -152,7 +199,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
             ),
           ),
-          _buildStickyBottomActionBar(),
+          _buildStickyBottomActionBar(isOutOfStock),
         ],
       ),
     );
@@ -168,7 +215,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             color: AppColors.card,
             image: DecorationImage(
               image: NetworkImage(widget.productImage),
-              fit: BoxFit.contain, // Fits consumer products better than full cropping cover
+              fit: BoxFit.contain,
             ),
           ),
         ),
@@ -193,9 +240,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       padding: EdgeInsets.only(bottom: AppSpacing.medium),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start, // Aligns elements neatly if wrapping happens
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Constrains the left label side
           Flexible(
             flex: 2,
             child: Text(
@@ -203,14 +249,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               style: AppTextStyle.subtitle.copyWith(fontSize: 14),
             ),
           ),
-          SizedBox(width: AppSpacing.medium), // Prevents texts from touching
-
-          // Constrains the right value side and allows text wrapping
+          SizedBox(width: AppSpacing.medium),
           Expanded(
             flex: 3,
             child: Text(
               value,
-              textAlign: TextAlign.end, // Keeps values aligned to the right edge
+              textAlign: TextAlign.end,
               style: AppTextStyle.bodyBold.copyWith(fontSize: 12),
             ),
           ),
@@ -219,7 +263,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  Widget _buildStickyBottomActionBar() {
+  Widget _buildStickyBottomActionBar(bool isOutOfStock) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
       decoration: BoxDecoration(
@@ -241,27 +285,30 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ],
             ),
             InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProductCheckoutScreen(
-                      productName: widget.productName,
-                      priceString: widget.productPrice,
-                      productImage: widget.productImage,
-                    ),
-                  ),
-                );
-              },
+              onTap: isOutOfStock
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductCheckoutScreen(
+                            productName: widget.productName,
+                            priceString: widget.productPrice,
+                            productImage: widget.productImage,
+                            productId: widget.product?.id,
+                          ),
+                        ),
+                      );
+                    },
               borderRadius: BorderRadius.circular(AppRadius.button),
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 44, vertical: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: isOutOfStock ? Colors.grey : AppColors.primary,
                   borderRadius: BorderRadius.circular(AppRadius.button),
                 ),
                 child: Text(
-                  'Buy now',
+                  isOutOfStock ? 'Out of Stock' : 'Buy now',
                   style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
