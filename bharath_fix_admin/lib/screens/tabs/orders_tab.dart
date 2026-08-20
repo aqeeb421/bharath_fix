@@ -839,6 +839,34 @@ class _OrdersTabState extends State<OrdersTab> {
         });
       }
 
+      // Write notification for assigned delivery technician / partner
+      final techNotif = {
+        'title': '📦 New Delivery Assigned!',
+        'body': 'You have been assigned to deliver & set up Order #${order.id} (${order.productName}) for ${order.userName}.',
+        'type': 'ORDER_ASSIGNED',
+        'orderId': order.id,
+        'productId': order.productId,
+        'productName': order.productName,
+        'customerName': order.userName,
+        'customerPhone': order.userPhone,
+        'deliveryAddress': order.deliveryAddress,
+        'deliveryOtp': order.deliveryOtp,
+        'isRead': false,
+        'createdAt': now,
+      };
+
+      await FirebaseFirestore.instance
+          .collection('providers')
+          .doc(partnerId)
+          .collection('notifications')
+          .add(techNotif);
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(partnerId)
+          .collection('notifications')
+          .add(techNotif);
+
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

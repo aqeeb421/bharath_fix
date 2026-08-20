@@ -278,8 +278,12 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final dateTime = data['dateTime'] ?? 'Scheduled Slot';
     final address = data['address'] ?? '';
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
-    final startOtp = data['startOtp']?.toString() ?? '1234';
-    final completionOtp = data['completionOtp']?.toString() ?? '5678';
+    final String startOtp = (data['startOtp'] != null && data['startOtp'].toString().trim().isNotEmpty)
+        ? data['startOtp'].toString().trim()
+        : (1000 + (bookingId.hashCode.abs() % 9000)).toString();
+    final String completionOtp = (data['completionOtp'] != null && data['completionOtp'].toString().trim().isNotEmpty)
+        ? data['completionOtp'].toString().trim()
+        : (1000 + ((bookingId.hashCode.abs() + 555) % 9000)).toString();
     final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
     final String rawTechPhone = (data['providerPhone'] ?? data['techPhone'] ?? data['technicianPhone'] ?? data['provider_phone'])?.toString() ?? '';
     final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
@@ -327,9 +331,8 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 ),
                 SizedBox(height: 8),
                 Text("Booking ID: $bookingId", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                // OTP Display Box for Customer (Kept visible for all active stages)
-
-                if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()))
+                // OTP Display Box for Customer (Always visible for all active bookings)
+                if (!['completed', 'work_completed', 'paid_and_closed', 'closed', 'cancelled', 'cancelled_by_customer', 'cancelled_by_technician'].contains(status.toLowerCase()))
                   _buildCustomerOtpBox(startOtp, completionOtp, status),
 
                 SizedBox(height: 12),
@@ -1053,8 +1056,12 @@ class _BookingsScreenState extends State<BookingsScreen> {
             final double totalAmount = _calculateBookingTotal(data);
             final cost = '₹${totalAmount.toStringAsFixed(0)}';
             final status = (data['status'] ?? 'pending').toString().toLowerCase();
-            final startOtp = data['startOtp']?.toString() ?? '';
-            final completionOtp = data['completionOtp']?.toString() ?? '';
+            final String startOtp = (data['startOtp'] != null && data['startOtp'].toString().trim().isNotEmpty)
+                ? data['startOtp'].toString().trim()
+                : (1000 + (bookingId.hashCode.abs() % 9000)).toString();
+            final String completionOtp = (data['completionOtp'] != null && data['completionOtp'].toString().trim().isNotEmpty)
+                ? data['completionOtp'].toString().trim()
+                : (1000 + ((bookingId.hashCode.abs() + 555) % 9000)).toString();
             final String rawTechName = (data['providerName'] ?? data['techName'] ?? data['technicianName'] ?? data['provider_name'])?.toString() ?? '';
             final bool isAssigned = (data['providerId']?.toString() ?? '').isNotEmpty ||
                 ['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress', 'completed', 'work_completed'].contains(status.toLowerCase());
@@ -1072,6 +1079,8 @@ class _BookingsScreenState extends State<BookingsScreen> {
             Color statusBg = cfg['bg'];
             Color statusText = cfg['color'];
             String displayStatusText = cfg['label'];
+
+            final bool isClosed = ['completed', 'work_completed', 'paid_and_closed', 'closed', 'cancelled', 'cancelled_by_customer', 'cancelled_by_technician'].contains(status.toLowerCase());
 
             return Container(
               margin: EdgeInsets.only(bottom: AppSpacing.medium),
@@ -1132,11 +1141,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ],
                       ),
 
-                      if (['accepted', 'assigned', 'on_the_way', 'in_transit', 'arrived', 'inspection_in_progress', 'quotation_pending', 'quotation_pending_approval', 'repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase()) && (startOtp.isNotEmpty || completionOtp.isNotEmpty)) ...[
+                      if (!isClosed) ...[
                         SizedBox(height: 12),
                         Builder(builder: (context) {
                           final bool showEndOtp = ['repair_in_progress', 'in_progress', 'work_started', 'work_in_progress'].contains(status.toLowerCase());
-                          final String otpVal = showEndOtp ? (completionOtp.isNotEmpty ? completionOtp : startOtp) : startOtp;
+                          final String otpVal = showEndOtp ? completionOtp : startOtp;
                           final String otpLabel = showEndOtp ? "End OTP" : "Start OTP";
 
                           return Container(

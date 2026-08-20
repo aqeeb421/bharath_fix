@@ -242,6 +242,13 @@ class DatabaseService {
     final uid = _currentUserUid;
     final profile = await fetchProfile();
 
+    final String startOtp = (booking.startOtp.isNotEmpty && booking.startOtp != '0')
+        ? booking.startOtp
+        : (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+    final String completionOtp = (booking.completionOtp.isNotEmpty && booking.completionOtp != '0')
+        ? booking.completionOtp
+        : (1000 + ((DateTime.now().millisecondsSinceEpoch + 555) % 9000)).toString();
+
     final scopedBooking = booking.copyWith(
       customerId: booking.customerId.isNotEmpty ? booking.customerId : uid,
       customerName: booking.customerName.isNotEmpty
@@ -250,6 +257,8 @@ class DatabaseService {
       customerPhone: booking.customerPhone.isNotEmpty
           ? booking.customerPhone
           : (profile?['phone'] ?? ''),
+      startOtp: startOtp,
+      completionOtp: completionOtp,
     );
 
     // Ensure all columns exist before inserting

@@ -21,6 +21,11 @@ class FcmDirectService {
     String? serverKey,
   }) async {
     if (targetToken.trim().isEmpty) return false;
+    if (kIsWeb) {
+      // In Flutter Web (Chrome), browser CORS policies block direct legacy HTTP calls to fcm.googleapis.com.
+      // Real-time notifications are synced via Firestore and delivered server-side by fcm_engine.js.
+      return true;
+    }
 
     try {
       final key = serverKey ?? fcmServerKey;
@@ -33,7 +38,6 @@ class FcmDirectService {
           'sound': 'default',
           'channel_id': 'high_importance_channel',
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
         },
         'data': {
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',

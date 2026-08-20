@@ -12,6 +12,7 @@ class FcmEngine {
     this.isListening = false;
     this.unsubscribe = null;
     this.ordersUnsubscribe = null;
+    this.broadcastUnsubscribe = null;
     this.lastNotifiedStatus = new Map();
     this.lastNotifiedOrderStatus = new Map();
   }
@@ -106,6 +107,26 @@ class FcmEngine {
       (error) => console.error('❌ Firestore Orders Listener Error:', error)
     );
 
+    let isBroadcastInitialLoad = true;
+    this.broadcastUnsubscribe = this.db.collection('broadcast_notifications').onSnapshot(
+      async (snapshot) => {
+        if (isBroadcastInitialLoad) {
+          isBroadcastInitialLoad = false;
+          return;
+        }
+
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            const id = change.doc.id;
+            console.log(`📢 Processing Admin Broadcast Notification: #${id} - "${data.title}"`);
+            await this.handleBroadcastNotification(id, data);
+          }
+        });
+      },
+      (error) => console.error('❌ Firestore Broadcasts Listener Error:', error)
+    );
+
     this.isListening = true;
   }
 
@@ -122,8 +143,86 @@ class FcmEngine {
       } catch (_) {}
       this.ordersUnsubscribe = null;
     }
+    if (this.broadcastUnsubscribe) {
+      try {
+        this.broadcastUnsubscribe();
+      } catch (_) {}
+      this.broadcastUnsubscribe = null;
+    }
     this.isListening = false;
     console.log('🛑 Firestore FCM Real-Time Listener stopped.');
+  }
+
+  async handleBroadcastNotification(broadcastId, data) {
+    const title = data.title || 'Special Announcement from BharathFix';
+    const body = data.body || '';
+    const targetAudience = data.targetAudience || 'Everyone';
+
+    const tokenSet = new Set();
+
+    if (targetAudience === 'All Customers' || targetAudience === 'Everyone') {
+      try {
+        const usersSnap = await this.db.collection('users').get();
+        usersSnap.docs.forEach((doc) => {
+          const uData = doc.data();
+          const role = (uData.role || '').toLowerCase();
+          if (role !== 'technician' && role !== 'partner' && role !== 'provider') {
+            if (uData.fcmToken && uData.fcmToken.trim().length > 0) {
+              tokenSet.add(uData.fcmToken.trim());
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Error fetching customer tokens for broadcast:', err);
+      }
+    }
+
+    if (targetAudience === 'All Technicians' || targetAudience === 'Everyone') {
+      try {
+        const [provSnap, techUsersSnap] = await Promise.all([
+          this.db.collection('providers').get(),
+          this.db.collection('users').where('role', 'in', ['technician', 'partner', 'provider']).get().catch(() => ({ docs: [] }))
+        ]);
+
+        provSnap.docs.forEach((doc) => {
+          const t = doc.data()?.fcmToken;
+          if (t && t.trim().length > 0) tokenSet.add(t.trim());
+        });
+
+        techUsersSnap.docs.forEach((doc) => {
+          const t = doc.data()?.fcmToken;
+          if (t && t.trim().length > 0) tokenSet.add(t.trim());
+        });
+      } catch (err) {
+        console.error('Error fetching technician tokens for broadcast:', err);
+      }
+    }
+
+    const tokens = Array.from(tokenSet);
+    if (tokens.length > 0) {
+      try {
+        const response = await this.messaging.sendEachForMulticast({
+          tokens,
+          notification: { title, body },
+          data: {
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            title,
+            body,
+            type: 'ADMIN_BROADCAST',
+            broadcastId: String(broadcastId),
+          },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'high_importance_channel', sound: 'default' }
+          }
+        });
+        console.log(`📢 Broadcast Push sent: ${response.successCount} succeeded, ${response.failureCount} failed out of ${tokens.length} total tokens.`);
+      } catch (e) {
+        console.error('❌ FCM Multicast error during broadcast:', e?.message || e);
+      }
+    } else {
+      console.log(`ℹ️ Broadcast #${broadcastId}: No active device FCM tokens found for target audience: ${targetAudience}`);
+    }
   }
 
   async handleNewBooking(bookingId, booking) {
@@ -338,6 +437,13 @@ class FcmEngine {
             data: { orderId, type: 'ORDER_SHIPPED' }
           });
         }
+        if (orderData.deliveryPartnerId) {
+          await this.sendToTech(orderData.deliveryPartnerId, {
+            title: '📦 New Appliance Delivery Assigned!',
+            body: `You have been assigned to deliver & set up #${orderId} (${productName}).`,
+            data: { orderId, type: 'ORDER_ASSIGNED' }
+          });
+        }
         break;
 
       case 'ADMINORDERSTATUS.OUTFORDELIVERY':
@@ -350,6 +456,13 @@ class FcmEngine {
             data: { orderId, type: 'ORDER_OUT_FOR_DELIVERY' }
           });
         }
+        if (orderData.deliveryPartnerId) {
+          await this.sendToTech(orderData.deliveryPartnerId, {
+            title: '🛵 Delivery In Progress',
+            body: `Order #${orderId} is out for delivery. Remember to ask customer for delivery OTP upon setup.`,
+            data: { orderId, type: 'ORDER_OUT_FOR_DELIVERY' }
+          });
+        }
         break;
 
       case 'ADMINORDERSTATUS.DELIVERED':
@@ -358,6 +471,13 @@ class FcmEngine {
           await this.sendToUser(userId, {
             title: '✅ Order Delivered',
             body: `Your order for ${productName} has been delivered successfully.`,
+            data: { orderId, type: 'ORDER_DELIVERED' }
+          });
+        }
+        if (orderData.deliveryPartnerId) {
+          await this.sendToTech(orderData.deliveryPartnerId, {
+            title: '🎉 Delivery & Installation Completed!',
+            body: `Order #${orderId} (${productName}) completed successfully.`,
             data: { orderId, type: 'ORDER_DELIVERED' }
           });
         }
@@ -497,7 +617,7 @@ class FcmEngine {
   async sendToTech(techId, payload) {
     try {
       const notifId = `notif_t_${Date.now()}`;
-      await this.db.collection('providers').doc(techId).collection('notifications').doc(notifId).set({
+      const notifData = {
         id: notifId,
         techId,
         title: payload.title,
@@ -505,10 +625,27 @@ class FcmEngine {
         data: payload.data || {},
         isRead: false,
         createdAt: this.admin.firestore.FieldValue.serverTimestamp()
-      });
+      };
 
-      const techDoc = await this.db.collection('providers').doc(techId).get();
-      const token = techDoc.data()?.fcmToken;
+      // Write notification record to both providers subcollection and users subcollection
+      await Promise.allSettled([
+        this.db.collection('providers').doc(techId).collection('notifications').doc(notifId).set(notifData),
+        this.db.collection('users').doc(techId).collection('notifications').doc(notifId).set(notifData)
+      ]);
+
+      // Check FCM token across providers and users collection
+      let token = null;
+      try {
+        const techDoc = await this.db.collection('providers').doc(techId).get();
+        token = techDoc.data()?.fcmToken;
+      } catch (_) {}
+
+      if (!token) {
+        try {
+          const userDoc = await this.db.collection('users').doc(techId).get();
+          token = userDoc.data()?.fcmToken;
+        } catch (_) {}
+      }
 
       if (token && token.trim().length > 0) {
         await this.messaging.send({
@@ -522,19 +659,33 @@ class FcmEngine {
           },
           android: { priority: 'high', notification: { channelId: 'high_importance_channel', sound: 'default' } }
         });
+        console.log(`📲 FCM Push successfully sent to technician [${techId}]`);
+      } else {
+        console.log(`ℹ️ Technician [${techId}] has no device token yet (in-app notification stored in Firestore).`);
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error(`❌ Error sending notification to technician [${techId}]:`, error?.message || error);
+    }
   }
 
   async notifyAvailableTechnicians(payload) {
     try {
-      const snap = await this.db.collection('providers').get();
-      const tokens = [];
-      snap.docs.forEach((doc) => {
+      const [providersSnap, usersSnap] = await Promise.all([
+        this.db.collection('providers').get(),
+        this.db.collection('users').where('role', 'in', ['technician', 'partner', 'provider']).get().catch(() => ({ docs: [] }))
+      ]);
+
+      const tokenSet = new Set();
+      providersSnap.docs.forEach((doc) => {
         const token = doc.data()?.fcmToken;
-        if (token && token.trim().length > 0) tokens.push(token.trim());
+        if (token && token.trim().length > 0) tokenSet.add(token.trim());
+      });
+      usersSnap.docs.forEach((doc) => {
+        const token = doc.data()?.fcmToken;
+        if (token && token.trim().length > 0) tokenSet.add(token.trim());
       });
 
+      const tokens = Array.from(tokenSet);
       if (tokens.length > 0) {
         await this.messaging.sendEachForMulticast({
           tokens,
@@ -547,8 +698,11 @@ class FcmEngine {
           },
           android: { priority: 'high', notification: { channelId: 'high_importance_channel', sound: 'default', priority: 'max' } }
         });
+        console.log(`📢 Multicast FCM alert sent to ${tokens.length} available technicians.`);
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('❌ Error broadcasting to technicians:', error?.message || error);
+    }
   }
 }
 

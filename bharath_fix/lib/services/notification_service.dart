@@ -1,6 +1,18 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+    debugPrint('FCM Terminated/Background Message received [Customer]: ${message.messageId}');
+  } catch (e) {
+    debugPrint('Error handling background notification: $e');
+  }
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -18,6 +30,11 @@ class NotificationService {
   }
 
   static Future<void> initialize() async {
+    try {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint('Failed to register FCM background message handler: $e');
+    }
     debugPrint('NotificationService initialized.');
   }
 

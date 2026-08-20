@@ -506,35 +506,71 @@ class _DashboardTabState extends State<DashboardTab> {
                           }
                           setDialogState(() => isSending = true);
                           final db = FirebaseFirestore.instance;
+                          final now = FieldValue.serverTimestamp();
                           final List<String> tokens = [];
 
+                          // 1. Create Broadcast entry for backend FCM engine to dispatch
+                          final broadcastRef = db.collection('broadcast_notifications').doc();
+                          await broadcastRef.set({
+                            'id': broadcastRef.id,
+                            'title': title,
+                            'body': body,
+                            'targetAudience': targetAudience,
+                            'type': 'ADMIN_BROADCAST',
+                            'sentBy': 'Admin',
+                            'createdAt': now,
+                          });
+
+                          final notifPayload = {
+                            'title': title,
+                            'body': body,
+                            'type': 'ADMIN_BROADCAST',
+                            'broadcastId': broadcastRef.id,
+                            'isRead': false,
+                            'createdAt': now,
+                          };
+
+                          // 2. Fan out in-app notification records
                           if (targetAudience == 'All Customers' || targetAudience == 'Everyone') {
                             final usersSnap = await db.collection('users').get();
                             for (final d in usersSnap.docs) {
-                              final t = d.data()['fcmToken'] as String?;
-                              if (t != null && t.isNotEmpty) tokens.add(t);
-                            }
-                          }
-                          if (targetAudience == 'All Technicians' || targetAudience == 'Everyone') {
-                            final provSnap = await db.collection('providers').get();
-                            for (final d in provSnap.docs) {
-                              final t = d.data()['fcmToken'] as String?;
-                              if (t != null && t.isNotEmpty) tokens.add(t);
+                              final uData = d.data();
+                              final role = (uData['role'] as String? ?? '').toLowerCase();
+                              if (!role.contains('technician') && !role.contains('partner') && !role.contains('provider')) {
+                                d.reference.collection('notifications').add(notifPayload);
+                                final t = uData['fcmToken'] as String?;
+                                if (t != null && t.isNotEmpty) tokens.add(t);
+                              }
                             }
                           }
 
+                          if (targetAudience == 'All Technicians' || targetAudience == 'Everyone') {
+                            final provSnap = await db.collection('providers').get();
+                            for (final d in provSnap.docs) {
+                              d.reference.collection('notifications').add(notifPayload);
+                              final t = d.data()['fcmToken'] as String?;
+                              if (t != null && t.isNotEmpty) tokens.add(t);
+                            }
+
+                            final techUsers = await db.collection('users').where('role', isEqualTo: 'technician').get();
+                            for (final d in techUsers.docs) {
+                              d.reference.collection('notifications').add(notifPayload);
+                            }
+                          }
+
+                          // 3. Trigger fallback direct push (handled by fcm_engine.js for Web)
                           await FcmDirectService.sendMulticastPushNotification(
                             targetTokens: tokens,
                             title: title,
                             body: body,
-                            data: {'type': 'ADMIN_BROADCAST'},
+                            data: {'type': 'ADMIN_BROADCAST', 'broadcastId': broadcastRef.id},
                           );
 
                           if (dialogCtx.mounted) Navigator.pop(dialogCtx);
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
-                                content: Text('Broadcast sent to ${tokens.length} device(s)!'),
+                                content: Text('Broadcast sent to $targetAudience successfully!'),
                                 backgroundColor: const Color(0xFF7C4DFF),
                               ),
                             );

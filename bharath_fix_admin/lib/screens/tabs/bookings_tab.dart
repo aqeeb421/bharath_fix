@@ -489,6 +489,28 @@ class _BookingsTabState extends State<BookingsTab> {
                   ),
                 ],
               ),
+              if ((data['startOtp']?.toString() ?? '').isNotEmpty || (data['completionOtp']?.toString() ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF000062).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF000062).withValues(alpha: 0.15)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.key_rounded, size: 14, color: Color(0xFF000062)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Start OTP: ${data['startOtp'] ?? "----"}   •   End OTP: ${data['completionOtp'] ?? "----"}',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF000062)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Divider(height: 20),
               Wrap(
                 alignment: WrapAlignment.end,
