@@ -86,41 +86,7 @@ class FirebaseService {
         batch.set(userSubRef, {'status': newStatus, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
       }
 
-      // Direct FCM Push to Customer
-      if (userId != null && userId.isNotEmpty) {
-        try {
-          final userDoc = await _db.collection('users').doc(userId).get();
-          final fcmToken = userDoc.data()?['fcmToken'] as String?;
-          if (fcmToken != null && fcmToken.isNotEmpty) {
-            await FcmDirectService.sendPushNotification(
-              targetToken: fcmToken,
-              title: 'Status Updated: $newStatus',
-              body: 'Your service request status is now $newStatus.',
-              data: {'jobId': docId, 'status': newStatus, 'type': 'JOB_STATUS_UPDATE'},
-            );
-          }
-        } catch (e) {
-          print('Admin FCM push error: $e');
-        }
-      }
-
-      // Direct FCM Push to Provider
-      if (providerId != null && providerId.isNotEmpty) {
-        try {
-          final providerDoc = await _db.collection('providers').doc(providerId).get();
-          final fcmToken = providerDoc.data()?['fcmToken'] as String?;
-          if (fcmToken != null && fcmToken.isNotEmpty) {
-            await FcmDirectService.sendPushNotification(
-              targetToken: fcmToken,
-              title: 'Job Update: $newStatus',
-              body: 'Assigned job #$docId status updated to $newStatus.',
-              data: {'jobId': docId, 'status': newStatus, 'type': 'JOB_STATUS_UPDATE'},
-            );
-          }
-        } catch (e) {
-          print('Admin FCM push to tech error: $e');
-        }
-      }
+      // Direct FCM Push logic removed - now handled centrally by Node.js fcm_engine.js
     }
 
     await batch.commit();

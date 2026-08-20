@@ -19,8 +19,8 @@ import 'tax_invoice_widget.dart';
 
 
 class BookingsScreen extends StatefulWidget {
-
-  const BookingsScreen({super.key});
+  final int initialTab;
+  const BookingsScreen({super.key, this.initialTab = 0});
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -28,7 +28,6 @@ class BookingsScreen extends StatefulWidget {
 
 class _BookingsScreenState extends State<BookingsScreen> {
   final _dbService = DatabaseService();
-  late Stream<List<OrderModel>> _ordersStream;
 
   @override
   void dispose() {
@@ -44,7 +43,6 @@ class _BookingsScreenState extends State<BookingsScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    _ordersStream = _dbService.streamOrders().asBroadcastStream();
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
@@ -128,6 +126,113 @@ class _BookingsScreenState extends State<BookingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to decline quotation: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelBookingByCustomer(String bookingId, Map<String, dynamic> data) async {
+    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text('Cancel Booking?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          isVisitingFeePaid
+              ? 'Are you sure you want to cancel this booking? Since the visiting fee of ₹${visitingFee.toStringAsFixed(0)} was paid upfront, it will be immediately refunded to your BharathFix Wallet.'
+              : 'Are you sure you want to cancel this scheduled service booking?',
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Booking', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final updates = <String, dynamic>{
+        'status': 'cancelled_by_customer',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancellationReason': 'Cancelled by Customer',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('bookings').doc(bookingId).update(updates);
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('bookings')
+            .doc(bookingId)
+            .set(updates, SetOptions(merge: true));
+      }
+
+      // If fee was paid upfront, credit wallet immediately
+      if (isVisitingFeePaid) {
+        await DatabaseService().creditWallet(
+          amount: visitingFee,
+          description: 'Refund: Cancelled Booking #$bookingId',
+        );
+      }
+
+      // Notify technician if assigned
+      final providerId = data['providerId']?.toString();
+      if (providerId != null && providerId.isNotEmpty) {
+        final notifId = 'notif_t_${DateTime.now().millisecondsSinceEpoch}';
+        await FirebaseFirestore.instance
+            .collection('providers')
+            .doc(providerId)
+            .collection('notifications')
+            .doc(notifId)
+            .set({
+          'id': notifId,
+          'techId': providerId,
+          'title': 'Booking Cancelled ✗',
+          'body': 'Customer cancelled booking #$bookingId.',
+          'data': {'bookingId': bookingId, 'type': 'BOOKING_CANCELLED'},
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        Navigator.pop(context); // Close detail modal
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isVisitingFeePaid
+                  ? 'Booking cancelled. ₹${visitingFee.toStringAsFixed(0)} refunded to your Wallet!'
+                  : 'Booking cancelled successfully.',
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel booking: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -468,6 +573,26 @@ class _BookingsScreenState extends State<BookingsScreen> {
                           return const SizedBox.shrink();
                         }),
                       ],
+                    ),
+                  ),
+                ],
+
+                if (['pending', 'accepted', 'assigned'].contains(status.toLowerCase())) ...[
+                  SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _cancelBookingByCustomer(bookingId, data),
+                      icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 18),
+                      label: const Text(
+                        "Cancel Booking",
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                      ),
                     ),
                   ),
                 ],
@@ -833,7 +958,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int initialTab = (ModalRoute.of(context)?.settings.arguments as int?) ?? 0;
+    final int initialTab = (ModalRoute.of(context)?.settings.arguments as int?) ?? widget.initialTab;
 
     return DefaultTabController(
       length: 2,
@@ -1067,9 +1192,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   Widget _buildProductOrdersTab() {
     return StreamBuilder<List<OrderModel>>(
-      stream: _ordersStream,
+      stream: _dbService.streamOrders(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const LoadingStateWidget(message: 'Loading your orders...');
         }
 

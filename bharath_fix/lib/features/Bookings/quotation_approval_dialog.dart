@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/BookingEntry.dart';
 import '../../services/database_service.dart';
 import '../../ui/theme/app_colors.dart';
+import '../Account/wallet_screen.dart';
 
 class QuotationApprovalDialog extends StatefulWidget {
   final BookingEntry booking;
@@ -336,9 +337,53 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                         ),
                       ],
                     ),
-                    subtitle: Text(
-                      hasBalance ? '⚡ Instant 1-Tap Payment' : 'Insufficient balance (₹${balance.toStringAsFixed(0)})',
-                      style: TextStyle(fontSize: 11, color: hasBalance ? Colors.grey : Colors.red.shade700),
+                    subtitle: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hasBalance ? '⚡ Instant 1-Tap Payment' : 'Insufficient balance (₹${balance.toStringAsFixed(0)})',
+                            style: TextStyle(fontSize: 11, color: hasBalance ? Colors.grey : Colors.red.shade700),
+                          ),
+                        ),
+                        if (!hasBalance)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => WalletScreen(initialAmount: totalPayable - balance),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_rounded, size: 12, color: AppColors.primary),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      'Add Money',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );
@@ -396,6 +441,51 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
                     onPressed: _isProcessing
                         ? null
                         : () async {
+                            if (_selectedPaymentMode == 'WALLET') {
+                              final currentBalance = await DatabaseService().getWalletBalance();
+                              if (currentBalance < totalPayable) {
+                                if (mounted) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.account_balance_wallet_outlined, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('Low Wallet Balance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                      content: Text(
+                                        'Your wallet balance is ₹${currentBalance.toStringAsFixed(0)}, but this estimate requires ₹${totalPayable.toStringAsFixed(0)}. Please add ₹${(totalPayable - currentBalance).ceil()} to your wallet or choose another payment method.',
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => WalletScreen(initialAmount: totalPayable - currentBalance),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 16),
+                                          label: Text('Add ₹${(totalPayable - currentBalance).ceil()}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            }
                             setState(() => _isProcessing = true);
                             try {
                               await widget.onApprove(_selectedPaymentMode);

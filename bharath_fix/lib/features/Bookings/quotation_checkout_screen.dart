@@ -9,6 +9,7 @@ import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../services/database_service.dart';
+import '../Account/wallet_screen.dart';
 
 class QuotationCheckoutScreen extends StatefulWidget {
   final Map<String, dynamic> bookingData;
@@ -385,14 +386,51 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
                         ),
                       ],
                     ),
-                    subtitle: Text(
-                      hasBalance
-                          ? '⚡ Instant 1-Tap Payment'
-                          : 'Insufficient balance (Current: ₹${balance.toStringAsFixed(0)})',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: hasBalance ? AppColors.subtitle : Colors.red.shade700,
-                      ),
+                    subtitle: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hasBalance
+                                ? '⚡ Instant 1-Tap Payment'
+                                : 'Insufficient balance (Current: ₹${balance.toStringAsFixed(0)})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasBalance ? AppColors.subtitle : Colors.red.shade700,
+                            ),
+                          ),
+                        ),
+                        if (!hasBalance)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: InkWell(
+                              onTap: () => _navigateToWalletTopUp((totalPayable - balance).ceil().toDouble()),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_rounded, size: 14, color: AppColors.primary),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      'Add Money',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 );
@@ -497,6 +535,135 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
     );
   }
 
+  void _navigateToWalletTopUp(double neededAmount) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WalletScreen(initialAmount: neededAmount),
+      ),
+    );
+  }
+
+  void _showInsufficientWalletSheet(double totalPayableAmount, double currentWallet) {
+    final deficit = (totalPayableAmount - currentWallet).ceil().toDouble();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: AppColors.card,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.large),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.account_balance_wallet_outlined, color: Colors.red.shade700, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Insufficient Wallet Balance', style: AppTextStyle.sectionHeader.copyWith(fontSize: 16)),
+                          const SizedBox(height: 2),
+                          Text('Top-up your wallet to approve this estimate instantly', style: AppTextStyle.subtitle.copyWith(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.medium),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(AppRadius.medium),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Total Estimate Amount:', style: AppTextStyle.subtitle),
+                          Text('₹${totalPayableAmount.toStringAsFixed(0)}', style: AppTextStyle.cardTitle),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Current Wallet Balance:', style: AppTextStyle.subtitle),
+                          Text('₹${currentWallet.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Amount Needed:', style: AppTextStyle.cardTitle),
+                          Text('₹${deficit.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _navigateToWalletTopUp(deficit);
+                    },
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+                    label: Text(
+                      'Add ₹${deficit.toStringAsFixed(0)} to Wallet',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() => _selectedPaymentMethod = 'RAZORPAY');
+                      _openRazorpayCheckout(totalPayableAmount);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                    ),
+                    child: const Text('Pay via UPI / Cards Instead', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _processQuotationPayment(double totalPayableAmount) async {
     setState(() => _isProcessing = true);
     try {
@@ -518,14 +685,9 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         final currentWallet = await DatabaseService().getWalletBalance();
         if (currentWallet < totalPayableAmount) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Insufficient wallet balance. Please top up wallet or select another payment option."),
-                backgroundColor: Colors.red,
-              ),
-            );
+            setState(() => _isProcessing = false);
+            _showInsufficientWalletSheet(totalPayableAmount, currentWallet);
           }
-          setState(() => _isProcessing = false);
           return;
         }
 

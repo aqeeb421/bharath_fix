@@ -217,6 +217,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Job Completed Successfully! Great job."), backgroundColor: AppColors.success),
                     );
+                    Navigator.pop(context);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Invalid OTP code."), backgroundColor: AppColors.error),
@@ -301,7 +302,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           final customerName = data['userName'] ?? data['customerName'] ?? 'Customer';
           final customerPhone = data['userPhone'] ?? data['phone'] ?? '+91 9876543210';
           final address = data['address'] ?? data['fullAddress'] ?? 'Hassan, Karnataka';
-          final status = data['status'] ?? 'accepted';
+          final status = data['status'] ?? 'ACCEPTED';
           final startOtp = data['startOtp'] ?? '1234';
           final completionOtp = data['completionOtp'] ?? '5678';
 
@@ -695,7 +696,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        await _firestoreService.updateJobStatus(widget.bookingId, 'on_the_way');
+                        await _firestoreService.updateJobStatus(widget.bookingId, 'IN_TRANSIT');
                         _locationService.startLiveTracking(widget.techId, activeBookingId: widget.bookingId);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -735,6 +736,64 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       label: const Text("Finish: Enter Completion OTP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
                     ),
+                  ),
+
+                if (['completed', 'work_completed', 'paid_and_closed'].contains(status.toLowerCase()))
+                  Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.medium),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(AppRadius.medium),
+                          border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Job Completed & Closed",
+                                    style: TextStyle(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "This job has been finalized and recorded in your Earnings tab.",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+                          label: const Text("Return to My Jobs", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 const SizedBox(height: 40),
               ],

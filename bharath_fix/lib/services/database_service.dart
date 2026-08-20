@@ -782,47 +782,28 @@ class DatabaseService {
     return resultList;
   }
 
-  Stream<List<OrderModel>> streamOrders() async* {
-    final initialList = await fetchOrders();
-    yield initialList;
-
-    if (_isFirebaseAvailable) {
-      final uid = _currentUserUid;
-      if (uid != 'guest_user') {
-        yield* FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('orders')
-            .snapshots()
-            .asyncMap((snap) async {
-          final List<OrderModel> remoteOrders = [];
-          for (var doc in snap.docs) {
-            final order = OrderModel.fromMap(doc.data(), docId: doc.id);
-            remoteOrders.add(order);
-
-            try {
-              final db = await database;
-              await db.update(
-                'orders',
-                {
-                  'orderStatus': order.orderStatus.name,
-                  'deliveryPartnerId': order.deliveryPartnerId,
-                  'deliveryPartnerName': order.deliveryPartnerName,
-                  'deliveryPartnerPhone': order.deliveryPartnerPhone,
-                  'isSynced': 1,
-                },
-                where: 'id = ?',
-                whereArgs: [order.id],
-              );
-            } catch (_) {}
-          }
-          if (remoteOrders.isNotEmpty) {
-            return remoteOrders;
-          }
-          return initialList;
-        });
-      }
+  Stream<List<OrderModel>> streamOrders() {
+    final uid = _currentUserUid;
+    if (uid == 'guest_user') {
+      return Stream.fromFuture(fetchOrders());
     }
+
+    return FirebaseFirestore.instance
+        .collection('orders')
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((snap) {
+      final List<OrderModel> orders = snap.docs
+          .map((doc) => OrderModel.fromMap(doc.data(), docId: doc.id))
+          .toList();
+      orders.sort((a, b) {
+        final aTime = a.createdAt?.millisecondsSinceEpoch ?? 0;
+        final bTime = b.createdAt?.millisecondsSinceEpoch ?? 0;
+        if (aTime != 0 || bTime != 0) return bTime.compareTo(aTime);
+        return b.id.compareTo(a.id);
+      });
+      return orders;
+    });
   }
 
   // ==================== PROFILE WORKFLOW ====================
@@ -1174,43 +1155,53 @@ class DatabaseService {
     }
   }
 
-  /// Debit money from wallet (Service Payment / Purchase)
+  /// Debit money from wallet (Service Payment / Purchase) atomically
   Future<bool> debitWallet({
     required double amount,
     required String description,
     String? bookingId,
   }) async {
     final uid = _currentUserUid;
-    final currentBalance = await getWalletBalance();
-
-    if (currentBalance < amount) {
-      return false; // Insufficient balance
-    }
+    if (uid == 'guest_user') return false;
 
     final txId = 'tx_debit_${DateTime.now().millisecondsSinceEpoch}';
     final timestamp = DateTime.now().toIso8601String();
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
 
     try {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final success = await FirebaseFirestore.instance.runTransaction<bool>((transaction) async {
+        final userSnapshot = await transaction.get(userRef);
+        double currentBalance = 0.0;
+        if (userSnapshot.exists && userSnapshot.data() != null) {
+          final val = userSnapshot.data()!['walletBalance'];
+          if (val is num) currentBalance = val.toDouble();
+        }
 
-      await userRef.set({
-        'walletBalance': FieldValue.increment(-amount),
-      }, SetOptions(merge: true));
+        if (currentBalance < amount) {
+          return false; // Insufficient balance inside transaction
+        }
 
-      // Record transaction
-      await userRef.collection('wallet_transactions').doc(txId).set({
-        'id': txId,
-        'amount': amount,
-        'type': 'DEBIT',
-        'description': description,
-        'timestamp': timestamp,
-        'bookingId': bookingId ?? '',
-        'status': 'SUCCESS',
+        transaction.set(userRef, {
+          'walletBalance': currentBalance - amount,
+        }, SetOptions(merge: true));
+
+        final txDocRef = userRef.collection('wallet_transactions').doc(txId);
+        transaction.set(txDocRef, {
+          'id': txId,
+          'amount': amount,
+          'type': 'DEBIT',
+          'description': description,
+          'timestamp': timestamp,
+          'bookingId': bookingId ?? '',
+          'status': 'SUCCESS',
+        });
+
+        return true;
       });
 
-      return true;
+      return success;
     } catch (e) {
-      debugPrint('Error debiting wallet: $e');
+      debugPrint('Error debiting wallet in transaction: $e');
       return false;
     }
   }
@@ -1263,12 +1254,38 @@ class DatabaseService {
     }
   }
 
+  Future<bool> isProductInStock(String productId, [int requiredQuantity = 1]) async {
+    if (productId.isEmpty) return true;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('products').doc(productId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        final stock = (data['stockQuantity'] as num?)?.toInt() ?? 
+                      (data['stock'] as num?)?.toInt() ?? 10;
+        final bool isAvailable = data['isAvailable'] != false && data['inStock'] != false;
+        return isAvailable && stock >= requiredQuantity;
+      }
+    } catch (e) {
+      debugPrint('Error checking product stock: $e');
+    }
+    return true;
+  }
+
   Future<void> decrementProductStock(String productId, [int count = 1]) async {
     if (productId.isEmpty) return;
     try {
       final docRef = FirebaseFirestore.instance.collection('products').doc(productId);
-      await docRef.update({
-        'stockQuantity': FieldValue.increment(-count),
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snap = await transaction.get(docRef);
+        if (snap.exists && snap.data() != null) {
+          final currentStock = (snap.data()!['stockQuantity'] as num?)?.toInt() ??
+                              (snap.data()!['stock'] as num?)?.toInt() ?? 0;
+          final newStock = (currentStock - count).clamp(0, 999999);
+          transaction.update(docRef, {
+            'stockQuantity': newStock,
+            if (newStock <= 0) 'isAvailable': false,
+          });
+        }
       });
       debugPrint('Successfully decremented product $productId stock by $count');
     } catch (e) {

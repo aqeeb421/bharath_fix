@@ -228,7 +228,7 @@ enum AdminBookingStatus {
     if (st == 'cancelled_enroute') return AdminBookingStatus.cancelledEnroute;
     if (st == 'cancelled_at_site') return AdminBookingStatus.cancelledAtSite;
     if (st == 'payment_pending_verification') return AdminBookingStatus.paymentPendingVerification;
-    if (st == 'completed' || st == 'paid_and_closed') return AdminBookingStatus.completed;
+    if (st == 'completed' || st == 'paid_and_closed' || st == 'work_completed') return AdminBookingStatus.completed;
     if (st == 'reviewed' || st == 'rating_given') return AdminBookingStatus.reviewed;
     if (st == 'warranty_claimed' || st == 'under_warranty') return AdminBookingStatus.warrantyClaimed;
     if (st == 'warranty_rework_assigned') return AdminBookingStatus.warrantyReworkAssigned;

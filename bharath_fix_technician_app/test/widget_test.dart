@@ -1,30 +1,36 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:bharath_fix_technician_app/main.dart';
+import 'package:bharath_fix_technician_app/widgets/technician_state_widgets.dart';
 
 void main() {
-  testWidgets('TechnicianApp smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const TechnicianApp());
+  testWidgets('TechEmptyStateWidget renders title, message and icon', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TechEmptyStateWidget(
+            title: 'No Active Assigned Jobs',
+            message: 'Check the Available Open Pool tab to claim new customer requests.',
+            icon: Icons.assignment_turned_in_rounded,
+          ),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('No Active Assigned Jobs'), findsOneWidget);
+    expect(find.text('Check the Available Open Pool tab to claim new customer requests.'), findsOneWidget);
+    expect(find.byIcon(Icons.assignment_turned_in_rounded), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('TechLoadingStateWidget renders loading message', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TechLoadingStateWidget(message: 'Loading assigned tasks...'),
+        ),
+      ),
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Loading assigned tasks...'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }

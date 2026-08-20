@@ -8,7 +8,8 @@ import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  final double? initialAmount;
+  const WalletScreen({super.key, this.initialAmount});
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -20,10 +21,8 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   late Razorpay _razorpay;
-  final TextEditingController _amountController = TextEditingController(
-    text: '500',
-  );
-  double _pendingTopUpAmount = 500.0;
+  late final TextEditingController _amountController;
+  late double _pendingTopUpAmount;
   bool _isProcessing = false;
   String _selectedTxFilter = 'ALL'; // 'ALL', 'CREDIT', 'DEBIT'
 
@@ -32,8 +31,12 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
+    final startAmt = (widget.initialAmount != null && widget.initialAmount! > 0)
+        ? widget.initialAmount!.ceil().toDouble()
+        : 500.0;
+    _pendingTopUpAmount = startAmt;
+    _amountController = TextEditingController(text: startAmt.toStringAsFixed(0));
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleRazorpaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handleRazorpayError);

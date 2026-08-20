@@ -315,6 +315,21 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
       return;
     }
 
+    if (widget.productId != null && widget.productId!.isNotEmpty) {
+      final inStock = await DatabaseService().isProductInStock(widget.productId!);
+      if (!inStock) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sorry, this product is currently out of stock!'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     double finalAmount = _getFinalPayableAmount();
     int amountInPaise = (finalAmount * 100).toInt();
 

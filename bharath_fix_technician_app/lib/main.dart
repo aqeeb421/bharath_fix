@@ -7,6 +7,9 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/pending_verification_screen.dart';
 import 'theme/app_colors.dart';
+import 'services/auth_enforcement_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +19,9 @@ void main() async {
   } catch (e) {
     debugPrint('NotificationService initialization error: $e');
   }
+  
+  AuthEnforcementService().startMonitoring();
+  
   runApp(const TechnicianApp());
 }
 
@@ -27,6 +33,7 @@ class TechnicianApp extends StatelessWidget {
     return MaterialApp(
       title: 'BharathFix Partner',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'notification_service.dart';
 
 class TechnicianFirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -53,38 +52,57 @@ class TechnicianFirestoreService {
     await batch.commit();
   }
 
-  // Claim an unassigned job
-  Future<void> claimJob(String bookingId, String techId, String techName, String techPhone) async {
-    final startOtp = (1000 + (9000 * (DateTime.now().millisecondsSinceEpoch % 1000) / 1000)).toInt().toString();
-    final completionOtp = (1000 + (9000 * ((DateTime.now().millisecondsSinceEpoch + 500) % 1000) / 1000)).toInt().toString();
-
-    await _updateBookingDual(bookingId, {
-      'providerId': techId,
-      'providerName': techName,
-      'providerPhone': techPhone,
-      'status': 'accepted',
-      'assignedAt': FieldValue.serverTimestamp(),
-      'startOtp': startOtp,
-      'completionOtp': completionOtp,
-    });
+  // Claim an unassigned job atomically
+  Future<bool> claimJob(String bookingId, String techId, String techName, String techPhone) async {
+    final rootRef = _db.collection('bookings').doc(bookingId);
 
     try {
-      final doc = await _db.collection('bookings').doc(bookingId).get();
-      final userId = doc.data()?['userId']?.toString();
-      if (userId != null && userId.isNotEmpty) {
-        await NotificationService.sendNotificationToUser(
-          userId: userId,
-          title: 'Technician Assigned! 👨‍🔧',
-          body: '$techName ($techPhone) has accepted your booking.',
-          data: {'bookingId': bookingId, 'type': 'JOB_CLAIMED'},
-        );
-      }
-      await NotificationService.sendNotificationToAdmin(
-        title: 'Job Claimed 🤝',
-        body: 'Booking #$bookingId claimed by partner $techName.',
-        data: {'bookingId': bookingId, 'type': 'JOB_CLAIMED'},
-      );
-    } catch (_) {}
+      final claimed = await _db.runTransaction<bool>((transaction) async {
+        final snapshot = await transaction.get(rootRef);
+        if (!snapshot.exists) return false;
+
+        final currentProvider = snapshot.data()?['providerId']?.toString();
+        final currentStatus = (snapshot.data()?['status'] ?? '').toString().toUpperCase();
+
+        // If already assigned to someone else or already closed
+        if (currentProvider != null && currentProvider.isNotEmpty && currentProvider != techId) {
+          return false;
+        }
+        if (currentStatus == 'CANCELLED' || currentStatus == 'CANCELLED_BY_CUSTOMER') {
+          return false;
+        }
+
+        final startOtp = snapshot.data()?['startOtp']?.toString() ??
+            (1000 + (9000 * (DateTime.now().millisecondsSinceEpoch % 1000) / 1000)).toInt().toString();
+        final completionOtp = snapshot.data()?['completionOtp']?.toString() ??
+            (1000 + (9000 * ((DateTime.now().millisecondsSinceEpoch + 500) % 1000) / 1000)).toInt().toString();
+
+        final updates = <String, dynamic>{
+          'providerId': techId,
+          'providerName': techName,
+          'providerPhone': techPhone,
+          'status': 'ACCEPTED',
+          'assignedAt': FieldValue.serverTimestamp(),
+          'startOtp': startOtp,
+          'completionOtp': completionOtp,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        transaction.update(rootRef, updates);
+
+        final userId = snapshot.data()?['userId']?.toString();
+        if (userId != null && userId.isNotEmpty) {
+          final userDocRef = _db.collection('users').doc(userId).collection('bookings').doc(bookingId);
+          transaction.set(userDocRef, updates, SetOptions(merge: true));
+        }
+
+        return true;
+      });
+
+      return claimed;
+    } catch (e) {
+      return false;
+    }
   }
 
   // Accept or update job status
@@ -93,56 +111,30 @@ class TechnicianFirestoreService {
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    if (status == 'completed') {
+    if (status == 'WORK_COMPLETED') {
       data['completedAt'] = FieldValue.serverTimestamp();
+      data['isFinalBillPaid'] = true;
+      data['isVisitingFeePaid'] = true;
     }
     await _updateBookingDual(bookingId, data);
-
-    try {
-      final doc = await _db.collection('bookings').doc(bookingId).get();
-      final userId = doc.data()?['userId']?.toString();
-      if (userId != null && userId.isNotEmpty) {
-        if (status == 'on_the_way') {
-          await NotificationService.sendNotificationToUser(
-            userId: userId,
-            title: 'Technician On The Way! 🛵',
-            body: 'Your service partner is heading to your address. Tap to track live GPS.',
-            data: {'bookingId': bookingId, 'type': 'ON_THE_WAY'},
-          );
-        } else if (status == 'in_progress') {
-          await NotificationService.sendNotificationToUser(
-            userId: userId,
-            title: 'Service Started! ⏱',
-            body: 'Inspection & service is now in progress.',
-            data: {'bookingId': bookingId, 'type': 'IN_PROGRESS'},
-          );
-        } else if (status == 'completed') {
-          await NotificationService.sendNotificationToUser(
-            userId: userId,
-            title: 'Service Completed! 🎉',
-            body: 'Work finished successfully. Tap to rate your technician 5-Stars ⭐',
-            data: {'bookingId': bookingId, 'type': 'COMPLETED'},
-          );
-        }
-      }
-    } catch (_) {}
   }
 
   // Verify Start OTP entered by technician from customer
   Future<bool> validateStartOtp(String bookingId, String enteredOtp) async {
     final doc = await _db.collection('bookings').doc(bookingId).get();
-    String storedOtp = '1234';
+    String? storedOtp;
     if (doc.exists) {
-      storedOtp = doc.data()?['startOtp']?.toString() ?? '1234';
+      storedOtp = doc.data()?['startOtp']?.toString();
     } else {
       final groupSnap = await _db.collectionGroup('bookings').where(FieldPath.documentId, isEqualTo: bookingId).get();
       if (groupSnap.docs.isNotEmpty) {
-        storedOtp = groupSnap.docs.first.data()['startOtp']?.toString() ?? '1234';
+        storedOtp = groupSnap.docs.first.data()['startOtp']?.toString();
       }
     }
     
-    if (enteredOtp.trim() == storedOtp.trim() || enteredOtp.trim() == '1234') {
-      await updateJobStatus(bookingId, 'in_progress');
+    final validOtp = (storedOtp != null && storedOtp.trim().isNotEmpty) ? storedOtp.trim() : '1234';
+    if (enteredOtp.trim() == validOtp) {
+      await updateJobStatus(bookingId, 'WORK_IN_PROGRESS');
       return true;
     }
     return false;
@@ -151,18 +143,19 @@ class TechnicianFirestoreService {
   // Verify Completion OTP entered by technician from customer
   Future<bool> validateCompletionOtp(String bookingId, String enteredOtp) async {
     final doc = await _db.collection('bookings').doc(bookingId).get();
-    String storedOtp = '5678';
+    String? storedOtp;
     if (doc.exists) {
-      storedOtp = doc.data()?['completionOtp']?.toString() ?? '5678';
+      storedOtp = doc.data()?['completionOtp']?.toString();
     } else {
       final groupSnap = await _db.collectionGroup('bookings').where(FieldPath.documentId, isEqualTo: bookingId).get();
       if (groupSnap.docs.isNotEmpty) {
-        storedOtp = groupSnap.docs.first.data()['completionOtp']?.toString() ?? '5678';
+        storedOtp = groupSnap.docs.first.data()['completionOtp']?.toString();
       }
     }
 
-    if (enteredOtp.trim() == storedOtp.trim() || enteredOtp.trim() == '5678') {
-      await updateJobStatus(bookingId, 'completed');
+    final validOtp = (storedOtp != null && storedOtp.trim().isNotEmpty) ? storedOtp.trim() : '5678';
+    if (enteredOtp.trim() == validOtp) {
+      await updateJobStatus(bookingId, 'WORK_COMPLETED');
       return true;
     }
     return false;
@@ -175,7 +168,7 @@ class TechnicianFirestoreService {
     double totalQuotationAmount,
   ) async {
     await _updateBookingDual(bookingId, {
-      'status': 'quotation_pending',
+      'status': 'QUOTATION_PENDING_APPROVAL',
       'quotationStatus': 'pending',
       'quoteTotal': totalQuotationAmount,
       'quotation': {
@@ -190,14 +183,7 @@ class TechnicianFirestoreService {
     try {
       final doc = await _db.collection('bookings').doc(bookingId).get();
       final userId = doc.data()?['userId']?.toString();
-      if (userId != null && userId.isNotEmpty) {
-        await NotificationService.sendNotificationToUser(
-          userId: userId,
-          title: 'New Estimate Submitted! 📋',
-          body: 'Estimate of ₹${totalQuotationAmount.toStringAsFixed(0)} added for spare parts/labor.',
-          data: {'bookingId': bookingId, 'type': 'QUOTATION_SUBMITTED'},
-        );
-      }
+      // Local push notifications removed - now handled centrally by Node.js fcm_engine.js
     } catch (_) {}
   }
 

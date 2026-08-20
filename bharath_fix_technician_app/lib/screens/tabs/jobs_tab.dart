@@ -142,7 +142,10 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final activeDocs = docs.where((doc) => doc.data()['status'] != 'completed' && doc.data()['status'] != 'cancelled').toList();
+        final activeDocs = docs.where((doc) {
+          final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
+          return !['completed', 'work_completed', 'paid_and_closed', 'closed', 'cancelled', 'cancelled_by_customer', 'cancelled_by_technician', 'unrepairable_closed'].contains(status);
+        }).toList();
         activeDocs.sort((a, b) {
           final aTime = (a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
           final bTime = (b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
@@ -408,28 +411,37 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
                       }
                     } catch (_) {}
 
-                    await _firestoreService.claimJob(
+                    final success = await _firestoreService.claimJob(
                       bookingId,
                       widget.techId,
                       techName,
                       techPhone,
                     );
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Job claimed successfully! Opening job dashboard..."),
-                          backgroundColor: AppColors.success,
-                        ),
-                      );
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => JobDetailScreen(
-                            bookingId: bookingId,
-                            techId: widget.techId,
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Job claimed successfully! Opening job dashboard..."),
+                            backgroundColor: AppColors.success,
                           ),
-                        ),
-                      );
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => JobDetailScreen(
+                              bookingId: bookingId,
+                              techId: widget.techId,
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Sorry, this job was already claimed by another technician!"),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
@@ -606,28 +618,37 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
                           }
                         } catch (_) {}
 
-                        await _firestoreService.claimJob(
+                        final success = await _firestoreService.claimJob(
                           bookingId,
                           widget.techId,
                           tName,
                           tPhone,
                         );
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Job claimed successfully! Check your Assigned Jobs."),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => JobDetailScreen(
-                                bookingId: bookingId,
-                                techId: widget.techId,
+                          if (success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Job claimed successfully! Check your Assigned Jobs."),
+                                backgroundColor: AppColors.success,
                               ),
-                            ),
-                          );
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => JobDetailScreen(
+                                  bookingId: bookingId,
+                                  techId: widget.techId,
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Sorry, this job was already claimed by another technician!"),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
                         }
                       },
                       icon: const Icon(Icons.add_task_rounded, color: Colors.white, size: 18),

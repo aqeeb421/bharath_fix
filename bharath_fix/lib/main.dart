@@ -7,6 +7,9 @@ import 'package:bharath_fix/services/database_service.dart';
 import 'package:bharath_fix/services/notification_service.dart';
 import 'package:bharath_fix/services/theme_service.dart';
 import 'package:bharath_fix/services/language_service.dart';
+import 'package:bharath_fix/services/auth_enforcement_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 
 void main() async {
@@ -35,6 +38,8 @@ void main() async {
 
   await dbService.fetchProfile();
 
+  AuthEnforcementService().startMonitoring();
+
   runApp(const MyApp());
 }
 
@@ -56,6 +61,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          navigatorKey: navigatorKey,
           initialRoute: AppRoutes.splash,
           routes: AppRoutes.routes,
         );

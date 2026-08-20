@@ -1,6 +1,7 @@
 /**
- * BharathFix Centralized FCM Push Notification Engine
+ * BharathFix Centralized Backend Engine
  * Listens to real-time Firestore booking state changes and dispatches automated FCM push alerts
+ * Also handles Wallet/Commission calculations on job completion.
  */
 
 class FcmEngine {
@@ -10,12 +11,11 @@ class FcmEngine {
     this.messaging = admin.messaging();
     this.isListening = false;
     this.unsubscribe = null;
+    this.ordersUnsubscribe = null;
     this.lastNotifiedStatus = new Map();
+    this.lastNotifiedOrderStatus = new Map();
   }
 
-  /**
-   * Start real-time Firestore listener for booking status transitions
-   */
   startListener() {
     if (this.isListening) return;
 
@@ -26,9 +26,8 @@ class FcmEngine {
       (snapshot) => {
         if (isInitialLoad) {
           isInitialLoad = false;
-          // Seed initial statuses to prevent spamming on server startup
           snapshot.docs.forEach((doc) => {
-            const st = (doc.data()?.status || '').toLowerCase().trim();
+            const st = (doc.data()?.status || '').trim();
             this.lastNotifiedStatus.set(doc.id, st);
           });
           console.log(`📡 FCM Engine synchronized with ${snapshot.size} existing active bookings.`);
@@ -38,7 +37,7 @@ class FcmEngine {
         snapshot.docChanges().forEach(async (change) => {
           const bookingData = change.doc.data();
           const bookingId = change.doc.id;
-          const status = (bookingData.status || '').toLowerCase().trim();
+          const status = (bookingData.status || '').trim();
 
           if (change.type === 'added') {
             console.log(`📋 New Booking Created: #${bookingId}`);
@@ -47,7 +46,6 @@ class FcmEngine {
           } else if (change.type === 'modified') {
             const previousStatus = this.lastNotifiedStatus.get(bookingId);
             if (previousStatus === status) {
-              // Status has not changed (e.g. live GPS or timestamp update); skip duplicate FCM push!
               return;
             }
             this.lastNotifiedStatus.set(bookingId, status);
@@ -65,7 +63,6 @@ class FcmEngine {
           } catch (_) {}
           this.unsubscribe = null;
         }
-        // Auto-reconnect after 5 seconds to recover from stream drops
         console.log('🔄 Firestore listener dropped. Auto-reconnecting FCM Engine in 5 seconds...');
         setTimeout(() => {
           this.startListener();
@@ -73,12 +70,45 @@ class FcmEngine {
       }
     );
 
+    let isOrdersInitialLoad = true;
+    this.ordersUnsubscribe = this.db.collection('orders').onSnapshot(
+      (snapshot) => {
+        if (isOrdersInitialLoad) {
+          isOrdersInitialLoad = false;
+          snapshot.docs.forEach((doc) => {
+            const st = (doc.data()?.orderStatus || doc.data()?.status || '').trim();
+            this.lastNotifiedOrderStatus.set(doc.id, st);
+          });
+          return;
+        }
+
+        snapshot.docChanges().forEach(async (change) => {
+          const orderData = change.doc.data();
+          const orderId = change.doc.id;
+          const status = (orderData.orderStatus || orderData.status || '').trim();
+
+          if (change.type === 'added') {
+            this.lastNotifiedOrderStatus.set(orderId, status);
+            await this.recordAdminNotification({
+              title: '📦 New Product Order',
+              body: `New order (#${orderId}) placed for ${orderData.productName || 'product'}.`,
+              data: { orderId, type: 'NEW_ORDER' }
+            });
+          } else if (change.type === 'modified') {
+            const previousStatus = this.lastNotifiedOrderStatus.get(orderId);
+            if (previousStatus === status) return;
+            
+            this.lastNotifiedOrderStatus.set(orderId, status);
+            await this.handleOrderStatusTransition(orderId, orderData);
+          }
+        });
+      },
+      (error) => console.error('❌ Firestore Orders Listener Error:', error)
+    );
+
     this.isListening = true;
   }
 
-  /**
-   * Stop Firestore real-time listener
-   */
   stopListener() {
     if (this.unsubscribe) {
       try {
@@ -86,25 +116,26 @@ class FcmEngine {
       } catch (_) {}
       this.unsubscribe = null;
     }
+    if (this.ordersUnsubscribe) {
+      try {
+        this.ordersUnsubscribe();
+      } catch (_) {}
+      this.ordersUnsubscribe = null;
+    }
     this.isListening = false;
     console.log('🛑 Firestore FCM Real-Time Listener stopped.');
   }
 
-  /**
-   * Handle new booking creation -> Notify available technicians in category & Admin
-   */
   async handleNewBooking(bookingId, booking) {
     const category = booking.title || booking.category || 'Appliance Service';
     const address = booking.address || 'Hassan, KA';
 
-    // Broadcast to available technicians
     await this.notifyAvailableTechnicians({
       title: '🔔 New Service Request Nearby!',
       body: `New ${category} request near ${address}. Tap to review details & accept job.`,
       data: { bookingId, type: 'NEW_BOOKING_ALERT', category }
     });
 
-    // Notify Customer confirmation
     if (booking.userId) {
       await this.sendToUser(booking.userId, {
         title: '📋 Booking Confirmed!',
@@ -113,7 +144,6 @@ class FcmEngine {
       });
     }
 
-    // Record Admin Panel Notification
     await this.recordAdminNotification({
       title: '📋 New Booking Placed',
       body: `New ${category} request (#${bookingId}) placed in ${address}.`,
@@ -121,11 +151,8 @@ class FcmEngine {
     });
   }
 
-  /**
-   * Handle booking status transitions across the state machine
-   */
   async handleStatusTransition(bookingId, booking) {
-    const status = (booking.status || '').toLowerCase().trim();
+    const status = (booking.status || '').trim().toUpperCase();
     const userId = booking.userId || booking.customerId;
     const techId = booking.providerId;
     const techName = booking.providerName || 'Technician';
@@ -133,7 +160,7 @@ class FcmEngine {
     const quoteTotal = booking.quoteTotal || booking.additionalCost || 0;
 
     switch (status) {
-      case 'accepted':
+      case 'ACCEPTED':
         if (userId) {
           await this.sendToUser(userId, {
             title: '⚡ Technician Assigned!',
@@ -148,7 +175,7 @@ class FcmEngine {
         });
         break;
 
-      case 'on_the_way':
+      case 'IN_TRANSIT':
         if (userId) {
           await this.sendToUser(userId, {
             title: '🚗 Technician On The Way',
@@ -158,7 +185,7 @@ class FcmEngine {
         }
         break;
 
-      case 'arrived':
+      case 'ARRIVED':
         if (userId) {
           const otp = booking.startOtp || '1234';
           await this.sendToUser(userId, {
@@ -169,19 +196,19 @@ class FcmEngine {
         }
         break;
 
-      case 'inspection_in_progress':
-      case 'in_progress':
+      case 'INSPECTION_IN_PROGRESS':
+      case 'WORK_IN_PROGRESS':
         if (userId) {
           await this.sendToUser(userId, {
-            title: '🔍 Inspection Underway',
-            body: `Start OTP verified. ${techName} is inspecting your appliance.`,
+            title: '🔍 Service Underway',
+            body: `Start OTP verified. ${techName} is inspecting/servicing your appliance.`,
             data: { bookingId, type: 'INSPECTION_STARTED' }
           });
         }
         break;
 
-      case 'quotation_pending':
-      case 'quotation_pending_approval':
+      case 'QUOTATION_PENDING':
+      case 'QUOTATION_PENDING_APPROVAL':
         if (userId) {
           await this.sendToUser(userId, {
             title: '📄 Repair Quotation Submitted',
@@ -196,7 +223,7 @@ class FcmEngine {
         });
         break;
 
-      case 'repair_in_progress':
+      case 'REPAIR_IN_PROGRESS':
         if (techId) {
           await this.sendToTech(techId, {
             title: '✅ Quotation Approved!',
@@ -211,7 +238,8 @@ class FcmEngine {
         });
         break;
 
-      case 'visit_only_completed':
+      case 'VISIT_ONLY_COMPLETED':
+      case 'QUOTATION_REJECTED':
         if (techId) {
           await this.sendToTech(techId, {
             title: '❌ Quotation Declined',
@@ -226,7 +254,8 @@ class FcmEngine {
         });
         break;
 
-      case 'completed':
+      case 'WORK_COMPLETED':
+      case 'PAID_AND_CLOSED':
         if (userId) {
           await this.sendToUser(userId, {
             title: '🎉 Service Completed!',
@@ -246,9 +275,12 @@ class FcmEngine {
           body: `Booking #${bookingId} successfully completed by ${techName}.`,
           data: { bookingId, type: 'JOB_COMPLETED' }
         });
+
+        // Trigger Wallet Engine logic
+        await this.processWalletLedger(bookingId, booking);
         break;
 
-      case 'reviewed':
+      case 'REVIEWED':
         if (techId) {
           const rating = booking.rating || 5;
           const comment = booking.reviewComment || '';
@@ -260,7 +292,7 @@ class FcmEngine {
         }
         break;
 
-      case 'warranty_claimed':
+      case 'WARRANTY_CLAIMED':
         if (techId) {
           await this.sendToTech(techId, {
             title: '🛡️ Warranty Claim Filed',
@@ -280,9 +312,142 @@ class FcmEngine {
     }
   }
 
+  async handleOrderStatusTransition(orderId, orderData) {
+    const status = (orderData.orderStatus || orderData.status || '').trim().toUpperCase();
+    const userId = orderData.userId;
+    const productName = orderData.productName || 'your product';
+
+    switch (status) {
+      case 'ADMINORDERSTATUS.PROCESSING':
+      case 'PROCESSING':
+        if (userId) {
+          await this.sendToUser(userId, {
+            title: '📦 Order Processing',
+            body: `Your order for ${productName} is now being processed.`,
+            data: { orderId, type: 'ORDER_PROCESSING' }
+          });
+        }
+        break;
+
+      case 'ADMINORDERSTATUS.SHIPPED':
+      case 'SHIPPED':
+        if (userId) {
+          await this.sendToUser(userId, {
+            title: '🚚 Order Shipped',
+            body: `Your order for ${productName} has been shipped!`,
+            data: { orderId, type: 'ORDER_SHIPPED' }
+          });
+        }
+        break;
+
+      case 'ADMINORDERSTATUS.OUTFORDELIVERY':
+      case 'OUTFORDELIVERY':
+      case 'OUT_FOR_DELIVERY':
+        if (userId) {
+          await this.sendToUser(userId, {
+            title: '🛵 Out For Delivery',
+            body: `Your order for ${productName} is out for delivery. Have your OTP ready: ${orderData.deliveryOtp || '1234'}`,
+            data: { orderId, type: 'ORDER_OUT_FOR_DELIVERY' }
+          });
+        }
+        break;
+
+      case 'ADMINORDERSTATUS.DELIVERED':
+      case 'DELIVERED':
+        if (userId) {
+          await this.sendToUser(userId, {
+            title: '✅ Order Delivered',
+            body: `Your order for ${productName} has been delivered successfully.`,
+            data: { orderId, type: 'ORDER_DELIVERED' }
+          });
+        }
+        break;
+
+      case 'ADMINORDERSTATUS.CANCELLED':
+      case 'CANCELLED':
+        if (userId) {
+          await this.sendToUser(userId, {
+            title: '❌ Order Cancelled',
+            body: `Your order for ${productName} has been cancelled.`,
+            data: { orderId, type: 'ORDER_CANCELLED' }
+          });
+        }
+        break;
+    }
+  }
+
   /**
-   * Record real-time notification document for Admin Panel
+   * Calculates platform commission and updates technician wallet balance or COD debt.
    */
+  async processWalletLedger(bookingId, booking) {
+    try {
+      const providerId = booking.providerId;
+      if (!providerId) return;
+
+      const providerRef = this.db.collection('providers').doc(providerId);
+      
+      const quoteTotal = booking.quoteTotal || booking.visitingFee || 199.0;
+      const commissionRate = 0.15; // 15% default platform commission
+      const platformFee = quoteTotal * commissionRate;
+      const technicianEarnings = quoteTotal - platformFee;
+
+      const isCOD = booking.paymentMode === 'COD';
+
+      await this.db.runTransaction(async (transaction) => {
+        const providerDoc = await transaction.get(providerRef);
+        if (!providerDoc.exists) return;
+
+        // Check if ledger entry already exists to ensure idempotency
+        const ledgerSnap = await transaction.get(providerRef.collection('walletLedger').where('jobId', '==', bookingId));
+        if (!ledgerSnap.empty) {
+          console.log(`Wallet ledger already processed for booking #${bookingId}`);
+          return;
+        }
+
+        const currentData = providerDoc.data();
+        const currentWalletBalance = currentData.walletBalance || 0;
+        const currentCodDebt = currentData.codDebt || 0;
+
+        let newWalletBalance = currentWalletBalance;
+        let newCodDebt = currentCodDebt;
+
+        if (isCOD) {
+          // Tech collected full cash, owes platform fee
+          newCodDebt += platformFee;
+        } else {
+          // Online payment collected by platform, credit tech net earnings
+          newWalletBalance += technicianEarnings;
+        }
+
+        // COD Safety Threshold check (₹5000)
+        const codThreshold = 5000;
+        const isDutyBlocked = newCodDebt >= codThreshold;
+
+        transaction.update(providerRef, {
+          walletBalance: newWalletBalance,
+          codDebt: newCodDebt,
+          isDutyBlocked: isDutyBlocked,
+          updatedAt: this.admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Add ledger entry
+        const ledgerRef = providerRef.collection('walletLedger').doc();
+        transaction.set(ledgerRef, {
+          jobId: bookingId,
+          type: isCOD ? 'COD_COMMISSION_DEBIT' : 'JOB_EARNINGS_CREDIT',
+          amount: isCOD ? -platformFee : technicianEarnings,
+          grossAmount: quoteTotal,
+          platformFee: platformFee,
+          timestamp: this.admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      console.log(`💰 Processed wallet ledger for provider ${providerId} on booking #${bookingId}`);
+    } catch (error) {
+      console.error(`❌ Failed to process wallet ledger for booking #${bookingId}:`, error);
+    }
+  }
+
   async recordAdminNotification(payload) {
     try {
       const notifId = `notif_admin_${Date.now()}`;
@@ -294,170 +459,96 @@ class FcmEngine {
         isRead: false,
         createdAt: this.admin.firestore.FieldValue.serverTimestamp()
       });
-      console.log(`📡 Admin notification recorded: [${payload.title}]`);
-    } catch (error) {
-      console.error('❌ Record Admin Notification failed:', error.message);
-    }
+    } catch (error) {}
   }
 
-  /**
-   * Send FCM Push Notification to a Customer
-   */
   async sendToUser(userId, payload) {
     try {
-      // 1. Record in-app notification document
       const notifId = `notif_u_${Date.now()}`;
-      await this.db
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .doc(notifId)
-        .set({
-          id: notifId,
-          userId,
-          title: payload.title,
-          body: payload.body,
-          data: payload.data || {},
-          isRead: false,
-          createdAt: this.admin.firestore.FieldValue.serverTimestamp()
-        });
+      await this.db.collection('users').doc(userId).collection('notifications').doc(notifId).set({
+        id: notifId,
+        userId,
+        title: payload.title,
+        body: payload.body,
+        data: payload.data || {},
+        isRead: false,
+        createdAt: this.admin.firestore.FieldValue.serverTimestamp()
+      });
 
-      // 2. Fetch Customer FCM Token & Dispatch Push
       const userDoc = await this.db.collection('users').doc(userId).get();
       const token = userDoc.data()?.fcmToken;
 
       if (token && token.trim().length > 0) {
         await this.messaging.send({
           token: token.trim(),
-          notification: {
-            title: payload.title,
-            body: payload.body
-          },
+          notification: { title: payload.title, body: payload.body },
           data: {
             click_action: 'FLUTTER_NOTIFICATION_CLICK',
             title: payload.title,
             body: payload.body,
             ...(payload.data || {})
           },
-          android: {
-            priority: 'high',
-            notification: {
-              channelId: 'high_importance_channel',
-              sound: 'default'
-            }
-          }
+          android: { priority: 'high', notification: { channelId: 'high_importance_channel', sound: 'default' } }
         });
-        console.log(`✅ FCM Push sent to User [${userId}]`);
       }
-    } catch (error) {
-      console.error(`❌ FCM Send to User [${userId}] failed:`, error.message);
-    }
+    } catch (error) {}
   }
 
-  /**
-   * Send FCM Push Notification to a Technician
-   */
   async sendToTech(techId, payload) {
     try {
-      // 1. Record in-app notification document
       const notifId = `notif_t_${Date.now()}`;
-      await this.db
-        .collection('providers')
-        .doc(techId)
-        .collection('notifications')
-        .doc(notifId)
-        .set({
-          id: notifId,
-          techId,
-          title: payload.title,
-          body: payload.body,
-          data: payload.data || {},
-          isRead: false,
-          createdAt: this.admin.firestore.FieldValue.serverTimestamp()
-        });
+      await this.db.collection('providers').doc(techId).collection('notifications').doc(notifId).set({
+        id: notifId,
+        techId,
+        title: payload.title,
+        body: payload.body,
+        data: payload.data || {},
+        isRead: false,
+        createdAt: this.admin.firestore.FieldValue.serverTimestamp()
+      });
 
-      // 2. Fetch Tech FCM Token & Dispatch Push
       const techDoc = await this.db.collection('providers').doc(techId).get();
       const token = techDoc.data()?.fcmToken;
 
       if (token && token.trim().length > 0) {
         await this.messaging.send({
           token: token.trim(),
-          notification: {
-            title: payload.title,
-            body: payload.body
-          },
+          notification: { title: payload.title, body: payload.body },
           data: {
             click_action: 'FLUTTER_NOTIFICATION_CLICK',
             title: payload.title,
             body: payload.body,
             ...(payload.data || {})
           },
-          android: {
-            priority: 'high',
-            notification: {
-              channelId: 'high_importance_channel',
-              sound: 'default'
-            }
-          }
+          android: { priority: 'high', notification: { channelId: 'high_importance_channel', sound: 'default' } }
         });
-        console.log(`✅ FCM Push sent to Technician [${techId}]`);
       }
-    } catch (error) {
-      console.error(`❌ FCM Send to Tech [${techId}] failed:`, error.message);
-    }
+    } catch (error) {}
   }
 
-  /**
-   * Broadcast notification to all active technicians
-   */
   async notifyAvailableTechnicians(payload) {
     try {
       const snap = await this.db.collection('providers').get();
       const tokens = [];
-
       snap.docs.forEach((doc) => {
         const token = doc.data()?.fcmToken;
-        if (token && token.trim().length > 0) {
-          tokens.push(token.trim());
-        }
+        if (token && token.trim().length > 0) tokens.push(token.trim());
       });
 
       if (tokens.length > 0) {
         await this.messaging.sendEachForMulticast({
           tokens,
-          notification: {
-            title: payload.title,
-            body: payload.body
-          },
+          notification: { title: payload.title, body: payload.body },
           data: {
             click_action: 'FLUTTER_NOTIFICATION_CLICK',
             title: payload.title,
             body: payload.body,
             ...(payload.data || {})
           },
-          android: {
-            priority: 'high',
-            notification: {
-              channelId: 'high_importance_channel',
-              sound: 'default',
-              priority: 'max'
-            }
-          },
-          apns: {
-            payload: {
-              aps: {
-                contentAvailable: true,
-                sound: 'default'
-              }
-            }
-          }
+          android: { priority: 'high', notification: { channelId: 'high_importance_channel', sound: 'default', priority: 'max' } }
         });
-        console.log(`📢 Broadcasted FCM to ${tokens.length} technicians.`);
       }
-    } catch (error) {
-      console.error('❌ Broadcast to Technicians failed:', error.message);
-    }
+    } catch (error) {}
   }
 }
 

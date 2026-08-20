@@ -211,7 +211,7 @@ enum TechBookingStatus {
     if (st == 'cancelled_enroute') return TechBookingStatus.cancelledEnroute;
     if (st == 'cancelled_at_site') return TechBookingStatus.cancelledAtSite;
     if (st == 'payment_pending_verification') return TechBookingStatus.paymentPendingVerification;
-    if (st == 'completed' || st == 'paid_and_closed') return TechBookingStatus.completed;
+    if (st == 'completed' || st == 'paid_and_closed' || st == 'work_completed') return TechBookingStatus.completed;
     if (st == 'reviewed' || st == 'rating_given') return TechBookingStatus.reviewed;
     if (st == 'warranty_claimed' || st == 'under_warranty') return TechBookingStatus.warrantyClaimed;
     if (st == 'warranty_rework_assigned') return TechBookingStatus.warrantyReworkAssigned;

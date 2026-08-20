@@ -4,6 +4,7 @@ import 'package:bharath_fix/features/Support/about_screen.dart';
 import 'offers_screen.dart';
 import 'wallet_screen.dart';
 import 'edit_profile_screen.dart';
+import '../Bookings/bookings_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter/material.dart';
@@ -255,6 +256,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               if (!_isGuest) ...[
+                _buildNavigationRow(
+                  Icons.local_shipping_outlined,
+                  'My Orders',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BookingsScreen(initialTab: 1),
+                      ),
+                    );
+                  },
+                ),
                 _buildNavigationRow(
                   Icons.account_balance_wallet_outlined,
                   'Wallet',

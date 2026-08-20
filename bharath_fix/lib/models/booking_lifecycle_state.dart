@@ -228,7 +228,7 @@ enum BookingLifecycleState {
     if (st == 'cancelled_enroute') return BookingLifecycleState.cancelledEnroute;
     if (st == 'cancelled_at_site') return BookingLifecycleState.cancelledAtSite;
     if (st == 'payment_pending_verification') return BookingLifecycleState.paymentPendingVerification;
-    if (st == 'completed' || st == 'paid_and_closed') return BookingLifecycleState.completed;
+    if (st == 'completed' || st == 'paid_and_closed' || st == 'work_completed') return BookingLifecycleState.completed;
     if (st == 'reviewed' || st == 'rating_given') return BookingLifecycleState.reviewed;
     if (st == 'warranty_claimed' || st == 'under_warranty') return BookingLifecycleState.warrantyClaimed;
     if (st == 'warranty_rework_assigned') return BookingLifecycleState.warrantyReworkAssigned;

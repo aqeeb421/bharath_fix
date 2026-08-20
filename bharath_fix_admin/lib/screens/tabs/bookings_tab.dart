@@ -54,6 +54,18 @@ class _BookingsTabState extends State<BookingsTab> {
     'Admin Audit Hold',
   ];
 
+  String _mapStatusToUppercase(String uiStatus) {
+    if (uiStatus == 'On The Way') return 'IN_TRANSIT';
+    if (uiStatus == 'Repair In Progress') return 'WORK_IN_PROGRESS';
+    if (uiStatus == 'Completed') return 'WORK_COMPLETED';
+    if (uiStatus == 'Parts Awaited (Paused)') return 'PAUSED_PARTS_SOURCING';
+    if (uiStatus == 'Unrepairable / BER') return 'UNREPAIRABLE_BER';
+    if (uiStatus == 'Emergency Released (Re-pooled)') return 'EMERGENCY_RELEASED';
+    if (uiStatus == 'Unfulfilled (Refunded)') return 'UNFULFILLED_REFUNDED';
+    if (uiStatus == 'Payment Pending Verification') return 'PENDING_PAYMENT';
+    return uiStatus.toUpperCase().replaceAll(' ', '_');
+  }
+
   double _calculateBookingTotal(Map<String, dynamic> data) {
     final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
     final quotationMap = data['quotation'] as Map<String, dynamic>?;
@@ -369,7 +381,7 @@ class _BookingsTabState extends State<BookingsTab> {
                               icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF000062)),
                               items: _allStatuses.where((s) => s != 'All').map((statusValue) {
                                 return DropdownMenuItem(
-                                  value: statusValue.toLowerCase().replaceAll(' ', '_'),
+                                  value: _mapStatusToUppercase(statusValue),
                                   child: Text(
                                     statusValue,
                                     style: GoogleFonts.plusJakartaSans(fontSize: 12),
@@ -501,7 +513,7 @@ class _BookingsTabState extends State<BookingsTab> {
                       hint: Text('Update Status', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF000062))),
                       items: _allStatuses.where((s) => s != 'All').map((statusValue) {
                         return DropdownMenuItem(
-                          value: statusValue.toLowerCase().replaceAll(' ', '_'),
+                          value: _mapStatusToUppercase(statusValue),
                           child: Text(
                             statusValue,
                             style: GoogleFonts.plusJakartaSans(fontSize: 12),

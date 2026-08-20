@@ -12,6 +12,7 @@ const admin = require('firebase-admin');
 
 const FcmEngine = require('./services/fcm_engine');
 const createAdminRoutes = require('./routes/admin_routes');
+const createPaymentRoutes = require('./routes/payment_routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,6 +72,7 @@ app.get('/health', (req, res) => {
 // Admin REST APIs
 if (admin.apps.length > 0 && fcmEngine) {
   app.use('/api/admin', createAdminRoutes(admin, fcmEngine));
+  app.use('/api/payment', createPaymentRoutes(admin));
 } else {
   app.use('/api/admin', (req, res) => {
     res.status(503).json({
