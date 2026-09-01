@@ -978,7 +978,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildPaymentMethodsSection() {
     String cleanPrice = widget.priceString.replaceAll('₹', '').replaceAll(',', '').trim();
-    double orderAmount = double.tryParse(cleanPrice) ?? 199.0;
+    double orderAmount = double.tryParse(cleanPrice) ?? 19.0;
 
     return StreamBuilder<double>(
       stream: DatabaseService().walletBalanceStream(),
@@ -1161,7 +1161,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   double _getFinalPayableAmount() {
     String cleanPrice = widget.priceString.replaceAll('₹', '').replaceAll(',', '').trim();
-    double basePrice = double.tryParse(cleanPrice) ?? 199.0;
+    double basePrice = double.tryParse(cleanPrice) ?? 19.0;
     double finalAmt = basePrice - _discountAmount;
     return finalAmt < 0 ? 0.0 : finalAmt;
   }
@@ -1171,7 +1171,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (upper.isEmpty) return;
 
     String cleanPrice = widget.priceString.replaceAll('₹', '').replaceAll(',', '').trim();
-    double basePrice = double.tryParse(cleanPrice) ?? 199.0;
+    double basePrice = double.tryParse(cleanPrice) ?? 19.0;
 
     final result = await CouponService().validateAndApplyCoupon(upper, basePrice);
 
@@ -1319,19 +1319,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildBillDetailsSection() {
     double finalPayable = _getFinalPayableAmount();
+    String cleanPrice = widget.priceString.replaceAll('₹', '').replaceAll(',', '').trim();
+    double basePrice = double.tryParse(cleanPrice) ?? 19.0;
+    bool isPromoVisit = basePrice <= 19.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Bill Details', style: AppTextStyle.bodyBold),
         SizedBox(height: AppSpacing.medium),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Inspection Visit Fee', style: AppTextStyle.subtitle.copyWith(fontSize: 14)),
-            Text(widget.priceString, style: AppTextStyle.bodyBold),
-          ],
-        ),
+        if (isPromoVisit) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Standard Doorstep Inspection MRP', style: AppTextStyle.subtitle.copyWith(fontSize: 13)),
+              Text(
+                '₹499',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  color: AppColors.subtitle,
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: AppColors.subtitle,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Inaugural Special Offer', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w600)),
+              Text('-₹480', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+            ],
+          ),
+          SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Doorstep Inspection Fee', style: AppTextStyle.subtitle.copyWith(fontSize: 14)),
+              Text('₹19', style: AppTextStyle.bodyBold),
+            ],
+          ),
+        ] else ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Service Base Fee', style: AppTextStyle.subtitle.copyWith(fontSize: 14)),
+              Text(widget.priceString, style: AppTextStyle.bodyBold),
+            ],
+          ),
+        ],
         if (_appliedCouponCode != null && _discountAmount > 0) ...[
           SizedBox(height: AppSpacing.small),
           Row(
@@ -1352,6 +1390,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Text('₹${finalPayable.toStringAsFixed(0)}', style: AppTextStyle.mainTitle.copyWith(fontSize: 18, color: AppColors.primary)),
           ],
         ),
+        if (isPromoVisit) ...[
+          SizedBox(height: AppSpacing.small),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.stars_rounded, size: 16, color: Color(0xFF2E7D32)),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '🎉 Actual booking is ₹499, serving you today for only ₹19!',
+                    style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

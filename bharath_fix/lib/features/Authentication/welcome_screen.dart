@@ -121,7 +121,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   SizedBox(height: AppSpacing.medium),
                   Text(
-                    'Book trusted pros for cleaning, AC, plumbing, salon and more — starting ₹199.',
+                    'Book trusted pros for home appliances, AC, RO and more — starting ₹19.',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontWeight: FontWeight.w500,

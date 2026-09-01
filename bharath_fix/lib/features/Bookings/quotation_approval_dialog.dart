@@ -44,7 +44,7 @@ class _QuotationApprovalDialogState extends State<QuotationApprovalDialog> {
   @override
   Widget build(BuildContext context) {
     final double quoteTotal = widget.booking.quoteTotal;
-    final double visitingFee = widget.booking.visitingFee > 0 ? widget.booking.visitingFee : 199.0;
+    final double visitingFee = widget.booking.visitingFee > 0 ? widget.booking.visitingFee : 19.0;
     final bool isFeePaid = widget.booking.isVisitingFeePaid;
     final double totalPayable = quoteTotal + (isFeePaid ? 0.0 : visitingFee);
 

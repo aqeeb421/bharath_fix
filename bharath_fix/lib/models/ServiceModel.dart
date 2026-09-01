@@ -20,7 +20,7 @@ class ServiceModel {
     this.image = '',
     this.isInstallationNeeded = false,
     this.isInstallationFree = true,
-    this.installationFee = '₹199',
+    this.installationFee = '₹299',
   });
 
   Map<String, dynamic> toMap() {
@@ -49,7 +49,7 @@ class ServiceModel {
       image: map['image'] ?? map['bannerImage'] ?? '',
       isInstallationNeeded: map['isInstallationNeeded'] as bool? ?? false,
       isInstallationFree: map['isInstallationFree'] as bool? ?? true,
-      installationFee: map['installationFee']?.toString() ?? '₹199',
+      installationFee: map['installationFee']?.toString() ?? '₹299',
     );
   }
 

@@ -255,7 +255,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        'SAVE ₹300',
+                        'SAVE ₹480',
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 10,

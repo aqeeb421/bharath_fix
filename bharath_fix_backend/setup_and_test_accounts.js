@@ -142,7 +142,7 @@ async function setupTestUsers() {
     customerName: 'Demo Customer',
     customerPhone: '8073804900',
     address: 'Hassan, Karnataka',
-    visitingFee: 199,
+    visitingFee: 19,
     startOtp: '1234',
     completionOtp: '5678',
     createdAt: admin.firestore.FieldValue.serverTimestamp()

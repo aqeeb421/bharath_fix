@@ -46,7 +46,7 @@ class _DashboardTabState extends State<DashboardTab> {
 
               for (var doc in bookingsDocs) {
                 final docData = doc.data();
-                final double visitingFee = (docData['visitingFee'] as num?)?.toDouble() ?? 199.0;
+                final double visitingFee = (docData['visitingFee'] as num?)?.toDouble() ?? 19.0;
                 final quotationMap = docData['quotation'] as Map<String, dynamic>?;
                 final double quoteTotal = (quotationMap?['totalAmount'] as num?)?.toDouble() ??
                     (docData['quoteTotal'] as num?)?.toDouble() ??
@@ -608,7 +608,7 @@ class _DashboardTabState extends State<DashboardTab> {
 
     for (var doc in bookingsDocs) {
       final d = doc.data();
-      final vf = (d['visitingFee'] as num?)?.toDouble() ?? 199.0;
+      final vf = (d['visitingFee'] as num?)?.toDouble() ?? 19.0;
       final qm = d['quotation'] as Map<String, dynamic>?;
       final qt = (qm?['totalAmount'] as num?)?.toDouble() ?? (d['additionalCost'] as num?)?.toDouble() ?? 0.0;
       visitingFeeTotal += vf;

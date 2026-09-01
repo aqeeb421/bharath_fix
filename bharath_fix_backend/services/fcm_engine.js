@@ -229,23 +229,18 @@ class FcmEngine {
     const category = booking.title || booking.category || 'Appliance Service';
     const address = booking.address || 'Hassan, KA';
 
-    await this.notifyAvailableTechnicians({
-      title: '🔔 New Service Request Nearby!',
-      body: `New ${category} request near ${address}. Tap to review details & accept job.`,
-      data: { bookingId, type: 'NEW_BOOKING_ALERT', category }
-    });
-
-    if (booking.userId) {
-      await this.sendToUser(booking.userId, {
+    const userId = booking.userId || booking.customerId;
+    if (userId) {
+      await this.sendToUser(userId, {
         title: '📋 Booking Confirmed!',
-        body: `Your request for ${category} (#${bookingId}) has been placed. Searching for nearby technicians...`,
+        body: `Your request for ${category} (#${bookingId}) has been placed. Our team is assigning a qualified technician.`,
         data: { bookingId, type: 'BOOKING_CONFIRMED' }
       });
     }
 
     await this.recordAdminNotification({
-      title: '📋 New Booking Placed',
-      body: `New ${category} request (#${bookingId}) placed in ${address}.`,
+      title: '📋 New Booking Awaiting Dispatch',
+      body: `New ${category} request (#${bookingId}) placed in ${address}. Open Admin Console to assign technician.`,
       data: { bookingId, type: 'NEW_BOOKING' }
     });
   }
@@ -253,23 +248,31 @@ class FcmEngine {
   async handleStatusTransition(bookingId, booking) {
     const status = (booking.status || '').trim().toUpperCase();
     const userId = booking.userId || booking.customerId;
-    const techId = booking.providerId;
-    const techName = booking.providerName || 'Technician';
-    const techPhone = booking.providerPhone || '';
+    const techId = booking.providerId || booking.technicianId;
+    const techName = booking.providerName || booking.technicianName || 'Technician';
+    const techPhone = booking.providerPhone || booking.technicianPhone || '';
     const quoteTotal = booking.quoteTotal || booking.additionalCost || 0;
 
     switch (status) {
+      case 'ASSIGNED':
       case 'ACCEPTED':
         if (userId) {
           await this.sendToUser(userId, {
             title: '⚡ Technician Assigned!',
-            body: `${techName} (${techPhone}) has accepted your booking.`,
+            body: `${techName} (${techPhone}) has been assigned to your booking #${bookingId}.`,
             data: { bookingId, type: 'TECHNICIAN_ASSIGNED' }
           });
         }
+        if (techId) {
+          await this.sendToTech(techId, {
+            title: '🔧 New Job Assigned by Admin!',
+            body: `You have been assigned to Booking #${bookingId} (${booking.title || 'Service'}). Open app to review details.`,
+            data: { bookingId, type: 'BOOKING_ASSIGNED' }
+          });
+        }
         await this.recordAdminNotification({
-          title: '⚡ Job Accepted',
-          body: `Technician ${techName} accepted Booking #${bookingId}.`,
+          title: '⚡ Job Assigned',
+          body: `Technician ${techName} assigned to Booking #${bookingId}.`,
           data: { bookingId, type: 'JOB_ACCEPTED' }
         });
         break;
@@ -506,7 +509,7 @@ class FcmEngine {
 
       const providerRef = this.db.collection('providers').doc(providerId);
       
-      const quoteTotal = booking.quoteTotal || booking.visitingFee || 199.0;
+      const quoteTotal = booking.quoteTotal || booking.visitingFee || 19.0;
       const commissionRate = 0.15; // 15% default platform commission
       const platformFee = quoteTotal * commissionRate;
       const technicianEarnings = quoteTotal - platformFee;

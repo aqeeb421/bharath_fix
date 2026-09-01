@@ -47,7 +47,7 @@ class InvoiceService {
   ) {
     final title = bookingData['title']?.toString() ?? 'Appliance Repair Service';
     final dateTime = bookingData['dateTime']?.toString() ?? 'Completed Visit';
-    final double visitingFee = (bookingData['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (bookingData['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final quotationMap = bookingData['quotation'] as Map<String, dynamic>?;
     final List<dynamic> quoteItems = (quotationMap?['items'] as List<dynamic>?) ?? [];
     final double quoteTotal = (quotationMap?['totalAmount'] as num?)?.toDouble() ?? 0.0;
@@ -166,7 +166,7 @@ class InvoiceService {
     final techPhone = bookingData['providerPhone']?.toString() ?? bookingData['techPhone']?.toString() ?? '';
     final paymentMode = (bookingData['paymentMode']?.toString() ?? 'COD').toUpperCase();
 
-    final double visitingFee = (bookingData['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (bookingData['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final bool isFeePaid = bookingData['isVisitingFeePaid'] == true || bookingData['isVisitingFeePaid'] == 1;
 
     final quotationMap = bookingData['quotation'] as Map<String, dynamic>?;

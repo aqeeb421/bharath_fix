@@ -57,7 +57,7 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
     final double quoteTotal = (quotation?['totalAmount'] as num?)?.toDouble() ??
         (widget.bookingData['quoteTotal'] as num?)?.toDouble() ??
         0.0;
-    final double visitingFee = (widget.bookingData['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (widget.bookingData['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final bool isFeePaid = widget.bookingData['isVisitingFeePaid'] == true || widget.bookingData['isVisitingFeePaid'] == 1;
     final double totalPayable = quoteTotal + (isFeePaid ? 0.0 : visitingFee);
 
@@ -126,7 +126,7 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
     final double quoteTotal = (quotation['totalAmount'] as num?)?.toDouble() ??
         (data['quoteTotal'] as num?)?.toDouble() ??
         0.0;
-    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final bool isFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
 
     final double totalPayable = quoteTotal + (isFeePaid ? 0.0 : visitingFee);

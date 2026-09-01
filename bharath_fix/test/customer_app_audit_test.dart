@@ -142,10 +142,10 @@ void main() {
       final double partsTotal = items.fold(0.0, (sum, it) => sum + it.price);
       expect(partsTotal, equals(700.0));
 
-      // If visiting fee was unpaid, add ₹199
-      const double visitingFee = 199.0;
+      // If visiting fee was unpaid, add ₹19
+      const double visitingFee = 19.0;
       final double totalWhenVisitingUnpaid = partsTotal + visitingFee;
-      expect(totalWhenVisitingUnpaid, equals(899.0));
+      expect(totalWhenVisitingUnpaid, equals(719.0));
 
       // If visiting fee was already paid, total is only partsTotal
       final double totalWhenVisitingPaid = partsTotal;
@@ -196,12 +196,12 @@ void main() {
         id: 'booking_cancel_01',
         title: 'Refrigerator Gas Refill',
         dateTime: 'Today 11:00 AM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         isVisitingFeePaid: true,
       );
 
       final double refundAmount = booking.isVisitingFeePaid ? booking.visitingFee : 0.0;
-      expect(refundAmount, equals(199.0));
+      expect(refundAmount, equals(19.0));
     });
 
     test('Cancellation of COD booking with unpaid visiting fee initiates 0 refund', () {
@@ -209,7 +209,7 @@ void main() {
         id: 'booking_cancel_02',
         title: 'AC Service',
         dateTime: 'Tomorrow 10:00 AM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         isVisitingFeePaid: false,
         paymentMode: 'COD',
       );

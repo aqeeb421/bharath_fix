@@ -610,6 +610,12 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: initialSub != null ? (initialSub['name'] as String? ?? '') : '');
     final imageController = TextEditingController(text: initialSub != null ? ((initialSub['image'] ?? initialSub['placeholderImage']) as String? ?? '') : '');
+    final descriptionController = TextEditingController(
+      text: initialSub != null ? (initialSub['description'] as String? ?? '') : '',
+    );
+    final visitingFeeController = TextEditingController(
+      text: initialSub != null ? (initialSub['visitingFee']?.toString() ?? initialSub['basePrice']?.toString() ?? '₹19') : '₹19',
+    );
     final installationFeeController = TextEditingController(
       text: initialSub != null ? (initialSub['installationFee']?.toString() ?? '₹299') : '₹299',
     );
@@ -630,85 +636,111 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
             return AlertDialog(
               backgroundColor: const Color(0xFF161230),
               title: Text(
-                subIndex == null ? 'Add Subcategory' : 'Edit Subcategory',
+                subIndex == null ? 'Add Subcategory / Service' : 'Edit Subcategory / Service',
                 style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
               ),
               content: Form(
                 key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          labelText: 'Subcategory Name',
-                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                          hintText: 'e.g. Front Load / Split AC',
-                          hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Subcategory name is required' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: imageController,
-                        style: const TextStyle(color: Colors.white),
-                        onChanged: (_) => setDialogState(() {}),
-                        decoration: const InputDecoration(
-                          labelText: 'Image Web URL',
-                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                          hintText: 'https://images.unsplash.com/...',
-                          hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Image URL is required' : null,
-                      ),
-                      _buildImageUrlPreview(imageController.text),
-                      const Divider(color: Colors.white24, height: 24),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Default Installation Settings for Subcategory',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Is Installation Needed Toggle
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Is Installation Needed?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
-                          Switch(
-                            value: isInstallationNeeded,
-                            activeColor: const Color(0xFF000062),
-                            onChanged: (v) => setDialogState(() => isInstallationNeeded = v),
+                child: SizedBox(
+                  width: 480,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Subcategory / Service Name',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. Front Load Repair / Split AC Servicing / RO Checkup',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
-                        ],
-                      ),
-                      if (isInstallationNeeded) ...[
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: imageController,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Image Web URL',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'https://images.unsplash.com/...',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Image URL is required' : null,
+                        ),
+                        _buildImageUrlPreview(imageController.text),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: descriptionController,
+                          maxLines: 2,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Service Description & Scope',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. Comprehensive diagnosis, TDS test, and filter cleaning included.',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: visitingFeeController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Doorstep Inspection / Visiting Fee',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: '₹19 (Promotional)',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const Divider(color: Colors.white24, height: 24),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Installation Settings (if applicable)',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Is Installation Needed Toggle
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Is Installation FREE?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
+                            const Text('Is Installation Required?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
                             Switch(
-                              value: isInstallationFree,
-                              activeColor: const Color(0xFF34A853),
-                              onChanged: (v) => setDialogState(() => isInstallationFree = v),
+                              value: isInstallationNeeded,
+                              activeColor: const Color(0xFF000062),
+                              onChanged: (v) => setDialogState(() => isInstallationNeeded = v),
                             ),
                           ],
                         ),
-                        if (!isInstallationFree) ...[
-                          TextFormField(
-                            controller: installationFeeController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: const InputDecoration(
-                              labelText: 'Default Installation Fee (e.g. ₹299)',
-                              labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                            ),
+                        if (isInstallationNeeded) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Is Installation FREE?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
+                              Switch(
+                                value: isInstallationFree,
+                                activeColor: const Color(0xFF34A853),
+                                onChanged: (v) => setDialogState(() => isInstallationFree = v),
+                              ),
+                            ],
                           ),
+                          if (!isInstallationFree) ...[
+                            TextFormField(
+                              controller: installationFeeController,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: const InputDecoration(
+                                labelText: 'Installation Fee (e.g. ₹299 / ₹499)',
+                                labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                              ),
+                            ),
+                          ],
                         ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -719,12 +751,25 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                     if (!formKey.currentState!.validate()) return;
                     Navigator.pop(context);
 
-                    final currentSubCats = List<dynamic>.from(catDoc['subCategories'] as List<dynamic>? ?? []);
+                    Map<String, dynamic> catData = {};
+                    String docId = '';
+                    if (catDoc is DocumentSnapshot) {
+                      docId = catDoc.id;
+                      catData = (catDoc.data() as Map<String, dynamic>?) ?? {};
+                    } else if (catDoc is Map) {
+                      docId = catDoc['id']?.toString() ?? '';
+                      catData = Map<String, dynamic>.from(catDoc);
+                    }
+
+                    final currentSubCats = List<dynamic>.from(catData['subCategories'] as List<dynamic>? ?? []);
                     final newSubMap = {
                       'id': initialSub != null ? (initialSub['id'] as String? ?? 'sub_${DateTime.now().millisecondsSinceEpoch}') : 'sub_${DateTime.now().millisecondsSinceEpoch}',
                       'name': nameController.text.trim(),
                       'image': imageController.text.trim(),
                       'placeholderImage': imageController.text.trim(),
+                      'description': descriptionController.text.trim(),
+                      'visitingFee': visitingFeeController.text.trim().isNotEmpty ? visitingFeeController.text.trim() : '₹19',
+                      'basePrice': visitingFeeController.text.trim().isNotEmpty ? visitingFeeController.text.trim() : '₹19',
                       'isInstallationNeeded': isInstallationNeeded,
                       'isInstallationFree': isInstallationFree,
                       'installationFee': installationFeeController.text.trim(),
@@ -733,10 +778,16 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                     if (subIndex == null) {
                       currentSubCats.add(newSubMap);
                     } else {
-                      currentSubCats[subIndex] = newSubMap;
+                      if (subIndex < currentSubCats.length) {
+                        currentSubCats[subIndex] = newSubMap;
+                      } else {
+                        currentSubCats.add(newSubMap);
+                      }
                     }
 
-                    await _service.updateCategorySubcategories(catDoc.id, currentSubCats);
+                    if (docId.isNotEmpty) {
+                      await _service.updateCategorySubcategories(docId, currentSubCats);
+                    }
                   },
                   child: const Text('Save Subcategory'),
                 )
@@ -748,12 +799,24 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     );
   }
 
-
   void _showCategoryFormDialog(dynamic doc) {
     final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(text: doc != null ? doc['name'] : '');
-    final iconController = TextEditingController(text: doc != null ? doc['iconName'] : 'kitchen_rounded');
-    final imageController = TextEditingController(text: doc != null ? (doc['image'] ?? '') : '');
+    Map<String, dynamic> docData = {};
+    String docId = '';
+    if (doc is DocumentSnapshot) {
+      docId = doc.id;
+      docData = (doc.data() as Map<String, dynamic>?) ?? {};
+    } else if (doc is Map) {
+      docId = doc['id']?.toString() ?? '';
+      docData = Map<String, dynamic>.from(doc);
+    }
+
+    final nameController = TextEditingController(text: docData['name']?.toString() ?? '');
+    final iconController = TextEditingController(text: docData['iconName']?.toString() ?? 'kitchen_rounded');
+    final imageController = TextEditingController(text: docData['image']?.toString() ?? '');
+    final defaultVisitingFeeController = TextEditingController(
+      text: (docData['defaultVisitingFee'] ?? docData['visitingFee'] ?? '₹19').toString(),
+    );
 
     showDialog(
       context: context,
@@ -765,35 +828,54 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
               title: Text(doc == null ? 'Create Category' : 'Edit Category', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
               content: Form(
                 key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Category Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                      TextFormField(
-                        controller: iconController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Material Icon Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: imageController,
-                        style: const TextStyle(color: Colors.white),
-                        onChanged: (_) => setDialogState(() {}),
-                        decoration: const InputDecoration(
-                          labelText: 'Main Category Image Web URL (Optional)',
-                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                          hintText: 'https://images.unsplash.com/...',
-                          hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                child: SizedBox(
+                  width: 480,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Category Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
-                      ),
-                      _buildImageUrlPreview(imageController.text),
-                    ],
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: iconController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Material Icon Name',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. kitchen_rounded, water_drop_rounded, ac_unit_rounded, videocam_rounded',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: defaultVisitingFeeController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Standard Doorstep Visiting Fee',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: '₹19',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: imageController,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Main Category Image Web URL (Optional)',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'https://images.unsplash.com/...',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        _buildImageUrlPreview(imageController.text),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -807,14 +889,20 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                     final String name = nameController.text.trim();
                     final String icon = iconController.text.trim();
                     final String image = imageController.text.trim();
+                    final String visitingFee = defaultVisitingFeeController.text.trim().isNotEmpty
+                        ? defaultVisitingFeeController.text.trim()
+                        : '₹19';
 
                     final data = {
                       'name': name,
-                      'iconName': icon,
+                      'iconName': icon.isNotEmpty ? icon : 'kitchen_rounded',
                       'image': image,
+                      'defaultVisitingFee': visitingFee,
+                      'isActive': true,
+                      'updatedAt': FieldValue.serverTimestamp(),
                     };
-                    
-                    final id = doc != null ? doc.id : 'cat_${DateTime.now().millisecondsSinceEpoch}';
+
+                    final id = docId.isNotEmpty ? docId : 'cat_${DateTime.now().millisecondsSinceEpoch}';
                     await _service.saveCategory(id, data);
                   },
                   child: const Text('Save Category'),
@@ -1017,26 +1105,43 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
 
   void _showProductFormDialog(dynamic doc) {
     final formKey = GlobalKey<FormState>();
-    final Map<String, dynamic>? data = doc != null
-        ? (doc.data() is Map ? Map<String, dynamic>.from(doc.data() as Map) : null)
-        : null;
+    Map<String, dynamic> data = {};
+    String docId = '';
+    if (doc is DocumentSnapshot) {
+      docId = doc.id;
+      data = (doc.data() as Map<String, dynamic>?) ?? {};
+    } else if (doc is Map) {
+      docId = doc['id']?.toString() ?? '';
+      data = Map<String, dynamic>.from(doc);
+    }
 
-    final nameController = TextEditingController(text: data != null ? (data['name'] ?? '') : '');
-    final subCatController = TextEditingController(text: data != null ? (data['subCategory'] ?? '') : '');
-    final priceController = TextEditingController(text: data != null ? (data['price'] ?? '') : '');
-    final imageController = TextEditingController(text: data != null ? (data['image'] ?? '') : '');
-    final stockQtyController = TextEditingController(text: data != null ? (data['stockQuantity']?.toString() ?? '') : '');
-    final installationFeeController = TextEditingController(text: data != null ? (data['installationFee']?.toString() ?? '₹299') : '₹299');
-    
-    bool isInStock = data != null ? (data['inStock'] as bool? ?? true) : true;
-    bool isInstallationNeeded = data != null && data.containsKey('isInstallationNeeded')
+    final nameController = TextEditingController(text: data['name']?.toString() ?? '');
+    final subCatController = TextEditingController(text: data['subCategory']?.toString() ?? '');
+    final priceController = TextEditingController(text: data['price']?.toString() ?? '');
+    final originalPriceController = TextEditingController(text: data['originalPrice']?.toString() ?? '');
+    final imageController = TextEditingController(text: data['image']?.toString() ?? '');
+    final descriptionController = TextEditingController(text: data['description']?.toString() ?? '');
+    final warrantyController = TextEditingController(text: data['warrantyPeriod']?.toString() ?? '1 Year Comprehensive Warranty');
+    final deliveryDaysController = TextEditingController(text: (data['deliveryDays'] ?? 2).toString());
+    final stockQtyController = TextEditingController(text: data['stockQuantity']?.toString() ?? '10');
+    final installationFeeController = TextEditingController(text: data['installationFee']?.toString() ?? '₹299');
+
+    // Parse specifications map to multi-line string "Key: Value"
+    String initialSpecsStr = '';
+    if (data['specifications'] is Map) {
+      final specEntries = (data['specifications'] as Map).entries.map((e) => '${e.key}: ${e.value}').toList();
+      initialSpecsStr = specEntries.join('\n');
+    }
+    final specsController = TextEditingController(text: initialSpecsStr);
+
+    bool isInStock = data.containsKey('inStock') ? (data['inStock'] == true) : true;
+    bool isInstallationNeeded = data.containsKey('isInstallationNeeded')
         ? (data['isInstallationNeeded'] == true)
         : false;
 
-    bool isInstallationFree = data != null && data.containsKey('isInstallationFree')
+    bool isInstallationFree = data.containsKey('isInstallationFree')
         ? (data['isInstallationFree'] == true)
         : true;
-
 
     showDialog(
       context: context,
@@ -1045,107 +1150,207 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF161230),
-              title: Text(doc == null ? 'Create Product' : 'Edit Product', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: Text(doc == null ? 'Create Retail Appliance / Product' : 'Edit Retail Appliance / Product',
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
               content: Form(
                 key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Product Name', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                      TextFormField(
-                        controller: subCatController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Sub Category Label', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                      TextFormField(
-                        controller: priceController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(labelText: 'Price (e.g. ₹12,999)', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                      TextFormField(
-                        controller: imageController,
-                        style: const TextStyle(color: Colors.white),
-                        onChanged: (_) => setDialogState(() {}),
-                        decoration: const InputDecoration(labelText: 'Product Image Web URL', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                      ),
-                      _buildImageUrlPreview(imageController.text),
-                      const SizedBox(height: 12),
-                      // Stock Quantity
-                      TextFormField(
-                        controller: stockQtyController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          labelText: 'Stock Quantity (units)',
-                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                          hintText: 'Leave blank if unlimited',
-                          hintStyle: TextStyle(color: Color(0xFF757575), fontSize: 12),
+                child: SizedBox(
+                  width: 520,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Product / Appliance Name',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. AquaPure 9-Stage RO / 4CH HD CCTV Kit / 1.5 Ton Split AC',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      // In Stock Toggle
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('In Stock', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 14)),
-                          Switch(
-                            value: isInStock,
-                            activeColor: const Color(0xFF34A853),
-                            onChanged: (v) => setDialogState(() => isInStock = v),
-                          ),
-                        ],
-                      ),
-                      const Divider(color: Colors.white24, height: 24),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Installation Options', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                      const SizedBox(height: 6),
-                      // Installation Needed Toggle
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Is Installation Needed?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
-                          Switch(
-                            value: isInstallationNeeded,
-                            activeColor: const Color(0xFF000062),
-                            onChanged: (v) => setDialogState(() => isInstallationNeeded = v),
-                          ),
-                        ],
-                      ),
-                      if (isInstallationNeeded) ...[
+                        const SizedBox(height: 12),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Is Installation FREE?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
-                            Switch(
-                              value: isInstallationFree,
-                              activeColor: const Color(0xFF34A853),
-                              onChanged: (v) => setDialogState(() => isInstallationFree = v),
+                            Expanded(
+                              child: TextFormField(
+                                controller: subCatController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Subcategory / Appliance Type',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: 'e.g. Water Purifier / CCTV Kits / Air Conditioner',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: stockQtyController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Stock Units',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: '10',
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        if (!isInstallationFree) ...[
-                          TextFormField(
-                            controller: installationFeeController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: const InputDecoration(
-                              labelText: 'Installation Fee (e.g. ₹299)',
-                              labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: priceController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Selling Price (e.g. ₹8,499)',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                ),
+                                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                              ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: originalPriceController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'MRP / Original Price (e.g. ₹12,999)',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: imageController,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Product Image Web URL',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'https://images.unsplash.com/...',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        ),
+                        _buildImageUrlPreview(imageController.text),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: descriptionController,
+                          maxLines: 2,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Product Description',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'Key highlights, capacity, build quality, included accessories...',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: warrantyController,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Warranty Period',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: '1 Year Comprehensive Warranty',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: deliveryDaysController,
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Estimated Delivery Days',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: '2',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: specsController,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Technical Specifications (Key: Value per line)',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'Capacity: 10 Litres RO+UV\nFilter Stages: 9 Stage Filtration\nPower: 60 Watts',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('In Stock & Ready for Dispatch', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 14)),
+                            Switch(
+                              value: isInStock,
+                              activeColor: const Color(0xFF34A853),
+                              onChanged: (v) => setDialogState(() => isInStock = v),
+                            ),
+                          ],
+                        ),
+                        const Divider(color: Colors.white24, height: 24),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Delivery & Installation Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Is Installation Needed?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
+                            Switch(
+                              value: isInstallationNeeded,
+                              activeColor: const Color(0xFF000062),
+                              onChanged: (v) => setDialogState(() => isInstallationNeeded = v),
+                            ),
+                          ],
+                        ),
+                        if (isInstallationNeeded) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Is Installation FREE?', style: TextStyle(color: Color(0xFFA29EB6), fontSize: 13)),
+                              Switch(
+                                value: isInstallationFree,
+                                activeColor: const Color(0xFF34A853),
+                                onChanged: (v) => setDialogState(() => isInstallationFree = v),
+                              ),
+                            ],
+                          ),
+                          if (!isInstallationFree) ...[
+                            TextFormField(
+                              controller: installationFeeController,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: const InputDecoration(
+                                labelText: 'Installation Fee (e.g. ₹299 / ₹499)',
+                                labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                              ),
+                            ),
+                          ],
                         ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -1155,19 +1360,44 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
                     Navigator.pop(context);
-                    final id = doc != null ? doc['id'] : 'prod_${DateTime.now().millisecondsSinceEpoch}';
-                    final stockQtyVal = int.tryParse(stockQtyController.text.trim());
+
+                    final id = docId.isNotEmpty ? docId : 'prod_${DateTime.now().millisecondsSinceEpoch}';
+                    final stockQtyVal = int.tryParse(stockQtyController.text.trim()) ?? 10;
+                    final deliveryDaysVal = int.tryParse(deliveryDaysController.text.trim()) ?? 2;
+
+                    // Parse specs string into Map
+                    final Map<String, String> specsMap = {};
+                    final specLines = specsController.text.split('\n');
+                    for (var line in specLines) {
+                      final parts = line.split(':');
+                      if (parts.length >= 2) {
+                        final key = parts[0].trim();
+                        final val = parts.sublist(1).join(':').trim();
+                        if (key.isNotEmpty && val.isNotEmpty) {
+                          specsMap[key] = val;
+                        }
+                      }
+                    }
+
                     final data = {
                       'id': id,
                       'name': nameController.text.trim(),
                       'subCategory': subCatController.text.trim(),
                       'price': priceController.text.trim(),
+                      'originalPrice': originalPriceController.text.trim(),
                       'image': imageController.text.trim(),
+                      'description': descriptionController.text.trim(),
+                      'warrantyPeriod': warrantyController.text.trim().isNotEmpty
+                          ? warrantyController.text.trim()
+                          : '1 Year Comprehensive Warranty',
+                      'deliveryDays': deliveryDaysVal,
+                      'specifications': specsMap,
                       'inStock': isInStock,
+                      'stockQuantity': stockQtyVal,
                       'isInstallationNeeded': isInstallationNeeded,
                       'isInstallationFree': isInstallationFree,
                       'installationFee': installationFeeController.text.trim(),
-                      if (stockQtyVal != null) 'stockQuantity': stockQtyVal,
+                      'updatedAt': FieldValue.serverTimestamp(),
                     };
                     await _service.saveProduct(id, data);
                   },
@@ -1668,7 +1898,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     final warrantyController = TextEditingController(text: data != null ? (data['warrantyDays'] ?? 90).toString() : '90');
     final descriptionController = TextEditingController(text: data != null ? (data['description'] ?? '') : '');
     final imageController = TextEditingController(text: data != null ? (data['image'] ?? data['bannerImage'] ?? '') : '');
-    final installationFeeController = TextEditingController(text: data != null ? (data['installationFee']?.toString() ?? '₹199') : '₹199');
+    final installationFeeController = TextEditingController(text: data != null ? (data['installationFee']?.toString() ?? '₹299') : '₹299');
     
     String selectedCategory = data != null ? (data['category'] ?? 'Washing Machine') : (initialCategory ?? 'Washing Machine');
     bool isInstallationNeeded = data != null && data.containsKey('isInstallationNeeded')
@@ -1808,7 +2038,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: installationFeeController,
-                            decoration: const InputDecoration(labelText: 'Installation Fee (e.g. ₹199)', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                            decoration: const InputDecoration(labelText: 'Installation Fee (e.g. ₹299)', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
                           ),
                         ],
                       ],

@@ -160,8 +160,8 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
         'id': bookingId,
         'title': 'AC Deep Cleaning & Service',
         'dateTime': '10/Fri/2026, 11:00 AM',
-        'cost': '₹199',
-        'visitingFee': 199.0,
+        'cost': '₹19',
+        'visitingFee': 19.0,
         'quoteTotal': 0.0,
         'finalAmountPaid': 0.0,
         'status': 'BOOKED',
@@ -363,10 +363,10 @@ class _E2EVerificationAppState extends State<E2EVerificationApp> {
     // 9. Customer Quotation Checkout & Payment Success Dialog Flow
     try {
       final quoteTotal = 350.0;
-      final visitingFee = 199.0;
-      final finalBill = visitingFee + quoteTotal; // ₹549 total
+      final visitingFee = 19.0;
+      final finalBill = visitingFee + quoteTotal; // ₹369 total
       final topupBal = 1000.0; // Top up wallet balance to pay total
-      final newBal = topupBal - finalBill; // ₹451 remaining balance
+      final newBal = topupBal - finalBill; // ₹631 remaining balance
 
       final paymentData = {
         'quotation.status': 'approved',

@@ -129,7 +129,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                               ),
                               SizedBox(width: 6),
                               Text(
-                                '₹199',
+                                '₹19',
                                 style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
                                   fontSize: 14,
@@ -145,7 +145,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  '60% OFF',
+                                  'SAVE ₹480 (96% OFF)',
                                   style: TextStyle(
                                     fontFamily: 'Plus Jakarta Sans',
                                     fontSize: 10,
@@ -182,7 +182,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
 
   void _handleSubCategoryTap(BuildContext context, dynamic subCategory) {
     if (!subCategory.isInstallationNeeded) {
-      _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹199');
+      _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹19');
       return;
     }
     _showIntentBottomSheet(context, subCategory);
@@ -208,8 +208,8 @@ class SubCategorySelectionScreen extends StatelessWidget {
                 context,
                 icon: Icons.build_rounded,
                 title: 'Service / Repair Request',
-                price: '₹199',
-                onTap: () => _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹199'),
+                price: '₹19',
+                onTap: () => _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹19'),
               ),
               if (subCategory.isInstallationNeeded) ...[
                 Divider(color: AppColors.border),

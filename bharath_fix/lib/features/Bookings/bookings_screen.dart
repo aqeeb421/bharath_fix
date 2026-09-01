@@ -61,7 +61,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
   Future<void> _rejectQuotation(String bookingId, [Map<String, dynamic>? bookingData]) async {
     try {
       final data = bookingData ?? {};
-      final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+      final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 19.0;
       final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
 
       final updates = <String, dynamic>{
@@ -132,7 +132,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   Future<void> _cancelBookingByCustomer(String bookingId, Map<String, dynamic> data) async {
-    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final bool isVisitingFeePaid = data['isVisitingFeePaid'] == true || data['isVisitingFeePaid'] == 1;
 
     final confirmed = await showDialog<bool>(
@@ -255,7 +255,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   double _calculateBookingTotal(Map<String, dynamic> data) {
-    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 199.0;
+    final double visitingFee = (data['visitingFee'] as num?)?.toDouble() ?? 19.0;
     final quotationMap = data['quotation'] as Map<String, dynamic>?;
     final double quoteTotal = (quotationMap?['totalAmount'] as num?)?.toDouble() ??
         (data['quoteTotal'] as num?)?.toDouble() ??

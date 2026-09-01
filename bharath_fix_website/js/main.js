@@ -56,14 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Service Pricing Matrix & Estimator Map
   const servicePriceMap = {
-    'ac': { name: 'AC Servicing & Repair', startPrice: 499, options: ['Jet Servicing (₹599)', 'Gas Refill (₹1,499)', 'AC Repair & Diagnosis (₹499)', 'Uninstallation / Installation (₹799)'] },
-    'washing-machine': { name: 'Washing Machine Repair', startPrice: 199, options: ['General Checkup (₹199)', 'Drum/Spin Repair (₹499)', 'PCB Repair (₹899)', 'Water Inlet Fix (₹299)'] },
-    'refrigerator': { name: 'Refrigerator / Fridge Repair', startPrice: 199, options: ['Inspection & Service (₹199)', 'Gas Charging (₹1,299)', 'Compressor Fix (₹1,599)', 'Thermostat/Relay (₹399)'] },
-    'water-purifier': { name: 'Water Purifier / RO Service', startPrice: 299, options: ['RO Full Filter Service (₹499)', 'Membrane Replacement (₹899)', 'UV/UF Lamp Fix (₹399)', 'Leakage Repair (₹299)'] },
-    'water-heater': { name: 'Water Heater / Geyser Repair', startPrice: 249, options: ['Thermostat Check (₹249)', 'Heating Element Change (₹599)', 'Tank Descaling (₹499)', 'Geyser Installation (₹399)'] },
-    'microwave': { name: 'Microwave Oven Repair', startPrice: 299, options: ['Magnetron Fix (₹699)', 'Touchpanel / PCB Fix (₹799)', 'Fuse & Wiring Fix (₹299)', 'General Service (₹299)'] },
-    'chimney': { name: 'Kitchen Chimney Service', startPrice: 399, options: ['Deep Degreasing Service (₹699)', 'Motor & Fan Repair (₹599)', 'Duct Pipe Installation (₹499)', 'General Cleaning (₹399)'] },
-    'air-cooler': { name: 'Air Cooler Servicing', startPrice: 199, options: ['Pump Replacement (₹399)', 'Cooling Pad Change (₹299)', 'Motor Repair (₹499)', 'Full Cleaning (₹199)'] }
+    'ac': { name: 'AC Servicing & Repair', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Jet Servicing (₹599)', 'Gas Refill (₹1,499)', 'AC Repair & Diagnosis (₹499)', 'Uninstallation / Installation (₹799)'] },
+    'washing-machine': { name: 'Washing Machine Repair', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Drum/Spin Repair (₹499)', 'PCB Repair (₹899)', 'Water Inlet Fix (₹299)'] },
+    'refrigerator': { name: 'Refrigerator / Fridge Repair', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Gas Charging (₹1,299)', 'Compressor Fix (₹1,599)', 'Thermostat/Relay (₹399)'] },
+    'water-purifier': { name: 'Water Purifier / RO Service', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'RO Full Filter Service (₹499)', 'Membrane Replacement (₹899)', 'UV/UF Lamp Fix (₹399)', 'Leakage Repair (₹299)'] },
+    'water-heater': { name: 'Water Heater / Geyser Repair', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Heating Element Change (₹599)', 'Tank Descaling (₹499)', 'Geyser Installation (₹399)'] },
+    'microwave': { name: 'Microwave Oven Repair', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Magnetron Fix (₹699)', 'Touchpanel / PCB Fix (₹799)', 'Fuse & Wiring Fix (₹299)'] },
+    'chimney': { name: 'Kitchen Chimney Service', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Deep Degreasing Service (₹699)', 'Motor & Fan Repair (₹599)', 'Duct Pipe Installation (₹499)'] },
+    'air-cooler': { name: 'Air Cooler Servicing', startPrice: 19, options: ['Doorstep Visit & Inspection (₹19)', 'Pump Replacement (₹399)', 'Cooling Pad Change (₹299)', 'Motor Repair (₹499)'] }
   };
 
   // Service Booking Modal Controls
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       const option = document.createElement('option');
       option.value = 'General Repair & Inspection';
-      option.textContent = 'General Repair & Inspection (₹199)';
+      option.textContent = 'General Repair & Inspection (₹19)';
       subOptionSelect.appendChild(option);
     }
   }

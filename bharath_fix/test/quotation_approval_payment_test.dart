@@ -9,7 +9,7 @@ void main() {
         id: 'booking_101',
         title: 'AC Servicing',
         dateTime: 'Today 10:00 AM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         quoteTotal: 350.0,
         isVisitingFeePaid: true,
         quoteItems: [
@@ -17,7 +17,7 @@ void main() {
         ],
       );
 
-      // Since visiting fee was ALREADY paid during booking (₹199),
+      // Since visiting fee was ALREADY paid during booking (₹19),
       // the total payable after quotation approval is ONLY the quotation amount (₹350).
       expect(booking.isVisitingFeePaid, isTrue);
       expect(booking.unpaidVisitingFee, equals(0.0));
@@ -30,7 +30,7 @@ void main() {
         id: 'booking_102',
         title: 'Washing Machine Repair',
         dateTime: 'Tomorrow 2:00 PM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         quoteTotal: 450.0,
         isVisitingFeePaid: false,
         paymentMode: 'COD',
@@ -40,11 +40,11 @@ void main() {
       );
 
       // Since visiting fee was NOT paid during booking (₹0 paid so far),
-      // total payable after quotation approval includes Quotation Amount (₹450) + Visiting Fee (₹199) = ₹649.
+      // total payable after quotation approval includes Quotation Amount (₹450) + Visiting Fee (₹19) = ₹469.
       expect(booking.isVisitingFeePaid, isFalse);
-      expect(booking.unpaidVisitingFee, equals(199.0));
+      expect(booking.unpaidVisitingFee, equals(19.0));
       expect(booking.quoteTotal, equals(450.0));
-      expect(booking.totalPayableAmount, equals(649.0));
+      expect(booking.totalPayableAmount, equals(469.0));
     });
 
     test('Case 3: Quotation Decline with Paid Service Charge', () {
@@ -52,7 +52,7 @@ void main() {
         id: 'booking_103',
         title: 'Refrigerator Repair',
         dateTime: 'Today 4:00 PM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         quoteTotal: 1200.0,
         isVisitingFeePaid: true,
         status: JobStatus.quotationPendingApproval,
@@ -68,16 +68,16 @@ void main() {
         id: 'booking_104',
         title: 'TV Repair',
         dateTime: 'Today 5:00 PM',
-        visitingFee: 199.0,
+        visitingFee: 19.0,
         quoteTotal: 1500.0,
         isVisitingFeePaid: false,
         paymentMode: 'COD',
         status: JobStatus.quotationPendingApproval,
       );
 
-      // On decline, if visiting fee was NOT paid upfront, customer must pay inspection fee (₹199).
+      // On decline, if visiting fee was NOT paid upfront, customer must pay inspection fee (₹19).
       final remainingDue = booking.isVisitingFeePaid ? 0.0 : booking.visitingFee;
-      expect(remainingDue, equals(199.0));
+      expect(remainingDue, equals(19.0));
     });
   });
 }

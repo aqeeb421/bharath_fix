@@ -159,8 +159,8 @@ void main() {
         return quote + (isPaid ? 0.0 : fee);
       }
 
-      expect(computeDue(750.0, 199.0, false), equals(949.0));
-      expect(computeDue(750.0, 199.0, true), equals(750.0));
+      expect(computeDue(750.0, 19.0, false), equals(769.0));
+      expect(computeDue(750.0, 19.0, true), equals(750.0));
     });
   });
 }
