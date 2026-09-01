@@ -15,11 +15,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCxTasfW4mGS6zWGDRZDL-5WI3icEwglbA',
-    appId: '1:233649114123:web:9d801fb604364dbee74b0e',
-    messagingSenderId: '233649114123',
-    projectId: 'my-work-c68d9',
-    authDomain: 'my-work-c68d9.firebaseapp.com',
-    storageBucket: 'my-work-c68d9.firebasestorage.app',
+    apiKey: "AIzaSyAAQtuV24LYxgFxyh7TcvJjDHKIhLQJuMo",
+    authDomain: "bharathfix-735c5.firebaseapp.com",
+    projectId: "bharathfix-735c5",
+    storageBucket: "bharathfix-735c5.firebasestorage.app",
+    messagingSenderId: "364440228818",
+    appId: "1:364440228818:web:97ed09ca1f57cb2a74ee0b",
+    measurementId: "G-EWV4LDMG0R",
   );
 }

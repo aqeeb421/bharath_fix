@@ -110,21 +110,42 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentGreen,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            widget.productSubCategory,
-                            style: TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentGreen,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                widget.productSubCategory,
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
-                          ),
+                            SizedBox(width: 8),
+                            if (widget.product != null && widget.product!.isInstallationNeeded) ...[
+                              if (widget.product!.isInstallationFree) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(6)),
+                                  child: const Text('FREE Installation Included', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                                ),
+                              ] else ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(6)),
+                                  child: Text('Installation: ${widget.product!.installationFee}', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+                                ),
+                              ],
+                            ],
+
+                          ],
                         ),
                         SizedBox(height: AppSpacing.small),
                         Text(widget.productName, style: AppTextStyle.mainTitle.copyWith(fontSize: 22)),
@@ -178,7 +199,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      'Price includes free home delivery and complete unboxing & installation by our certified technician within 24-48 hours.',
+                                      (widget.product?.isInstallationNeeded == false)
+                                          ? 'Price includes fast doorstep home delivery within 24-48 hours. No installation required for this appliance.'
+                                          : (widget.product?.isInstallationFree == true)
+                                              ? 'Price includes free doorstep home delivery and complete unboxing & installation by our certified technician within 24-48 hours.'
+                                              : 'Price includes doorstep delivery. Professional installation available for ${widget.product?.installationFee ?? 'a nominal fee'} by our certified technician upon delivery.',
                                       style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle, height: 1.3),
                                     ),
                                   ],
@@ -187,6 +212,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ],
                           ),
                         ),
+
                         SizedBox(height: AppSpacing.large),
 
                         Text("Technical Specifications", style: AppTextStyle.sectionHeader),
@@ -296,6 +322,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             priceString: widget.productPrice,
                             productImage: widget.productImage,
                             productId: widget.product?.id,
+                            product: widget.product,
                           ),
                         ),
                       );

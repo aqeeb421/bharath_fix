@@ -153,14 +153,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final subCategories = subCatsRaw.map((sub) {
             final subMap = sub as Map<dynamic, dynamic>;
-            return SubCategoryModel(
-              id: subMap['id'] as String? ?? '',
-              name: subMap['name'] as String? ?? '',
-              placeholderImage:
-                  subMap['image'] as String? ??
-                  'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=400',
-            );
+            return SubCategoryModel.fromMap(Map<String, dynamic>.from(subMap));
           }).toList();
+
 
           fetchedCategories.add(
             MainCategoryModel(

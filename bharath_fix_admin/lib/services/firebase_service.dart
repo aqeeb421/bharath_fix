@@ -165,7 +165,13 @@ class FirebaseService {
   }
 
   Future<void> saveCategory(String docId, Map<String, dynamic> data) async {
-    await _db.collection('categories').doc(docId).set(data);
+    await _db.collection('categories').doc(docId).set(data, SetOptions(merge: true));
+  }
+
+  Future<void> updateCategorySubcategories(String docId, List<dynamic> subCategories) async {
+    await _db.collection('categories').doc(docId).update({
+      'subCategories': subCategories,
+    });
   }
 
   Future<void> deleteCategory(String docId) async {

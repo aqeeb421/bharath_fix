@@ -57,3 +57,10 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 pubspec.lock
+
+# Firebase Service Account Keys & Database Backups (Secret Protection)
+*serviceAccountKey*.json
+*source_key*.json
+*target_key*.json
+firestore_backup_*.json
+.env

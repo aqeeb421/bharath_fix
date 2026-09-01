@@ -10,6 +10,59 @@ function createAdminRoutes(admin, fcmEngine) {
   const db = admin.firestore();
 
   /**
+   * POST /api/admin/notify
+   * FCM v1-compliant push notification sender (replaces legacy server key approach)
+   * Body: { token, title, body, data? }
+   */
+  router.post('/notify', async (req, res) => {
+    try {
+      const { token, tokens, title, body, data = {} } = req.body;
+
+      if (!title || !body) {
+        return res.status(400).json({ success: false, error: 'title and body are required' });
+      }
+
+      const messaging = admin.messaging();
+      const payload = {
+        notification: { title, body },
+        data: {
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          title,
+          body,
+          ...Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
+        },
+        android: {
+          priority: 'high',
+          notification: { channelId: 'high_importance_channel', sound: 'default' },
+        },
+      };
+
+      if (token) {
+        // Single token
+        await messaging.send({ ...payload, token });
+        return res.json({ success: true, message: 'Notification sent' });
+      }
+
+      if (tokens && Array.isArray(tokens) && tokens.length > 0) {
+        // Multiple tokens
+        const result = await messaging.sendEachForMulticast({ ...payload, tokens });
+        return res.json({
+          success: true,
+          successCount: result.successCount,
+          failureCount: result.failureCount,
+        });
+      }
+
+      return res.status(400).json({ success: false, error: 'Provide token or tokens[]' });
+    } catch (error) {
+      console.error('FCM notify error:', error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+
+
+  /**
    * GET /api/admin/stats
    * Returns real-time metrics summary for Admin Dashboard Cards
    */

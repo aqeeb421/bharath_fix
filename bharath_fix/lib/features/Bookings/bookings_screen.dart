@@ -148,7 +148,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
         ),
         content: Text(
           isVisitingFeePaid
-              ? 'Are you sure you want to cancel this booking? Since the visiting fee of ₹${visitingFee.toStringAsFixed(0)} was paid upfront, it will be immediately refunded to your BharathFix Wallet.'
+              ? 'Are you sure you want to cancel this booking? Since the visiting fee of ₹${visitingFee.toStringAsFixed(0)} was paid upfront, it will be immediately refunded as BharathFix Service Credits.'
               : 'Are you sure you want to cancel this scheduled service booking?',
           style: const TextStyle(fontSize: 14, height: 1.4),
         ),
@@ -222,7 +222,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
           SnackBar(
             content: Text(
               isVisitingFeePaid
-                  ? 'Booking cancelled. ₹${visitingFee.toStringAsFixed(0)} refunded to your Wallet!'
+                  ? 'Booking cancelled. ₹${visitingFee.toStringAsFixed(0)} refunded as Service Credits!'
                   : 'Booking cancelled successfully.',
             ),
             backgroundColor: Colors.red.shade700,

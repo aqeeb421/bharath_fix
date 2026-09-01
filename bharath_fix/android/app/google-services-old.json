@@ -1,13 +1,14 @@
 {
   "project_info": {
-    "project_number": "364440228818",
-    "project_id": "bharathfix-735c5",
-    "storage_bucket": "bharathfix-735c5.firebasestorage.app"
+    "project_number": "233649114123",
+    "firebase_url": "https://my-work-c68d9.firebaseio.com",
+    "project_id": "my-work-c68d9",
+    "storage_bucket": "my-work-c68d9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:364440228818:android:e5a9e44d9771ab1e74ee0b",
+        "mobilesdk_app_id": "1:233649114123:android:6ca466b21c6e2467e74b0e",
         "android_client_info": {
           "package_name": "com.bharatfix.customerapp"
         }
@@ -15,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB9bJsZJJdMuFwupvshGTrDxPaZwA5R8Tk"
+          "current_key": "AIzaSyBHYB5835gnN5UwDKT_7HlJlOkT-4bQkWc"
         }
       ],
       "services": {
@@ -26,15 +27,15 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:364440228818:android:9799ce8a4ff6995074ee0b",
+        "mobilesdk_app_id": "1:233649114123:android:d120051de6fc751ce74b0e",
         "android_client_info": {
-          "package_name": "com.bharatfix.technicianapp"
+          "package_name": "com.iamaqeeb.myuber"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB9bJsZJJdMuFwupvshGTrDxPaZwA5R8Tk"
+          "current_key": "AIzaSyBHYB5835gnN5UwDKT_7HlJlOkT-4bQkWc"
         }
       ],
       "services": {

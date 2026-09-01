@@ -2,93 +2,75 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Serverless Direct FCM Push Notification Dispatcher
-/// Sends system tray push notifications directly to Android/iOS device tokens.
+/// FCM Push Notification Dispatcher
+/// Routes through BharathFix backend (FCM v1 API via firebase-admin).
+/// No legacy server key needed — all auth handled server-side.
 class FcmDirectService {
-  static const String _fcmUrl = 'https://fcm.googleapis.com/fcm/send';
+  /// Your deployed backend URL.
+  /// Web / Local Dev → 'http://localhost:5000'
+  static String backendUrl = 'https://bharath-fix-backend.onrender.com';
 
-  /// FCM Legacy Server Key (Starts with AAAA...)
-  /// Found in Firebase Console -> Project Settings -> Cloud Messaging -> Cloud Messaging API (Legacy) -> Server Key
-  static String fcmServerKey =
-      'AAAANmaSjAs:APA91bHAYJYlPnDrR4IemlSKF_IbVud0FCw2jduQu1F3IqdGG8qXcEqfkasdYZBsgLN67QMGCyGKjZSb2xgbyarHVkZAAd0R0lJxuIVhlygXWxUxI1vBVPMfBcFKKxMSjFljq7eRmEfl';
+  static Uri get _notifyUrl =>
+      Uri.parse('${backendUrl.trimRight()}/api/admin/notify');
 
-  /// Send direct FCM Push Notification to target device token
+  /// Send a push notification to a single FCM device token.
   static Future<bool> sendPushNotification({
     required String targetToken,
     required String title,
     required String body,
     Map<String, dynamic>? data,
-    String? serverKey,
   }) async {
     if (targetToken.trim().isEmpty) return false;
-    if (kIsWeb) {
-      // In Flutter Web (Chrome), browser CORS policies block direct legacy HTTP calls to fcm.googleapis.com.
-      // Real-time notifications are synced via Firestore and delivered server-side by fcm_engine.js.
-      return true;
-    }
 
     try {
-      final key = serverKey ?? fcmServerKey;
-      final payload = {
-        'to': targetToken,
-        'priority': 'high',
-        'notification': {
-          'title': title,
-          'body': body,
-          'sound': 'default',
-          'channel_id': 'high_importance_channel',
-          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-        },
-        'data': {
-          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-          'title': title,
-          'body': body,
-          ...(data ?? {}),
-        },
-      };
+      final response = await http
+          .post(
+            _notifyUrl,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'token': targetToken,
+              'title': title,
+              'body': body,
+              if (data != null) 'data': data,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
-      final response = await http.post(
-        Uri.parse(_fcmUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=$key',
-        },
-        body: jsonEncode(payload),
-      );
-
-      debugPrint(
-        'Direct FCM Push Response [${response.statusCode}]: ${response.body}',
-      );
-      if (response.statusCode != 200) {
-        debugPrint(
-          '⚠️ FCM Push failed. Ensure fcmServerKey is set to Firebase Cloud Messaging Server Key (starts with AAAA...)',
-        );
-      }
+      debugPrint('FCM Notify Response [${response.statusCode}]: ${response.body}');
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Error sending direct FCM push notification: $e');
+      debugPrint('FcmDirectService error: $e');
       return false;
     }
   }
 
-  /// Send FCM Push Notification to multiple target device tokens
+  /// Send a push notification to multiple FCM device tokens.
   static Future<void> sendMulticastPushNotification({
     required List<String> targetTokens,
     required String title,
     required String body,
     Map<String, dynamic>? data,
-    String? serverKey,
   }) async {
-    for (final token in targetTokens) {
-      if (token.isNotEmpty) {
-        await sendPushNotification(
-          targetToken: token,
-          title: title,
-          body: body,
-          data: data,
-          serverKey: serverKey,
-        );
-      }
+    final tokens = targetTokens.where((t) => t.isNotEmpty).toList();
+    if (tokens.isEmpty) return;
+
+    try {
+      final response = await http
+          .post(
+            _notifyUrl,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'tokens': tokens,
+              'title': title,
+              'body': body,
+              if (data != null) 'data': data,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      debugPrint('FCM Multicast Response [${response.statusCode}]: ${response.body}');
+    } catch (e) {
+      debugPrint('FcmDirectService multicast error: $e');
     }
   }
 }

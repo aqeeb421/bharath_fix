@@ -15,6 +15,7 @@ import '../../ui/widgets/common_textfield.dart';
 import '../Address/address_list_screen.dart';
 import '../../services/database_service.dart';
 import '../../services/coupon_service.dart';
+import '../../services/payment_service.dart';
 import '../../utils/app_routes.dart';
 import '../Account/offers_screen.dart';
 import '../Account/wallet_screen.dart';
@@ -232,7 +233,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     int amountInPaise = (finalAmount * 100).toInt();
 
     var options = {
-      'key': 'rzp_test_dENdzkIZ1Qkpqv', // Your exact provided live workflow testing key
+      'key': PaymentService.razorpayKey,
       'amount': amountInPaise,
       'name': 'BharathFix',
       'description': widget.serviceTitle,
@@ -709,9 +710,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Insufficient Wallet Balance', style: AppTextStyle.sectionHeader.copyWith(fontSize: 16)),
+                          Text('Insufficient Credits', style: AppTextStyle.sectionHeader.copyWith(fontSize: 16)),
                           const SizedBox(height: 2),
-                          Text('Add funds to complete 1-Tap checkout', style: AppTextStyle.subtitle.copyWith(fontSize: 12)),
+                          Text('Add credits to complete 1-Tap checkout', style: AppTextStyle.subtitle.copyWith(fontSize: 12)),
                         ],
                       ),
                     ),
@@ -764,7 +765,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     },
                     icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
                     label: Text(
-                      'Add ₹${deficit.toStringAsFixed(0)} to Wallet',
+                      'Add ₹${deficit.toStringAsFixed(0)} Credits',
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -1014,7 +1015,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'BharathFix Wallet',
+                        'BharatFix Credits (Instant Pay)',
                         style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13),
                         overflow: TextOverflow.ellipsis,
                       ),

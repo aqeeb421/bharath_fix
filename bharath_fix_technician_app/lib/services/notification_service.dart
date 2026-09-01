@@ -197,12 +197,15 @@ class NotificationService {
   static Future<void> _saveTokenToFirestore() async {
     try {
       String? token = await _messaging.getToken();
-      debugPrint('provider FCM token: $token');
+      print('\n' + '=' * 70);
+      print('🔥 [TECHNICIAN APP] FCM DEVICE TOKEN:');
+      print('$token');
+      print('=' * 70 + '\n');
       if (token != null) {
         await _updateTokenInFirestore(token);
       }
     } catch (e) {
-      debugPrint('Error getting provider FCM token: $e');
+      debugPrint('⚠️ Error getting provider FCM token: $e');
     }
   }
 

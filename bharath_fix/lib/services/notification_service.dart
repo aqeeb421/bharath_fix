@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -35,6 +36,34 @@ class NotificationService {
     } catch (e) {
       debugPrint('Failed to register FCM background message handler: $e');
     }
+
+    // Fetch and print FCM Device Token clearly in console
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      print('\n' + '=' * 70);
+      print('🔥 [CUSTOMER APP] FCM DEVICE TOKEN:');
+      print('$token');
+      print('=' * 70 + '\n');
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && token != null) {
+        await saveFcmToken(user.uid, token);
+      }
+
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        print('\n' + '=' * 70);
+        print('🔄 [CUSTOMER APP] FCM TOKEN REFRESHED:');
+        print('$newToken');
+        print('=' * 70 + '\n');
+        final u = FirebaseAuth.instance.currentUser;
+        if (u != null) {
+          saveFcmToken(u.uid, newToken);
+        }
+      });
+    } catch (e) {
+      debugPrint('⚠️ Could not fetch FCM Device Token: $e');
+    }
+
     debugPrint('NotificationService initialized.');
   }
 

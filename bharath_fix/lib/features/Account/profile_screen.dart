@@ -269,8 +269,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
                 _buildNavigationRow(
-                  Icons.account_balance_wallet_outlined,
-                  'Wallet',
+                  Icons.card_giftcard_rounded,
+                  'Service Credits & Refunds',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -610,7 +610,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Wallet balance',
+                      'Credits balance',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontSize: 13,
@@ -640,7 +640,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Manage Wallet',
+                    'View Credits',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       fontSize: 12,

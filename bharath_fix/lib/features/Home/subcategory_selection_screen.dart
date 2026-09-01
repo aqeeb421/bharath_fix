@@ -34,7 +34,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
           itemBuilder: (context, index) {
             final subCategory = mainCategory.subCategories[index];
             return GestureDetector(
-              onTap: () => _showIntentBottomSheet(context, subCategory.name, subCategory.placeholderImage),
+              onTap: () => _handleSubCategoryTap(context, subCategory),
               child: Container(
                 margin: EdgeInsets.only(bottom: AppSpacing.medium),
                 padding: EdgeInsets.all(AppSpacing.small),
@@ -88,19 +88,32 @@ class SubCategorySelectionScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            subCategory.name,
-                            style: AppTextStyle.bodyBold.copyWith(fontSize: 16),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Text(
+                                subCategory.name,
+                                style: AppTextStyle.bodyBold.copyWith(fontSize: 16),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Complete Diagnostics & Inspection',
-                            style: AppTextStyle.subtitle.copyWith(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          if (subCategory.isInstallationNeeded) ...[
+                            SizedBox(height: 4),
+                            if (subCategory.isInstallationFree) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(4)),
+                                child: const Text('FREE Installation Included', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                              ),
+                            ] else ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(4)),
+                                child: Text('Installation: ${subCategory.installationFee}', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
+                              ),
+                            ],
+                          ],
                           SizedBox(height: 6),
                           Row(
                             children: [
@@ -143,6 +156,7 @@ class SubCategorySelectionScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+
                         ],
                       ),
                     ),
@@ -166,7 +180,15 @@ class SubCategorySelectionScreen extends StatelessWidget {
     );
   }
 
-  void _showIntentBottomSheet(BuildContext context, String subName, String image) {
+  void _handleSubCategoryTap(BuildContext context, dynamic subCategory) {
+    if (!subCategory.isInstallationNeeded) {
+      _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹199');
+      return;
+    }
+    _showIntentBottomSheet(context, subCategory);
+  }
+
+  void _showIntentBottomSheet(BuildContext context, dynamic subCategory) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.background,
@@ -178,23 +200,30 @@ class SubCategorySelectionScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(subName, style: AppTextStyle.sectionHeader),
+              Text(subCategory.name, style: AppTextStyle.sectionHeader),
               SizedBox(height: AppSpacing.small),
-              Text('Select service type (Inspection charge applies)', style: AppTextStyle.subtitle),
+              Text('Select service type', style: AppTextStyle.subtitle),
               SizedBox(height: AppSpacing.medium),
               _buildIntentOption(
                 context,
                 icon: Icons.build_rounded,
                 title: 'Service / Repair Request',
-                onTap: () => _navigateToDetails(context, '$subName Repair', image, 'Service'),
+                price: '₹199',
+                onTap: () => _navigateToDetails(context, '${subCategory.name} Repair', subCategory.placeholderImage, 'Service', '₹199'),
               ),
-              Divider(color: AppColors.border),
-              _buildIntentOption(
-                context,
-                icon: Icons.settings_suggest_rounded,
-                title: 'Installation / Uninstallation',
-                onTap: () => _navigateToDetails(context, '$subName Installation', image, 'Installation'),
-              ),
+              if (subCategory.isInstallationNeeded) ...[
+                Divider(color: AppColors.border),
+                _buildIntentOption(
+                  context,
+                  icon: Icons.settings_suggest_rounded,
+                  title: 'Installation / Uninstallation',
+                  price: subCategory.isInstallationFree ? 'FREE' : (subCategory.installationFee.isNotEmpty ? subCategory.installationFee : '₹299'),
+                  onTap: () {
+                    final installPrice = subCategory.isInstallationFree ? 'FREE' : (subCategory.installationFee.isNotEmpty ? subCategory.installationFee : '₹299');
+                    _navigateToDetails(context, '${subCategory.name} Installation', subCategory.placeholderImage, 'Installation', installPrice);
+                  },
+                ),
+              ],
               SizedBox(height: AppSpacing.medium),
             ],
           ),
@@ -203,23 +232,23 @@ class SubCategorySelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIntentOption(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildIntentOption(BuildContext context, {required IconData icon, required String title, required String price, required VoidCallback onTap}) {
     return ListTile(
       onTap: onTap,
       leading: Icon(icon, color: AppColors.primary),
       title: Text(title, style: AppTextStyle.bodyBold),
-      trailing: Text('₹199', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.primary, fontWeight: FontWeight.bold)),
+      trailing: Text(price, style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.primary, fontWeight: FontWeight.bold)),
     );
   }
 
-  void _navigateToDetails(BuildContext context, String title, String image, String mode) {
+  void _navigateToDetails(BuildContext context, String title, String image, String mode, String price) {
     Navigator.pop(context); // Close bottom sheet
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ServiceDetailsScreen(
           serviceTitle: title,
-          servicePrice: '₹199',
+          servicePrice: price,
           bannerImage: image,
           intentMode: mode,
         ),

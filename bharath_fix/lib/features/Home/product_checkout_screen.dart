@@ -17,12 +17,15 @@ import '../../services/database_service.dart';
 import '../../services/coupon_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/app_routes.dart';
+import '../../models/ProductSaleModel.dart';
+import '../../services/payment_service.dart';
 
 class ProductCheckoutScreen extends StatefulWidget {
   final String productName;
   final String priceString;
   final String productImage;
   final String? productId;
+  final ProductSaleModel? product;
 
   const ProductCheckoutScreen({
     super.key,
@@ -30,6 +33,7 @@ class ProductCheckoutScreen extends StatefulWidget {
     required this.priceString,
     required this.productImage,
     this.productId,
+    this.product,
   });
 
   @override
@@ -54,6 +58,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   final TextEditingController _couponTextController = TextEditingController();
   String? _appliedCouponCode;
   double _discountAmount = 0.0;
+  bool _includeInstallation = true;
 
   @override
   void initState() {
@@ -107,8 +112,19 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return double.tryParse(cleanPrice) ?? 0.0;
   }
 
+  double _getInstallationFeeAmount() {
+    if (widget.product == null) return 0.0;
+    if (!widget.product!.isInstallationNeeded) return 0.0;
+    if (widget.product!.isInstallationFree) return 0.0;
+    if (!_includeInstallation) return 0.0;
+    String feeStr = widget.product!.installationFee.replaceAll('₹', '').replaceAll(',', '').trim();
+    return double.tryParse(feeStr) ?? 0.0;
+  }
+
   double _getFinalPayableAmount() {
-    double total = _getRawPrice() - _discountAmount;
+    double base = _getRawPrice();
+    double installFee = _getInstallationFeeAmount();
+    double total = (base + installFee) - _discountAmount;
     return total < 0 ? 0.0 : total;
   }
 
@@ -338,7 +354,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     final contactEmail = _userEmail.isNotEmpty ? _userEmail : (user?.email ?? 'user@bharathfix.com');
 
     var options = {
-      'key': 'rzp_test_dENdzkIZ1Qkpqv',
+      'key': PaymentService.razorpayKey,
       'amount': amountInPaise,
       'name': 'BharathFix Retail Store',
       'description': widget.productName,
@@ -435,6 +451,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildProductSummaryCard(),
+                  _buildInstallationOptionCard(),
                   SizedBox(height: AppSpacing.large),
                   _buildShippingAddressSection(),
                   SizedBox(height: AppSpacing.large),
@@ -461,6 +478,19 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   }
 
   Widget _buildProductSummaryCard() {
+    String subtitleText = 'Includes Fast Doorstep Home Delivery';
+    if (widget.product != null) {
+      if (!widget.product!.isInstallationNeeded) {
+        subtitleText = 'Includes Doorstep Delivery (No Installation Required)';
+      } else if (widget.product!.isInstallationFree) {
+        subtitleText = 'Includes Doorstep Delivery & Free On-Site Installation';
+      } else {
+        subtitleText = _includeInstallation
+            ? 'Includes Doorstep Delivery & On-Site Installation (${widget.product!.installationFee})'
+            : 'Includes Doorstep Delivery';
+      }
+    }
+
     return Container(
       padding: EdgeInsets.all(AppSpacing.medium),
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.large), border: Border.all(color: AppColors.border)),
@@ -478,11 +508,90 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
               children: [
                 Text(widget.productName, style: AppTextStyle.cardTitle),
                 SizedBox(height: 4),
-                Text('Includes Free Delivery & On-Site Installation', style: AppTextStyle.subtitle),
+                Text(subtitleText, style: AppTextStyle.subtitle),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInstallationOptionCard() {
+    if (widget.product == null) return const SizedBox.shrink();
+    if (!widget.product!.isInstallationNeeded) {
+      return Container(
+        margin: EdgeInsets.only(top: AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.subtitle, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'No installation required for this appliance. Direct plug & play.',
+                style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (widget.product!.isInstallationFree) {
+      return Container(
+        margin: EdgeInsets.only(top: AppSpacing.medium),
+        padding: EdgeInsets.all(AppSpacing.medium),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          border: Border.all(color: const Color(0xFFA5D6A7)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.verified_user_rounded, color: const Color(0xFF2E7D32), size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'FREE Professional On-Site Installation included with your delivery.',
+                style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF2E7D32)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.only(top: AppSpacing.medium),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.large),
+        border: Border.all(color: _includeInstallation ? AppColors.primary : AppColors.border),
+      ),
+      child: CheckboxListTile(
+        activeColor: AppColors.primary,
+        value: _includeInstallation,
+        onChanged: (val) {
+          setState(() {
+            _includeInstallation = val ?? false;
+          });
+        },
+        title: Text(
+          'Add Professional Installation',
+          style: AppTextStyle.bodyBold.copyWith(fontSize: 14),
+        ),
+        subtitle: Text(
+          'Certified technician unboxing & setup (+${widget.product!.installationFee})',
+          style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle),
+        ),
+        secondary: Icon(Icons.handyman_rounded, color: AppColors.primary),
       ),
     );
   }
@@ -502,13 +611,33 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
             child: Container(
               width: 85,
               margin: EdgeInsets.only(right: AppSpacing.small),
-              decoration: BoxDecoration(color: isSelected ? AppColors.primary : AppColors.background, borderRadius: BorderRadius.circular(AppRadius.medium), border: Border.all(color: isSelected ? AppColors.primary : AppColors.border)),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.background,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('${_deliveryDates[index]['day']}, ${_deliveryDates[index]['month']}', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: isSelected ? Colors.white70 : AppColors.subtitle, fontWeight: FontWeight.w500)),
+                  Text(
+                    '${_deliveryDates[index]['day']}, ${_deliveryDates[index]['month']}',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 11,
+                      color: isSelected ? Colors.white70 : AppColors.subtitle,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   SizedBox(height: 4),
-                  Text(_deliveryDates[index]['num']!, style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 18, color: isSelected ? Colors.white : AppColors.title, fontWeight: FontWeight.bold)),
+                  Text(
+                    _deliveryDates[index]['num']!,
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 18,
+                      color: isSelected ? Colors.white : AppColors.title,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -569,6 +698,27 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   }
 
   Widget _buildItemizedTaxInvoiceSection(Map<String, String> invoice) {
+    String installationText = 'FREE';
+    Color installationColor = Colors.green;
+
+    if (widget.product != null) {
+      if (!widget.product!.isInstallationNeeded) {
+        installationText = 'Not Required';
+        installationColor = AppColors.subtitle;
+      } else if (widget.product!.isInstallationFree) {
+        installationText = 'FREE';
+        installationColor = Colors.green;
+      } else {
+        if (_includeInstallation) {
+          installationText = '+ ${widget.product!.installationFee}';
+          installationColor = AppColors.primary;
+        } else {
+          installationText = 'Not Selected';
+          installationColor = AppColors.subtitle;
+        }
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -582,7 +732,9 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Coupon Discount', style: AppTextStyle.subtitle.copyWith(fontSize: 14, color: Colors.green)), Text('- ${invoice['discount']!}', style: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14))]),
         ],
         SizedBox(height: AppSpacing.small),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Delivery & Installation', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text('FREE', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))]),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Doorstep Delivery', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text('FREE', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))]),
+        SizedBox(height: AppSpacing.small),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('On-Site Installation', style: AppTextStyle.subtitle.copyWith(fontSize: 14)), Text(installationText, style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: installationColor, fontWeight: FontWeight.bold, fontSize: 13))]),
         SizedBox(height: AppSpacing.small),
         Divider(color: AppColors.border, thickness: 1),
         SizedBox(height: AppSpacing.small),

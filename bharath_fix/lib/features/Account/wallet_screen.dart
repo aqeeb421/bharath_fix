@@ -2,6 +2,7 @@ import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../services/database_service.dart';
+import '../../services/payment_service.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -72,12 +73,12 @@ class _WalletScreenState extends State<WalletScreen> {
           _showGPayScratchCardDialog(context, 50.0);
         } else {
           _showSuccessSnackBar(
-            'Successfully added ₹${_pendingTopUpAmount.toStringAsFixed(0)} to your wallet!',
+            'Successfully added ₹${_pendingTopUpAmount.toStringAsFixed(0)} to your service credits!',
           );
         }
       } else {
         _showErrorSnackBar(
-          'Failed to update wallet balance. Please contact support.',
+          'Failed to update credits balance. Please contact support.',
         );
       }
     }
@@ -114,7 +115,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final int amountInPaise = (amount * 100).toInt();
 
     var options = {
-      'key': 'rzp_test_dENdzkIZ1Qkpqv',
+      'key': PaymentService.razorpayKey,
       'amount': amountInPaise,
       'name': 'BharathFix Wallet',
       'description': 'Add ₹${amount.toStringAsFixed(0)} to Wallet',
@@ -457,7 +458,7 @@ class _WalletScreenState extends State<WalletScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'BharathFix Wallet',
+          'Service Credits & Refunds',
           style: AppTextStyle.sectionHeader,
         ),
       ),
@@ -474,12 +475,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
             // 2. Add Money Section
             Text(
-              'Add Money to Wallet',
+              'Add Service Credits',
               style: AppTextStyle.sectionHeader,
             ),
             SizedBox(height: AppSpacing.small),
             Text(
-              'Use your wallet balance for instant 1-tap checkout on all home services & spare parts.',
+              'Use your service credits for instant 1-tap checkout on all home services & spare parts.',
               style: AppTextStyle.subtitle.copyWith(fontSize: 12),
             ),
             SizedBox(height: AppSpacing.medium),
@@ -560,7 +561,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                       SizedBox(width: 10),
                       Text(
-                        'BHARATHFIX PAY',
+                        'BHARATHFIX CREDITS',
                         style: TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           color: Colors.white,

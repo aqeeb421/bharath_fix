@@ -18,7 +18,15 @@ class AuthService {
     Function(PhoneAuthCredential credential)? onAutoVerification,
   }) async {
     try {
-      final formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : '+91$phoneNumber';
+      // In debug/development mode, disable app verification to bypass Play Integrity & reCAPTCHA for test numbers
+      if (kDebugMode) {
+        await _auth.setSettings(appVerificationDisabledForTesting: true);
+      }
+
+      final cleanPhone = phoneNumber.replaceAll(RegExp(r'[\s\-()]'), '');
+      final formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : '+91$cleanPhone';
+      debugPrint("Initiating Firebase Phone Auth for: $formattedPhone");
+
       await _auth.verifyPhoneNumber(
         phoneNumber: formattedPhone,
         verificationCompleted: (PhoneAuthCredential credential) async {
