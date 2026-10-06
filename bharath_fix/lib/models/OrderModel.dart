@@ -77,6 +77,7 @@ class OrderModel {
   final DateTime? createdAt;
   final String? expectedDeliveryDate;
   final DateTime? deliveredAt;
+  final String? serialNumber;
 
   const OrderModel({
     required this.id,
@@ -105,6 +106,7 @@ class OrderModel {
     this.createdAt,
     this.expectedDeliveryDate,
     this.deliveredAt,
+    this.serialNumber,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> map, {String? docId}) {
@@ -153,6 +155,7 @@ class OrderModel {
       createdAt: parseDate(map['createdAt']),
       expectedDeliveryDate: map['expectedDeliveryDate'] as String? ?? map['dateTime'] as String?,
       deliveredAt: parseDate(map['deliveredAt']),
+      serialNumber: map['serialNumber'] as String?,
     );
   }
 
@@ -184,6 +187,7 @@ class OrderModel {
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'expectedDeliveryDate': expectedDeliveryDate,
       'deliveredAt': deliveredAt != null ? Timestamp.fromDate(deliveredAt!) : null,
+      'serialNumber': serialNumber,
       'orderType': 'PRODUCT_SALE',
     };
   }
@@ -215,6 +219,7 @@ class OrderModel {
     DateTime? createdAt,
     String? expectedDeliveryDate,
     DateTime? deliveredAt,
+    String? serialNumber,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -243,6 +248,7 @@ class OrderModel {
       createdAt: createdAt ?? this.createdAt,
       expectedDeliveryDate: expectedDeliveryDate ?? this.expectedDeliveryDate,
       deliveredAt: deliveredAt ?? this.deliveredAt,
+      serialNumber: serialNumber ?? this.serialNumber,
     );
   }
 }

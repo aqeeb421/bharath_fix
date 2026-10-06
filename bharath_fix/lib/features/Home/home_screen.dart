@@ -1,11 +1,11 @@
 import '../../services/theme_service.dart';
 // lib/Home/home_screen.dart
-import 'package:bharath_fix/features/Home/product_details_screen.dart';
+import 'package:flutter/services.dart';
 import 'package:bharath_fix/features/Home/subcategory_selection_screen.dart';
+import 'package:bharath_fix/features/Account/wallet_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../models/ProductSaleModel.dart';
 import '../../models/MainCategoryModel.dart';
 import '../../models/SubCategoryModel.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +25,7 @@ class HomeScreen extends StatefulWidget {
   final bool isServiceable;
   final VoidCallback onRetryLocation;
   final VoidCallback? onProfileTap;
+  final void Function(int)? onSwitchTab;
 
   const HomeScreen({
     super.key,
@@ -32,6 +33,7 @@ class HomeScreen extends StatefulWidget {
     required this.isServiceable,
     required this.onRetryLocation,
     this.onProfileTap,
+    this.onSwitchTab,
   });
 
   @override
@@ -49,7 +51,64 @@ class _HomeScreenState extends State<HomeScreen> {
   // Dynamic collections variables loaded from Firestore
   List<MainCategoryModel> _categoriesList = [];
   List<Map<String, dynamic>> _bannerList = [];
-  List<ProductSaleModel> _productsList = [];
+  List<Map<String, dynamic>> _offersList = [];
+  int _activeOfferPage = 0;
+
+  // Curated dynamic campaign offers aligned with client marketing specs & e-commerce sales
+  final List<Map<String, dynamic>> _defaultOffers = const [
+    {
+      'id': 'offer_mega_flash_01',
+      'title': 'Save Flat ₹500 On First Appliance',
+      'subtitle': 'Water Purifiers, CCTV & Inverters with bundled same-day installation.',
+      'badge': 'MEGA SALE • 40% OFF',
+      'expiry': '⏳ Ends Midnight',
+      'couponCode': 'ROOFFER500',
+      'cta': 'Claim in Market',
+      'actionType': 'market',
+      'gradientStart': 0xFFE65100,
+      'gradientEnd': 0xFFFF8F00,
+      'icon': Icons.flash_on_rounded,
+    },
+    {
+      'id': 'offer_combo_service_02',
+      'title': 'Dual Appliance Deep Clean Combo',
+      'subtitle': 'Save ₹100 on AC & Refrigerator 24-point inspection & sanitization.',
+      'badge': 'FESTIVE PACK • ₹100 OFF',
+      'expiry': '🔥 Popular Deal',
+      'couponCode': 'FIXFIRST',
+      'cta': 'Book Service',
+      'actionType': 'booking',
+      'gradientStart': 0xFF0D47A1,
+      'gradientEnd': 0xFF0288D1,
+      'icon': Icons.handyman_rounded,
+    },
+    {
+      'id': 'offer_install_guarantee_03',
+      'title': '100% Free Same-Day Doorstep Setup',
+      'subtitle': 'Technicians deliver, mount, test & demo on the exact same visit.',
+      'badge': 'BHARATHFIX ASSURED',
+      'expiry': '🛡️ Zero Waiting',
+      'couponCode': 'STORE100',
+      'cta': 'Explore Store',
+      'actionType': 'market',
+      'gradientStart': 0xFF1B5E20,
+      'gradientEnd': 0xFF43A047,
+      'icon': Icons.verified_rounded,
+    },
+    {
+      'id': 'offer_wallet_cashback_04',
+      'title': 'Instant Wallet Top-up & 1-Click Pay',
+      'subtitle': 'Enjoy zero-delay refunds and seamless hassle-free checkout.',
+      'badge': 'WALLET PERK',
+      'expiry': '⚡ Instant Credit',
+      'couponCode': '',
+      'cta': 'Open Wallet',
+      'actionType': 'wallet',
+      'gradientStart': 0xFF4A148C,
+      'gradientEnd': 0xFF7B1FA2,
+      'icon': Icons.account_balance_wallet_rounded,
+    },
+  ];
 
   bool _isLoadingFirestore = true;
   StreamSubscription? _notifSub;
@@ -58,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
     _loadUserProfile();
     _loadFirestoreHomeData();
     _setupNotificationListener();
@@ -197,20 +255,21 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      // 3. Fetch products dynamically from Firestore
-      final productsSnapshot = await FirebaseFirestore.instance
-          .collection('products')
+      // 3. Fetch marketing offers dynamically from Firestore
+      final offersSnapshot = await FirebaseFirestore.instance
+          .collection('offers')
           .get();
-      if (productsSnapshot.docs.isNotEmpty) {
-        final List<ProductSaleModel> fetchedProducts = [];
-        for (var doc in productsSnapshot.docs) {
+      if (offersSnapshot.docs.isNotEmpty) {
+        final List<Map<String, dynamic>> fetchedOffers = [];
+        for (var doc in offersSnapshot.docs) {
           final data = doc.data();
-          fetchedProducts.add(ProductSaleModel.fromMap(data));
+          data['id'] = doc.id;
+          fetchedOffers.add(data);
         }
 
         if (mounted) {
           setState(() {
-            _productsList = fetchedProducts;
+            _offersList = fetchedOffers;
           });
         }
       }
@@ -336,17 +395,71 @@ class _HomeScreenState extends State<HomeScreen> {
                               SizedBox(height: AppSpacing.medium),
                               _buildCategoryGrid(),
                               SizedBox(height: AppSpacing.large),
-                              Text(
-                                'Buy New Water Purifier',
-                                style: AppTextStyle.sectionHeader,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.local_fire_department_rounded,
+                                              color: Colors.deepOrange,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Special Offers & Deals',
+                                                style: AppTextStyle.sectionHeader,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          'Exclusive discounts, coupons & bundled savings',
+                                          style: AppTextStyle.subtitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.red.shade200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.timer_outlined, size: 12, color: Colors.red.shade800),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'LIMITED TIME',
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red.shade800,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Premium units ranging from ₹6,999 to ₹29,999',
-                                style: AppTextStyle.subtitle,
-                              ),
-                              SizedBox(height: AppSpacing.medium),
-                              _buildProductHorizontalLists(),
+                              const SizedBox(height: AppSpacing.medium),
+                              _buildDynamicMarketingOffersSection(),
                             ],
                           ),
                         ),
@@ -884,119 +997,298 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildProductHorizontalLists() {
-    return SizedBox(
-      height: 180,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _productsList.length,
-        itemBuilder: (context, index) {
-          final prod = _productsList[index];
-          return GestureDetector(
-            onTap: () {
-              if (!widget.isServiceable) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Purchasing disabled: Retail delivery is only available in Hassan district.',
-                    ),
-                    backgroundColor: Colors.redAccent,
+  Widget _buildDynamicMarketingOffersSection() {
+    final offers = _offersList.isNotEmpty ? _offersList : _defaultOffers;
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 180,
+          child: PageView.builder(
+            itemCount: offers.length,
+            controller: PageController(viewportFraction: 0.94),
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (idx) => setState(() => _activeOfferPage = idx),
+            itemBuilder: (context, index) {
+              final offer = offers[index];
+              final title = (offer['title'] ?? 'Special Festive Offer').toString();
+              final subtitle = (offer['subtitle'] ?? '').toString();
+              final badge = (offer['badge'] ?? 'DEAL OF THE DAY').toString();
+              final expiry = (offer['expiry'] ?? 'Limited Period').toString();
+              final coupon = (offer['couponCode'] ?? '').toString();
+              final cta = (offer['cta'] ?? 'Explore Now').toString();
+              final actionType = (offer['actionType'] ?? 'market').toString();
+
+              final Color colorStart = offer['gradientStart'] is int
+                  ? Color(offer['gradientStart'] as int)
+                  : const Color(0xFFE65100);
+              final Color colorEnd = offer['gradientEnd'] is int
+                  ? Color(offer['gradientEnd'] as int)
+                  : const Color(0xFFFF8F00);
+              final IconData iconData = offer['icon'] is IconData
+                  ? offer['icon'] as IconData
+                  : Icons.local_fire_department_rounded;
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [colorStart, colorEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                );
-                return;
-              }
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductDetailsScreen(
-                    productName: prod.name,
-                    productPrice: prod.price,
-                    productImage: prod.image,
-                    productSubCategory: prod.subCategory,
-                    product: prod,
+                  borderRadius: BorderRadius.circular(AppRadius.large),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorStart.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.large),
+                    onTap: () => _handleOfferAction(actionType, coupon),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Top Row: Badge & Expiry / Timer
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(iconData, size: 12, color: colorStart),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      badge,
+                                      style: TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: colorStart,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  expiry,
+                                  style: const TextStyle(
+                                    fontFamily: 'Plus Jakarta Sans',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Middle: Title & Subtitle
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: -0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                subtitle,
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white70,
+                                  height: 1.25,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+
+                          // Bottom Row: Coupon Chip (if any) & Action Button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (coupon.isNotEmpty)
+                                InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: coupon));
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                            const SizedBox(width: 8),
+                                            Text('Coupon code "$coupon" copied to clipboard!'),
+                                          ],
+                                        ),
+                                        backgroundColor: AppColors.primary,
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.copy_rounded, size: 11, color: Colors.white),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Code: $coupon',
+                                          style: const TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                const SizedBox.shrink(),
+
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      cta,
+                                      style: TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: colorStart,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Icon(Icons.arrow_forward_rounded, size: 12, color: colorStart),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               );
             },
-            child: Container(
-              width: 140,
-              margin: EdgeInsets.only(right: AppSpacing.medium),
+          ),
+        ),
+
+        // Carousel Page Indicator Dots
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(offers.length, (idx) {
+            final isSelected = _activeOfferPage == idx;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isSelected ? 16 : 6,
+              height: 6,
               decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.large),
-                border: Border.all(color: AppColors.border),
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(3),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Container(
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(AppRadius.large - 1),
-                        ),
-                      ),
-                      child: Image.network(
-                        prod.image,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Center(
-                              child: Icon(
-                                Icons.broken_image_rounded,
-                                color: Colors.grey,
-                                size: 24,
-                              ),
-                            ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          prod.name,
-                          style: TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.title,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          prod.subCategory,
-                          style: TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 10,
-                            color: AppColors.subtitle,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          prod.price,
-                          style: TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+            );
+          }),
+        ),
+      ],
     );
+  }
+
+  void _handleOfferAction(String actionType, String coupon) {
+    if (coupon.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: coupon));
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Coupon code "$coupon" copied! Apply at checkout.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    if (actionType == 'market') {
+      if (widget.onSwitchTab != null) {
+        widget.onSwitchTab!(1);
+      }
+    } else if (actionType == 'booking') {
+      if (widget.onSwitchTab != null) {
+        widget.onSwitchTab!(2);
+      }
+    } else if (actionType == 'wallet') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const WalletScreen()),
+      );
+    }
   }
 }

@@ -2,6 +2,7 @@ import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import '../../models/AddressModel.dart';
 import '../../ui/theme/app_colors.dart';
+import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../ui/widgets/common_button.dart';
@@ -151,34 +152,77 @@ class _ManageAddressScreenState extends State<ManageAddressScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.medium),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "Strict Address Rule: Complete house/door number and a recognizable landmark are required to guarantee exact doorstep technician arrival.",
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Text('Save address as', style: AppTextStyle.bodyBold),
                       SizedBox(height: AppSpacing.small),
                       _buildTagSelectorRow(),
                       SizedBox(height: AppSpacing.large),
                       CommonTextField(
-                        label: 'House / Flat / Block No.',
-                        hintText: 'e.g. Flat 302, 3rd Floor',
+                        label: 'House / Flat / Block No. *',
+                        hintText: 'e.g. Flat 302, 3rd Floor / Door #14',
                         controller: _houseController,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Please enter House/Flat/Door number'
+                            : null,
                       ),
                       SizedBox(height: AppSpacing.medium),
                       CommonTextField(
-                        label: 'Street / Area / Colony',
-                        hintText: 'e.g. Prestige Falcon City',
+                        label: 'Street / Area / Colony *',
+                        hintText: 'e.g. BM Road, Vidyanagar',
                         controller: _streetController,
+                        validator: (v) => (v == null || v.trim().length < 3)
+                            ? 'Please enter street or area name'
+                            : null,
                       ),
                       SizedBox(height: AppSpacing.medium),
                       CommonTextField(
-                        label: 'Landmark (Optional)',
-                        hintText: 'e.g. Near Metro Station',
+                        label: 'Landmark (Mandatory) *',
+                        hintText: 'e.g. Opp. City Bus Stand / Near Water Tank',
                         controller: _landmarkController,
+                        validator: (v) => (v == null || v.trim().length < 3)
+                            ? 'Landmark is required to guide technician navigation'
+                            : null,
                       ),
                       SizedBox(height: AppSpacing.medium),
                       CommonTextField(
-                        label: 'Pincode',
-                        hintText: 'e.g. 560062',
+                        label: 'Pincode (6-digit) *',
+                        hintText: 'e.g. 573201',
                         controller: _pincodeController,
                         keyboardType: TextInputType.number,
                         maxLength: 6,
+                        validator: (v) {
+                          if (v == null || v.trim().length != 6 || int.tryParse(v.trim()) == null) {
+                            return 'Please enter a valid 6-digit Pincode';
+                          }
+                          return null;
+                        },
                       ),
                     ],
                   ),

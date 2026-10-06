@@ -961,41 +961,15 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int initialTab = (ModalRoute.of(context)?.settings.arguments as int?) ?? widget.initialTab;
-
-    return DefaultTabController(
-      length: 2,
-      initialIndex: initialTab,
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: false,
-          title: Text('My Bookings & Orders', style: AppTextStyle.mainTitle),
-          bottom: TabBar(
-            indicatorColor: AppColors.primary,
-            indicatorWeight: 3,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.subtitle,
-            labelStyle: const TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-            tabs: const [
-              Tab(text: 'Service Bookings'),
-              Tab(text: 'My Orders'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildServiceBookingsTab(),
-            _buildProductOrdersTab(),
-          ],
-        ),
+        elevation: 0,
+        centerTitle: false,
+        title: Text('Service Bookings', style: AppTextStyle.mainTitle),
       ),
+      body: _buildServiceBookingsTab(),
     );
   }
 

@@ -99,6 +99,18 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         _userEmail = profile['email'] ?? '';
       });
     }
+
+    final addresses = await DatabaseService().fetchAddresses();
+    if (addresses.isNotEmpty && mounted) {
+      final defaultAddr = addresses.firstWhere(
+        (a) => a.isDefault,
+        orElse: () => addresses.first,
+      );
+      setState(() {
+        _chosenAddressDetails = defaultAddr.details;
+        _isAddressSelected = true;
+      });
+    }
   }
 
   @override
@@ -386,16 +398,121 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return true;
   }
 
+  Future<bool> _validateAddressOrPrompt() async {
+    final bool isMissingOrPlaceholder = !_isAddressSelected ||
+        _chosenAddressDetails.isEmpty ||
+        _chosenAddressDetails == "No address selected yet" ||
+        _chosenAddressDetails.trim().length < 8;
+
+    if (isMissingOrPlaceholder) {
+      if (!mounted) return false;
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.location_on_rounded, color: Colors.red.shade700, size: 24),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Delivery Address Required',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'A complete doorstep address with house/flat number and landmark is strictly required before purchasing appliances.',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  height: 1.4,
+                  color: AppColors.title,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFFE082)),
+                ),
+                child: const Text(
+                  '⚠️ Ensures same-day bundled delivery and certified installation without address confusion.',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 11,
+                    color: Color(0xFFE65100),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text(
+                'Select / Add Address',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (result == true && mounted) {
+        final selected = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddressListScreen(isSelectionMode: true),
+          ),
+        );
+        if (selected != null && mounted) {
+          setState(() {
+            _chosenAddressDetails = selected.toString();
+            _isAddressSelected = true;
+          });
+          return true;
+        }
+      }
+      return false;
+    }
+    return true;
+  }
+
   void _handlePlaceOrder() async {
     final canProceed = await _checkGuestAndPromptLogin();
     if (!canProceed || !mounted) return;
 
-    if (!_isAddressSelected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a valid delivery address first!'), backgroundColor: Colors.redAccent),
-      );
-      return;
-    }
+    final hasValidAddress = await _validateAddressOrPrompt();
+    if (!hasValidAddress || !mounted) return;
 
     if (widget.productId != null && widget.productId!.isNotEmpty) {
       final inStock = await DatabaseService().isProductInStock(widget.productId!);

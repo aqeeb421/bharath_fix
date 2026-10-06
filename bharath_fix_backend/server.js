@@ -30,9 +30,23 @@ let fcmEngine = null;
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './serviceAccountKey.json';
 const absoluteKeyPath = path.resolve(__dirname, serviceAccountPath);
 
-if (fs.existsSync(absoluteKeyPath)) {
+let serviceAccount = null;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim().length > 0) {
   try {
-    const serviceAccount = require(absoluteKeyPath);
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  } catch (err) {
+    console.error('❌ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON env variable:', err.message);
+  }
+} else if (fs.existsSync(absoluteKeyPath)) {
+  try {
+    serviceAccount = require(absoluteKeyPath);
+  } catch (err) {
+    console.error('❌ Error loading service account file:', err.message);
+  }
+}
+
+if (serviceAccount) {
+  try {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });

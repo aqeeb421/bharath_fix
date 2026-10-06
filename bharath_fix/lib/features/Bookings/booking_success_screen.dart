@@ -180,7 +180,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                           context,
                           '/dashboard',
                           (route) => false,
-                          arguments: 1,
+                          arguments: 2, // Direct to Tab 2 (Bookings)
                         );
                       },
                     ),

@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bharath_fix/models/OrderModel.dart';
 import 'package:bharath_fix/models/BookingEntry.dart';
-import 'package:bharath_fix/models/job_status.dart';
-import 'package:bharath_fix/services/coupon_service.dart';
 
 void main() {
   group('1. Wallet & Checkout Balance Calculations Audit', () {

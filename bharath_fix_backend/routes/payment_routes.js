@@ -71,6 +71,15 @@ function createPaymentRoutes(admin) {
           },
         });
       } else {
+        // In production, prevent silent sandbox simulation if credentials are missing
+        if (process.env.NODE_ENV === 'production') {
+          console.error('❌ Production Error: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing in environment!');
+          return res.status(500).json({
+            success: false,
+            message: 'Payment gateway credentials are not configured in production environment.',
+          });
+        }
+
         // Fallback for local development when RAZORPAY_KEY_SECRET is not yet supplied in .env
         const fallbackOrderId = `order_sim_${Date.now()}`;
         console.log(`⚠️ Razorpay Secret not set in .env. Emitting sandbox order ID: ${fallbackOrderId}`);
@@ -85,7 +94,7 @@ function createPaymentRoutes(admin) {
             currency: currency.toUpperCase(),
             receipt: receipt || `rcpt_${Date.now()}`,
             status: 'created',
-            keyId: process.env.RAZORPAY_KEY_ID || 'rzp_live_TkB8ri3wj5Bx8L',
+            keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_TkFIUiWC9HaAbf',
           },
           notice: 'Provide RAZORPAY_KEY_SECRET in backend .env to create live Razorpay orders.',
         });

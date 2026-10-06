@@ -240,7 +240,7 @@ class OrderSuccessScreen extends StatelessWidget {
                         context,
                         AppRoutes.bookings,
                         (route) => false,
-                        arguments: 1, // Open Orders tab
+                        arguments: 3, // Open dedicated Orders tab (Tab 3)
                       );
                     },
                   ),

@@ -46,7 +46,7 @@ class _RatingReviewDialogState extends State<RatingReviewDialog> {
   void _submitReview() async {
     setState(() => _isSubmitting = true);
 
-    final success = await DatabaseService().submitBookingRatingAndTip(
+    await DatabaseService().submitBookingRatingAndTip(
       bookingId: widget.bookingId,
       providerId: widget.providerId,
       ratingStars: _ratingStars,
