@@ -19,9 +19,9 @@ class AuthService {
   }) async {
     try {
       // In debug/development mode, disable app verification to bypass Play Integrity & reCAPTCHA for test numbers
-      if (kDebugMode) {
-        await _auth.setSettings(appVerificationDisabledForTesting: true);
-      }
+      // if (kDebugMode) {
+      //   await _auth.setSettings(appVerificationDisabledForTesting: true);
+      // }
 
       final cleanPhone = phoneNumber.replaceAll(RegExp(r'[\s\-()]'), '');
       final formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : '+91$cleanPhone';

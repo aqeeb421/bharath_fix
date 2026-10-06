@@ -67,15 +67,35 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
       paymentMode: 'RAZORPAY',
       paymentId: response.paymentId,
     );
+
+    // Cryptographic server-side verification
+    PaymentService.verifyPayment(
+      razorpayOrderId: response.orderId ?? '',
+      razorpayPaymentId: response.paymentId ?? '',
+      razorpaySignature: response.signature ?? '',
+      paymentType: 'FINAL_BILL',
+      jobId: widget.bookingId,
+      userId: FirebaseAuth.instance.currentUser?.uid,
+    );
   }
 
   void _handleRazorpayError(PaymentFailureResponse response) {
     if (mounted) {
       setState(() => _isProcessing = false);
+      final rawMsg = response.message ?? '';
+      final isCancelled = rawMsg.toLowerCase().contains('cancel') || response.code == 2;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Razorpay Payment Failed: ${response.message ?? 'Transaction cancelled'}"),
-          backgroundColor: Colors.red,
+          content: Text(
+            isCancelled
+                ? 'Payment cancelled. You can retry or choose Cash After Service.'
+                : 'Payment failed: ${rawMsg.isNotEmpty ? rawMsg : "Transaction declined"}. Please retry or choose Cash After Service.',
+          ),
+          backgroundColor: isCancelled ? const Color(0xFF000062) : Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -83,36 +103,63 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
 
   void _handleRazorpayExternalWallet(ExternalWalletResponse response) {
     if (mounted) {
+      setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("External Wallet Selected: ${response.walletName}")),
+        SnackBar(
+          content: Text("External Wallet Selected: ${response.walletName ?? 'Wallet'}"),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
       );
     }
   }
 
-  void _openRazorpayCheckout(double amount) {
+  void _openRazorpayCheckout(double amount) async {
     final user = FirebaseAuth.instance.currentUser;
-    var options = {
-      'key': PaymentService.razorpayKey,
-      'amount': (amount * 100).round(),
-      'name': 'BharathFix',
-      'description': 'Payment for Repair Quotation #${widget.bookingId}',
-      'prefill': {
-        'contact': user?.phoneNumber ?? widget.bookingData['customerPhone'] ?? widget.bookingData['userPhone'] ?? '',
-        'email': user?.email ?? 'customer@bharathfix.com',
-      },
-      'external': {
-        'wallets': ['paytm']
-      }
-    };
+    final int amountInPaise = (amount * 100).round();
 
     try {
+      // Secure server-side order creation
+      final orderCreation = await PaymentService.createOrder(
+        amountInPaise: amountInPaise,
+        currency: 'INR',
+        receipt: 'quote_${widget.bookingId}',
+        notes: {
+          'bookingId': widget.bookingId,
+          'userId': user?.uid ?? 'guest',
+          'paymentType': 'FINAL_BILL',
+        },
+      );
+
+      var options = {
+        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'amount': amountInPaise,
+        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+          'order_id': orderCreation['id'],
+        'name': 'BharathFix',
+        'description': 'Payment for Repair Quotation #${widget.bookingId}',
+        'prefill': {
+          'contact': user?.phoneNumber ?? widget.bookingData['customerPhone'] ?? widget.bookingData['userPhone'] ?? '',
+          'email': user?.email ?? 'customer@bharathfix.com',
+        },
+        'external': {
+          'wallets': ['paytm']
+        }
+      };
+
       _razorpay.open(options);
     } catch (e) {
       debugPrint('Error launching Razorpay SDK: $e');
       if (mounted) {
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error opening Razorpay SDK: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Unable to launch gateway: $e"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+          ),
         );
       }
     }

@@ -17,9 +17,13 @@ const createPaymentRoutes = require('./routes/payment_routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS & JSON parsing
+// Enable CORS & JSON parsing (with rawBody capture for webhook HMAC signature verification)
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // Initialize Firebase Admin SDK
 let fcmEngine = null;

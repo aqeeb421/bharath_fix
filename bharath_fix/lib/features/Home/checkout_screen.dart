@@ -50,6 +50,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isAddressSelected = false;
   String _userPhone = "";
   String _userEmail = "";
+  bool _isProcessingPayment = false;
 
   String? _appliedCouponCode;
   double _discountAmount = 0.0;
@@ -67,7 +68,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
-    super.initState();
     _generate30DaysList();
     _razorpay = Razorpay();
 
@@ -218,7 +218,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  void _openRazorpayGateway() {
+  void _openRazorpayGateway() async {
     if (!_isAddressSelected) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -229,28 +229,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
+    if (_isProcessingPayment) return;
+    setState(() => _isProcessingPayment = true);
+
     double finalAmount = _getFinalPayableAmount();
     int amountInPaise = (finalAmount * 100).toInt();
 
-    var options = {
-      'key': PaymentService.razorpayKey,
-      'amount': amountInPaise,
-      'name': 'BharathFix',
-      'description': widget.serviceTitle,
-      'timeout': 300, // 5 minutes window
-      'prefill': {
-        'contact': _userPhone,
-        'email': _userEmail
-      },
-      'external': {
-        'wallets': ['paytm']
-      }
-    };
-
     try {
+      // Secure server-side order creation
+      final orderCreation = await PaymentService.createOrder(
+        amountInPaise: amountInPaise,
+        currency: 'INR',
+        receipt: 'vfee_${DateTime.now().millisecondsSinceEpoch}',
+        notes: {
+          'serviceTitle': widget.serviceTitle,
+          'userId': FirebaseAuth.instance.currentUser?.uid ?? 'guest',
+          'paymentType': 'VISITING_FEE',
+        },
+      );
+
+      var options = {
+        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'amount': amountInPaise,
+        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+          'order_id': orderCreation['id'],
+        'name': 'BharathFix',
+        'description': widget.serviceTitle,
+        'timeout': 300, // 5 minutes window
+        'prefill': {
+          'contact': _userPhone,
+          'email': _userEmail
+        },
+        'external': {
+          'wallets': ['paytm']
+        }
+      };
+
       _razorpay.open(options);
     } catch (e) {
       debugPrint('Error launching Razorpay: $e');
+      if (mounted) {
+        setState(() => _isProcessingPayment = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to launch gateway: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -274,8 +300,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       // Save to local sqflite & Firebase Firestore
       await DatabaseService().insertBooking(successBooking);
+
+      // Verify payment with cryptographic check on backend
+      PaymentService.verifyPayment(
+        razorpayOrderId: response.orderId ?? '',
+        razorpayPaymentId: response.paymentId ?? '',
+        razorpaySignature: response.signature ?? '',
+        paymentType: 'VISITING_FEE',
+        jobId: successBooking.id,
+        userId: FirebaseAuth.instance.currentUser?.uid,
+      );
     } catch (e) {
       debugPrint('Booking insertion error (proceeding to success screen): $e');
+    } finally {
+      if (mounted) setState(() => _isProcessingPayment = false);
     }
 
     if (mounted) {
@@ -289,21 +327,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _handlePaymentError(PaymentFailureResponse response) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment Failed: ${response.message ?? "Transaction declined"}'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      setState(() => _isProcessingPayment = false);
+      final rawMsg = response.message ?? '';
+      final isCancelled = rawMsg.toLowerCase().contains('cancel') || response.code == 2;
+
+      if (isCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment cancelled. You can change payment method or retry anytime.'),
+            backgroundColor: Color(0xFF000062),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Payment failed: ${rawMsg.isNotEmpty ? rawMsg : "Transaction declined"}. Please retry or choose Cash on Service.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     if (mounted) {
+      setState(() => _isProcessingPayment = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('External Wallet Selected: ${response.walletName}'),
+          content: Text('External Wallet Selected: ${response.walletName ?? "Wallet"}'),
           backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
         ),
       );
     }
@@ -1515,19 +1577,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               label: _selectedPaymentMethod == 'WALLET'
                   ? 'Pay ₹${orderAmount.toStringAsFixed(0)} with Wallet ⚡'
                   : (_selectedPaymentMethod == 'COD' ? 'Confirm Booking (Cash)' : 'Proceed to Pay ₹${orderAmount.toStringAsFixed(0)}'),
-              onPressed: () async {
-                final canProceed = await _checkGuestAndPromptLogin();
-                if (!canProceed) return;
+              isLoading: _isProcessingPayment,
+              onPressed: _isProcessingPayment
+                  ? null
+                  : () async {
+                      final canProceed = await _checkGuestAndPromptLogin();
+                      if (!canProceed) return;
 
-                if (_selectedPaymentMethod == 'WALLET') {
-                  _handleWalletPayment(orderAmount, walletBalance);
-                } else if (_selectedPaymentMethod == 'COD') {
-                  _confirmAndProcessCODPayment();
-                } else {
-
-                  _openRazorpayGateway();
-                }
-              },
+                      if (_selectedPaymentMethod == 'WALLET') {
+                        _handleWalletPayment(orderAmount, walletBalance);
+                      } else if (_selectedPaymentMethod == 'COD') {
+                        _confirmAndProcessCODPayment();
+                      } else {
+                        _openRazorpayGateway();
+                      }
+                    },
             ),
           ),
         );

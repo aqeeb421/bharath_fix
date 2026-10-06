@@ -29,6 +29,9 @@
       "api_key": [
         {
           "current_key": "AIzaSyB9bJsZJJdMuFwupvshGTrDxPaZwA5R8Tk"
+        },
+        {
+          "current_key": "AIzaSyDCG2CqBfXo8GAfSUizmO3D0voHhpauH_g"
         }
       ],
       "services": {
@@ -51,6 +54,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "364440228818-ftifhhhl7n9cuk9hat0b9eiatu8a8lpc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bharatfix.technicianapp",
+            "certificate_hash": "e1e39681fb652d9e0bc9ea3c191b1446aed2c0d0"
+          }
+        },
+        {
           "client_id": "364440228818-ru13840ug10ja7vlta7srq7r58v9nt8n.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -58,6 +69,9 @@
       "api_key": [
         {
           "current_key": "AIzaSyB9bJsZJJdMuFwupvshGTrDxPaZwA5R8Tk"
+        },
+        {
+          "current_key": "AIzaSyDCG2CqBfXo8GAfSUizmO3D0voHhpauH_g"
         }
       ],
       "services": {

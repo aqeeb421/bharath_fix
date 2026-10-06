@@ -1,5 +1,6 @@
 import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../services/database_service.dart';
 import '../../services/payment_service.dart';
@@ -53,29 +54,42 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _handleRazorpaySuccess(PaymentSuccessResponse response) async {
+    final user = FirebaseAuth.instance.currentUser;
+
     final success = await DatabaseService().creditWallet(
       amount: _pendingTopUpAmount,
       description: 'Wallet Top-Up via Razorpay',
       razorpayPaymentId: response.paymentId,
     );
 
-    if (_pendingTopUpAmount >= 500) {
-      await DatabaseService().creditWallet(
-        amount: 50.0,
-        description: '₹50 Automated Cashback Reward 🎉',
-      );
-    }
+    // Cryptographic server-side verification and confirmation
+    PaymentService.verifyPayment(
+      razorpayOrderId: response.orderId ?? '',
+      razorpayPaymentId: response.paymentId ?? '',
+      razorpaySignature: response.signature ?? '',
+      paymentType: 'WALLET_TOPUP',
+      amount: _pendingTopUpAmount,
+      userId: user?.uid,
+    );
+
+    // --- Automated Cashback Reward (Temporarily disabled; uncomment to enable in future) ---
+    // if (_pendingTopUpAmount >= 500) {
+    //   await DatabaseService().creditWallet(
+    //     amount: 50.0,
+    //     description: '₹50 Automated Cashback Reward 🎉',
+    //   );
+    // }
 
     if (mounted) {
       setState(() => _isProcessing = false);
       if (success) {
-        if (_pendingTopUpAmount >= 500) {
-          _showGPayScratchCardDialog(context, 50.0);
-        } else {
+        // if (_pendingTopUpAmount >= 500) {
+        //   _showGPayScratchCardDialog(context, 50.0);
+        // } else {
           _showSuccessSnackBar(
             'Successfully added ₹${_pendingTopUpAmount.toStringAsFixed(0)} to your service credits!',
           );
-        }
+        // }
       } else {
         _showErrorSnackBar(
           'Failed to update credits balance. Please contact support.',
@@ -87,19 +101,27 @@ class _WalletScreenState extends State<WalletScreen> {
   void _handleRazorpayError(PaymentFailureResponse response) {
     if (mounted) {
       setState(() => _isProcessing = false);
-      _showErrorSnackBar(
-        'Top-up failed: ${response.message ?? "Transaction cancelled"}',
-      );
+      final rawMsg = response.message ?? '';
+      final isCancelled = rawMsg.toLowerCase().contains('cancel') || response.code == 2;
+
+      if (isCancelled) {
+        _showInfoSnackBar('Payment was cancelled. No money was deducted.');
+      } else {
+        _showErrorSnackBar(
+          'Payment unsuccessful: ${rawMsg.isNotEmpty ? rawMsg : "Transaction declined by bank"}. Please try again.',
+        );
+      }
     }
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     if (mounted) {
       setState(() => _isProcessing = false);
+      _showInfoSnackBar('External wallet selected: ${response.walletName ?? "Wallet"}');
     }
   }
 
-  void _initiateRazorpayTopUp() {
+  void _initiateRazorpayTopUp() async {
     final text = _amountController.text.trim();
     final double? amount = double.tryParse(text);
     if (amount == null || amount <= 0) {
@@ -113,14 +135,31 @@ class _WalletScreenState extends State<WalletScreen> {
     });
 
     final int amountInPaise = (amount * 100).toInt();
+    final user = FirebaseAuth.instance.currentUser;
+    final String userPhone = user?.phoneNumber ?? '';
+    final String userEmail = user?.email ?? 'customer@bharathfix.in';
+
+    // Secure server-side order generation for wallet top-up
+    final orderCreation = await PaymentService.createOrder(
+      amountInPaise: amountInPaise,
+      currency: 'INR',
+      receipt: 'wallet_${DateTime.now().millisecondsSinceEpoch}',
+      notes: {
+        'userId': user?.uid ?? 'guest_user',
+        'amount': amount.toString(),
+        'paymentType': 'WALLET_TOPUP',
+      },
+    );
 
     var options = {
-      'key': PaymentService.razorpayKey,
+      'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
       'amount': amountInPaise,
+      if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+        'order_id': orderCreation['id'],
       'name': 'BharathFix Wallet',
       'description': 'Add ₹${amount.toStringAsFixed(0)} to Wallet',
       'timeout': 300,
-      'prefill': {'contact': '', 'email': 'customer@bharathfix.in'},
+      'prefill': {'contact': userPhone, 'email': userEmail},
       'theme': {'color': '#000062'},
     };
 
@@ -132,6 +171,8 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  /*
+  // Instant test top-up method (Disabled as requested; uncomment if needed for testing)
   Future<void> _performInstantTestTopUp() async {
     final text = _amountController.text.trim();
     final double? amount = double.tryParse(text);
@@ -169,7 +210,9 @@ class _WalletScreenState extends State<WalletScreen> {
       }
     }
   }
+  */
 
+  /* (Kept for future use when cashback scratch card is re-enabled)
   void _showGPayScratchCardDialog(BuildContext context, double bonusAmount) {
     bool isScratched = false;
 
@@ -400,6 +443,7 @@ class _WalletScreenState extends State<WalletScreen> {
       },
     );
   }
+  */
 
   void _showSuccessSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -422,6 +466,29 @@ class _WalletScreenState extends State<WalletScreen> {
         backgroundColor: const Color(0xFF2E7D32),
         behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showInfoSnackBar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF000062),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -490,10 +557,9 @@ class _WalletScreenState extends State<WalletScreen> {
 
             SizedBox(height: AppSpacing.large),
 
-            // 3. Scratch & Earn Cashback Banner
-            _buildScratchRewardsBanner(),
-
-            SizedBox(height: AppSpacing.extraLarge),
+            // 3. Scratch & Earn Cashback Banner (Temporarily disabled; uncomment to enable in future)
+            // _buildScratchRewardsBanner(),
+            // SizedBox(height: AppSpacing.extraLarge),
 
             // 4. Real-time Transaction History Feed
             Row(
@@ -545,47 +611,54 @@ class _WalletScreenState extends State<WalletScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.account_balance_wallet_rounded,
-                          color: Colors.white,
-                          size: 20,
+                        const SizedBox(width: 8),
+                        const Flexible(
+                          child: Text(
+                            'BHARATHFIX CREDITS',
+                            style: TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'BHARATHFIX CREDITS',
-                        style: TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 10,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFD700).withOpacity(0.2),
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: const Color(0xFFFFD700),
                         width: 1,
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
@@ -608,8 +681,8 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 ],
               ),
-              SizedBox(height: 24),
-              Text(
+              const SizedBox(height: 24),
+              const Text(
                 'Available Balance',
                 style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
@@ -618,10 +691,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 '₹${balance.toStringAsFixed(2)}',
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
                   color: Colors.white,
                   fontSize: 32,
@@ -629,15 +702,19 @@ class _WalletScreenState extends State<WalletScreen> {
                   letterSpacing: -0.5,
                 ),
               ),
-              SizedBox(height: 20),
-              Row(
+              const SizedBox(height: 20),
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Text(
-                    'Instant 1-Tap Checkout Active',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      color: Colors.white60,
-                      fontSize: 11,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Instant 1-Tap Checkout Active',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        color: Colors.white60,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Icon(Icons.nfc_rounded, color: Colors.white54, size: 24),
@@ -744,72 +821,52 @@ class _WalletScreenState extends State<WalletScreen> {
 
           SizedBox(height: AppSpacing.large),
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : _initiateRazorpayTopUp,
-                  icon: Icon(
-                    Icons.payment_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  label: _isProcessing
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          'Add Money (Razorpay)',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          // Action Button (Full Width, Production Workflow)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isProcessing ? null : _initiateRazorpayTopUp,
+              icon: _isProcessing
+                  ? const SizedBox.shrink()
+                  : const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: Colors.white,
+                      size: 20,
                     ),
-                  ),
+              label: _isProcessing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Proceed to Add Credits',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                elevation: 2,
               ),
-              SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isProcessing ? null : _performInstantTestTopUp,
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Instant Test',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  /* (Kept for future use when scratch rewards banner is re-enabled)
   Widget _buildScratchRewardsBanner() {
     return Container(
       padding: EdgeInsets.all(AppSpacing.medium),
@@ -864,6 +921,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
     );
   }
+  */
 
   void _showTransactionReceiptModal(
     BuildContext context,

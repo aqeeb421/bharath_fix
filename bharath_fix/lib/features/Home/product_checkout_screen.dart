@@ -3,9 +3,7 @@ import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import '../../models/BookingEntry.dart';
 import '../../models/OrderModel.dart';
-import '../../models/job_status.dart';
 import '../Address/address_list_screen.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
@@ -53,6 +51,9 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   String _userPhone = "";
   String _userEmail = "";
 
+  String _selectedPaymentMethod = 'RAZORPAY';
+  bool _isProcessingPayment = false;
+
   List<Map<String, String>> _deliveryDates = [];
 
   final TextEditingController _couponTextController = TextEditingController();
@@ -69,6 +70,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   void _generateDynamicDeliveryDates() {
@@ -162,6 +164,68 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    await _createAndFinalizeOrder(
+      paymentMode: 'ONLINE_RAZORPAY',
+      isPaid: true,
+      razorpayPaymentId: response.paymentId,
+      razorpayOrderId: response.orderId,
+      razorpaySignature: response.signature,
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (mounted) {
+      setState(() => _isProcessingPayment = false);
+      final rawMsg = response.message ?? '';
+      final isCancelled = rawMsg.toLowerCase().contains('cancel') || response.code == 2;
+
+      if (isCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment cancelled. You can change payment method or retry anytime.'),
+            backgroundColor: Color(0xFF000062),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Payment failed: ${rawMsg.isNotEmpty ? rawMsg : "Transaction declined"}. Please retry or choose Cash on Delivery.',
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      setState(() => _isProcessingPayment = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('External Wallet Selected: ${response.walletName ?? "Wallet"}'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  Future<void> _createAndFinalizeOrder({
+    required String paymentMode,
+    required bool isPaid,
+    String? razorpayPaymentId,
+    String? razorpayOrderId,
+    String? razorpaySignature,
+  }) async {
     final chosenDate = _deliveryDates.isNotEmpty ? _deliveryDates[_selectedDateIndex] : {'fullDate': '24-48 Hours'};
     final formattedTimestamp = chosenDate['fullDate'] ?? '24-48 Hours';
 
@@ -170,7 +234,6 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     final otp = (1000 + Random().nextInt(9000)).toString();
 
     final orderId = 'ORD_${DateTime.now().millisecondsSinceEpoch}';
-
     final double unitPrice = double.tryParse(widget.priceString.replaceAll('₹', '').replaceAll(',', '').trim()) ?? 0.0;
 
     final orderModel = OrderModel(
@@ -189,8 +252,8 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
       totalPaid: finalPayable,
       orderStatus: OrderStatus.placed,
       deliveryOtp: otp,
-      paymentMode: 'ONLINE_RAZORPAY',
-      isPaid: true,
+      paymentMode: paymentMode,
+      isPaid: isPaid,
       createdAt: DateTime.now(),
       expectedDeliveryDate: 'Delivery by $formattedTimestamp',
     );
@@ -214,8 +277,22 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
           data: {'orderId': orderModel.id, 'type': 'NEW_ORDER'},
         );
       } catch (_) {}
+
+      // Cryptographic verification & backend record confirmation if paid via Razorpay
+      if (paymentMode == 'ONLINE_RAZORPAY') {
+        PaymentService.verifyPayment(
+          razorpayOrderId: razorpayOrderId ?? '',
+          razorpayPaymentId: razorpayPaymentId ?? '',
+          razorpaySignature: razorpaySignature ?? '',
+          paymentType: 'RETAIL_ORDER',
+          orderId: orderModel.id,
+          userId: orderModel.userId,
+        );
+      }
     } catch (e) {
       debugPrint('Product order insertion error: $e');
+    } finally {
+      if (mounted) setState(() => _isProcessingPayment = false);
     }
 
     if (mounted) {
@@ -223,17 +300,6 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         context,
         AppRoutes.orderSuccess,
         arguments: orderModel,
-      );
-    }
-  }
-
-  void _handlePaymentError(PaymentFailureResponse response) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment Failed: ${response.message ?? "Transaction declined"}'),
-          backgroundColor: Colors.redAccent,
-        ),
       );
     }
   }
@@ -320,7 +386,7 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     return true;
   }
 
-  void _initiateProductPurchasePayment() async {
+  void _handlePlaceOrder() async {
     final canProceed = await _checkGuestAndPromptLogin();
     if (!canProceed || !mounted) return;
 
@@ -346,6 +412,105 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
       }
     }
 
+    if (_isProcessingPayment) return;
+
+    final double payable = _getFinalPayableAmount();
+
+    if (_selectedPaymentMethod == 'WALLET') {
+      setState(() => _isProcessingPayment = true);
+      final currentWallet = await DatabaseService().getWalletBalance();
+      if (currentWallet < payable) {
+        if (mounted) {
+          setState(() => _isProcessingPayment = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Insufficient wallet credits (Balance: ₹${currentWallet.toStringAsFixed(0)}). Top up or choose UPI/Cash.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+
+      final debited = await DatabaseService().debitWallet(
+        amount: payable,
+        description: 'Payment for product: ${widget.productName}',
+        bookingId: 'ORD_${DateTime.now().millisecondsSinceEpoch}',
+      );
+
+      if (!debited) {
+        if (mounted) {
+          setState(() => _isProcessingPayment = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Wallet debit failed. Please try again or use another payment method.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+
+      await _createAndFinalizeOrder(paymentMode: 'WALLET', isPaid: true);
+    } else if (_selectedPaymentMethod == 'COD') {
+      _showCODConfirmationDialog(payable);
+    } else {
+      _initiateProductPurchasePayment();
+    }
+  }
+
+  void _showCODConfirmationDialog(double payable) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.large)),
+          title: Row(
+            children: [
+              const Icon(Icons.payments_rounded, color: Colors.green, size: 28),
+              const SizedBox(width: 10),
+              Text("Cash on Delivery", style: AppTextStyle.sectionHeader),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Pay ₹${payable.toStringAsFixed(0)} upon Delivery", style: AppTextStyle.bodyBold),
+              const SizedBox(height: 8),
+              Text(
+                "Please keep ₹${payable.toStringAsFixed(0)} ready in cash or UPI to hand to our delivery partner upon receiving ${widget.productName}.",
+                style: AppTextStyle.subtitle.copyWith(fontSize: 14, height: 1.4),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                setState(() => _isProcessingPayment = true);
+                _createAndFinalizeOrder(paymentMode: 'COD', isPaid: false);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+              ),
+              child: const Text("Confirm Order", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _initiateProductPurchasePayment() async {
+    setState(() => _isProcessingPayment = true);
+
     double finalAmount = _getFinalPayableAmount();
     int amountInPaise = (finalAmount * 100).toInt();
 
@@ -353,15 +518,47 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     final contactPhone = _userPhone.isNotEmpty ? _userPhone : (user?.phoneNumber ?? '9876543210');
     final contactEmail = _userEmail.isNotEmpty ? _userEmail : (user?.email ?? 'user@bharathfix.com');
 
-    var options = {
-      'key': PaymentService.razorpayKey,
-      'amount': amountInPaise,
-      'name': 'BharathFix Retail Store',
-      'description': widget.productName,
-      'timeout': 300,
-      'prefill': {'contact': contactPhone, 'email': contactEmail}
-    };
-    _razorpay.open(options);
+    try {
+      // Secure server-side order generation
+      final orderCreation = await PaymentService.createOrder(
+        amountInPaise: amountInPaise,
+        currency: 'INR',
+        receipt: 'order_${DateTime.now().millisecondsSinceEpoch}',
+        notes: {
+          'productName': widget.productName,
+          'productId': widget.productId ?? '',
+          'userId': user?.uid ?? 'guest',
+          'paymentType': 'RETAIL_ORDER',
+        },
+      );
+
+      var options = {
+        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'amount': amountInPaise,
+        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+          'order_id': orderCreation['id'],
+        'name': 'BharathFix Retail Store',
+        'description': widget.productName,
+        'timeout': 300,
+        'prefill': {'contact': contactPhone, 'email': contactEmail},
+        'external': {
+          'wallets': ['paytm']
+        }
+      };
+
+      _razorpay.open(options);
+    } catch (e) {
+      debugPrint('Error launching Razorpay: $e');
+      if (mounted) {
+        setState(() => _isProcessingPayment = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to launch gateway: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildShippingAddressSection() {
@@ -464,6 +661,8 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
                   Text('Delivery Instructions (Optional)', style: AppTextStyle.bodyBold),
                   SizedBox(height: AppSpacing.small),
                   const CommonTextField(hintText: 'Gate code, drop off with security, etc.'),
+                  SizedBox(height: AppSpacing.large),
+                  _buildPaymentMethodsSection(),
                   SizedBox(height: AppSpacing.large),
                   _buildItemizedTaxInvoiceSection(invoice),
                   SizedBox(height: AppSpacing.medium),
@@ -743,14 +942,170 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
     );
   }
 
+  Widget _buildPaymentMethodsSection() {
+    final double payable = _getFinalPayableAmount();
+
+    return StreamBuilder<double>(
+      stream: DatabaseService().walletBalanceStream(),
+      builder: (context, snapshot) {
+        final walletBalance = snapshot.data ?? 0.0;
+        final hasSufficientWallet = walletBalance >= payable;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Payment Method', style: AppTextStyle.bodyBold),
+            SizedBox(height: AppSpacing.medium),
+
+            // Option 1: Razorpay UPI / Cards
+            Container(
+              margin: EdgeInsets.only(bottom: AppSpacing.small),
+              decoration: BoxDecoration(
+                color: _selectedPaymentMethod == 'RAZORPAY' ? const Color(0xFFE8ECF8) : AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(
+                  color: _selectedPaymentMethod == 'RAZORPAY' ? AppColors.primary : AppColors.border,
+                  width: _selectedPaymentMethod == 'RAZORPAY' ? 1.5 : 1,
+                ),
+              ),
+              child: RadioListTile<String>(
+                value: 'RAZORPAY',
+                groupValue: _selectedPaymentMethod,
+                onChanged: _isProcessingPayment ? null : (val) => setState(() => _selectedPaymentMethod = val!),
+                activeColor: AppColors.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                title: Row(
+                  children: [
+                    const Icon(Icons.payment_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'UPI / Cards / NetBanking',
+                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text('Google Pay, PhonePe, Paytm, Debit/Credit Cards', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+              ),
+            ),
+
+            // Option 2: BharatFix Credits
+            Container(
+              margin: EdgeInsets.only(bottom: AppSpacing.small),
+              decoration: BoxDecoration(
+                color: _selectedPaymentMethod == 'WALLET' ? const Color(0xFFE8ECF8) : AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(
+                  color: _selectedPaymentMethod == 'WALLET' ? AppColors.primary : AppColors.border,
+                  width: _selectedPaymentMethod == 'WALLET' ? 1.5 : 1,
+                ),
+              ),
+              child: RadioListTile<String>(
+                value: 'WALLET',
+                groupValue: _selectedPaymentMethod,
+                onChanged: _isProcessingPayment ? null : (val) => setState(() => _selectedPaymentMethod = val!),
+                activeColor: AppColors.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                title: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'BharatFix Credits (Instant Pay)',
+                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: hasSufficientWallet ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '₹${walletBalance.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: hasSufficientWallet ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text(
+                  hasSufficientWallet ? '⚡ Instant deduction from wallet' : 'Insufficient balance (₹${walletBalance.toStringAsFixed(0)})',
+                  style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: hasSufficientWallet ? AppColors.subtitle : Colors.red.shade700),
+                ),
+              ),
+            ),
+
+            // Option 3: Cash on Delivery
+            Container(
+              decoration: BoxDecoration(
+                color: _selectedPaymentMethod == 'COD' ? const Color(0xFFE8ECF8) : AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(
+                  color: _selectedPaymentMethod == 'COD' ? AppColors.primary : AppColors.border,
+                  width: _selectedPaymentMethod == 'COD' ? 1.5 : 1,
+                ),
+              ),
+              child: RadioListTile<String>(
+                value: 'COD',
+                groupValue: _selectedPaymentMethod,
+                onChanged: _isProcessingPayment ? null : (val) => setState(() => _selectedPaymentMethod = val!),
+                activeColor: AppColors.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                title: Row(
+                  children: [
+                    const Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Cash on Delivery (COD)',
+                        style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text('Pay delivery partner in cash or UPI upon delivery', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 12, color: AppColors.subtitle)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildRazorpayStickyBottomBar() {
-    final totalText = '₹${_getFinalPayableAmount().toStringAsFixed(0)}';
+    final double payable = _getFinalPayableAmount();
+    final totalText = '₹${payable.toStringAsFixed(0)}';
+
+    String buttonLabel;
+    if (_selectedPaymentMethod == 'WALLET') {
+      buttonLabel = 'Pay $totalText with Wallet ⚡';
+    } else if (_selectedPaymentMethod == 'COD') {
+      buttonLabel = 'Confirm Order (Cash on Delivery)';
+    } else {
+      buttonLabel = 'Proceed to Pay $totalText';
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium, vertical: AppSpacing.small),
       decoration: BoxDecoration(color: AppColors.card, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
       child: SafeArea(
         top: false,
-        child: CommonButton(label: 'Pay via Razorpay $totalText', onPressed: () => _initiateProductPurchasePayment()),
+        child: CommonButton(
+          label: buttonLabel,
+          isLoading: _isProcessingPayment,
+          onPressed: _isProcessingPayment ? null : () => _handlePlaceOrder(),
+        ),
       ),
     );
   }
