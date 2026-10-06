@@ -7,10 +7,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_text_style.dart';
 import '../../models/technician_booking_lifecycle.dart';
-import '../../models/technician_order_model.dart';
-import '../../widgets/technician_state_widgets.dart';
 import '../job_detail_screen.dart';
-import '../order_delivery_detail_screen.dart';
 
 class JobsTab extends StatefulWidget {
   final String techId;
@@ -26,16 +23,13 @@ class JobsTab extends StatefulWidget {
   State<JobsTab> createState() => _JobsTabState();
 }
 
-class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _JobsTabState extends State<JobsTab> {
   final _firestoreService = TechnicianFirestoreService();
-
   late Stream<QuerySnapshot<Map<String, dynamic>>> _assignedJobsStream;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _initStreams();
   }
 
@@ -52,38 +46,8 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: "Assigned Repairs"),
-            Tab(text: "Deliveries & Setup"),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildAssignedJobsList(),
-              _buildApplianceDeliveriesList(),
-            ],
-          ),
-        ),
-      ],
-    );
+    return _buildAssignedJobsList();
   }
 
   Widget _buildAssignedJobsList() {
@@ -91,112 +55,55 @@ class _JobsTabState extends State<JobsTab> with SingleTickerProviderStateMixin {
       stream: _assignedJobsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const TechLoadingStateWidget(message: 'Loading assigned tasks...');
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          return TechErrorStateWidget(
-            title: 'Assigned Jobs Sync Error',
-            errorMessage: snapshot.error.toString(),
+          return Center(
+            child: Text(
+              "Error loading jobs: ${snapshot.error}",
+              style: AppTextStyle.subtitle,
+            ),
           );
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final activeDocs = docs.where((doc) {
-          final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
-          return !['completed', 'work_completed', 'paid_and_closed', 'closed', 'cancelled', 'cancelled_by_customer', 'cancelled_by_technician', 'unrepairable_closed'].contains(status);
-        }).toList();
-        activeDocs.sort((a, b) {
-          final aTime = (a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-          final bTime = (b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-          if (aTime != 0 || bTime != 0) return bTime.compareTo(aTime);
-          return b.id.compareTo(a.id);
-        });
-
-        if (activeDocs.isEmpty) {
-          return const TechEmptyStateWidget(
-            title: 'No Active Assigned Jobs',
-            message: 'New repairs and service orders will be assigned directly to you by the BharathFix Operations team.',
-            icon: Icons.assignment_turned_in_rounded,
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No repair jobs assigned yet",
+                  style: AppTextStyle.cardTitle,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "New customer repair requests will appear here.",
+                  style: AppTextStyle.subtitle,
+                ),
+              ],
+            ),
           );
         }
 
         return ListView.builder(
           padding: const EdgeInsets.all(AppSpacing.medium),
-          itemCount: activeDocs.length,
+          itemCount: docs.length,
           itemBuilder: (context, index) {
-            final doc = activeDocs[index];
-            final data = doc.data();
-            return _buildJobCard(doc.id, data);
+            final doc = docs[index];
+            return _buildJobCard(doc.id, doc.data());
           },
         );
       },
     );
   }
-
-  Widget _buildApplianceDeliveriesList() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('orders')
-          .where('deliveryPartnerId', isEqualTo: widget.techId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const TechLoadingStateWidget(message: 'Loading assigned deliveries...');
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        final activeOrders = docs
-            .map((doc) => TechnicianOrderModel.fromFirestore(doc))
-            .where((order) => order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-            .toList();
-
-        if (activeOrders.isEmpty) {
-          return const TechEmptyStateWidget(
-            title: 'No Pending Deliveries',
-            message: 'You have no assigned appliance delivery tasks at the moment.',
-            icon: Icons.local_shipping_rounded,
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppSpacing.medium),
-          itemCount: activeOrders.length,
-          itemBuilder: (context, index) {
-            final order = activeOrders[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: const Icon(Icons.local_shipping_rounded, color: AppColors.primary),
-                ),
-                title: Text(order.productName, style: AppTextStyle.cardTitle),
-                subtitle: Text(
-                  'Customer: ${order.userName}\nStatus: ${order.orderStatus.toUpperCase()} • OTP Required',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OrderDeliveryDetailScreen(order: order),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-
-
-
 
   Widget _buildJobCard(String bookingId, Map<String, dynamic> data) {
     final title = data['title'] ?? (data['categoryName'] != null ? "${data['categoryName']} • ${data['subCategoryName'] ?? 'General'}" : 'Appliance Repair Service');

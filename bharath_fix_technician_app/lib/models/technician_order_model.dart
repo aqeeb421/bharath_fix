@@ -24,6 +24,7 @@ class TechnicianOrderModel {
   final String paymentMode;
   final bool isPaid;
   final bool requiresInstallation;
+  final String? serialNumber;
   final DateTime? createdAt;
 
   const TechnicianOrderModel({
@@ -47,6 +48,7 @@ class TechnicianOrderModel {
     this.paymentMode = 'ONLINE_RAZORPAY',
     this.isPaid = true,
     this.requiresInstallation = true,
+    this.serialNumber,
     this.createdAt,
   });
 
@@ -88,7 +90,8 @@ class TechnicianOrderModel {
       deliveryOtp: map['deliveryOtp'] as String? ?? map['startOtp'] as String? ?? '5829',
       paymentMode: map['paymentMode'] as String? ?? 'ONLINE_RAZORPAY',
       isPaid: map['isPaid'] == true || map['isPaid'] == 1,
-      requiresInstallation: map['requiresInstallation'] != false,
+      requiresInstallation: (map['isInstallationRequired'] ?? map['requiresInstallation']) != false,
+      serialNumber: map['serialNumber'] as String?,
       createdAt: parseDate(map['createdAt']),
     );
   }

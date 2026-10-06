@@ -32,7 +32,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   final _completionOtpController = TextEditingController();
 
   // Quotation fields
-  final List<Map<String, dynamic>> _partItems = [];
   final _partNameController = TextEditingController();
   final _partPriceController = TextEditingController();
 
@@ -303,8 +302,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           final customerPhone = data['userPhone'] ?? data['phone'] ?? '+91 9876543210';
           final address = data['address'] ?? data['fullAddress'] ?? 'Hassan, Karnataka';
           final status = data['status'] ?? 'ACCEPTED';
-          final startOtp = data['startOtp'] ?? '1234';
-          final completionOtp = data['completionOtp'] ?? '5678';
 
           final quotationMap = data['quotation'] as Map<String, dynamic>?;
           final quotationItems = (quotationMap?['items'] as List<dynamic>?) ?? [];
@@ -736,6 +733,64 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       label: const Text("Finish: Enter Completion OTP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
                     ),
+                  ),
+
+                if (status.toLowerCase().contains('cancel'))
+                  Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.medium),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(AppRadius.medium),
+                          border: Border.all(color: Colors.red.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.cancel_rounded, color: Colors.red.shade800, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Booking Cancelled by Customer",
+                                    style: TextStyle(
+                                      color: Colors.red.shade800,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "This service visit was cancelled. Please do not proceed and return to your jobs dashboard.",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+                          label: const Text("Return to My Jobs", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                 if (['completed', 'work_completed', 'paid_and_closed'].contains(status.toLowerCase()))

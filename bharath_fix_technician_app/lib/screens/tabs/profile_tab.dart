@@ -136,7 +136,7 @@ class ProfileTab extends StatelessWidget {
                   // ),
                   const SizedBox(height: 8),
                   Text(
-                    "⚡ $experience Years Experience  •  📍 $radiusKm km Radius",
+                    "⚡ $experience Years Experience  •  📍 $radiusKm km Radius  •  ⭐ $rating ($completedJobs jobs)",
                     style: AppTextStyle.subtitle.copyWith(fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -211,19 +211,64 @@ class ProfileTab extends StatelessWidget {
                         ),
                         Switch(
                           value: (data['canDeliver'] != false && data['isDeliveryPartner'] != false),
-                          activeColor: AppColors.primary,
+                          activeThumbColor: AppColors.primary,
                           onChanged: (val) async {
                             final user = FirebaseAuth.instance.currentUser;
-                            if (user != null) {
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(user.uid)
-                                  .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
-                              await FirebaseFirestore.instance
-                                  .collection('providers')
-                                  .doc(user.uid)
-                                  .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
+                            if (user == null) return;
+
+                            if (!val) {
+                              try {
+                                final activeOrders = await FirebaseFirestore.instance
+                                    .collection('orders')
+                                    .where('deliveryPartnerId', isEqualTo: user.uid)
+                                    .get();
+                                final hasActiveDelivery = activeOrders.docs.any((d) {
+                                  final s = (d.data()['orderStatus'] ?? '').toString().toLowerCase();
+                                  return ['outfordelivery', 'out_for_delivery', 'assigned'].contains(s);
+                                });
+
+                                if (hasActiveDelivery) {
+                                  if (context.mounted) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        title: const Row(
+                                          children: [
+                                            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                                            SizedBox(width: 8),
+                                            Text("Deliveries In Progress", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                          ],
+                                        ),
+                                        content: const Text(
+                                          "You have active delivery orders in transit or assigned. Please finish your active deliveries or hand them over before disabling delivery availability.",
+                                          style: TextStyle(fontSize: 13, color: Colors.black87),
+                                        ),
+                                        actions: [
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                                            child: const Text("Understood", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                              } catch (e) {
+                                debugPrint("Error checking active deliveries: $e");
+                              }
                             }
+
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
+                            await FirebaseFirestore.instance
+                                .collection('providers')
+                                .doc(user.uid)
+                                .set({'canDeliver': val, 'isDeliveryPartner': val}, SetOptions(merge: true));
                           },
                         ),
                       ],

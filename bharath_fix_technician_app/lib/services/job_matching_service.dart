@@ -48,11 +48,25 @@ class JobMatchingService {
     return "Appliance Specialist";
   }
 
+  /// Returns true only if the technician is online and not already busy with an active job.
+  static bool isTechnicianAvailable(Map<String, dynamic> techData) {
+    if (techData['isOnline'] == false) return false;
+    if (techData['isBusy'] == true) return false;
+    final activeId = techData['activeBookingId']?.toString();
+    if (activeId != null && activeId.trim().isNotEmpty) return false;
+    return true;
+  }
+
   /// Checks strictly if a job request matches any of the technician's active skills.
   static bool isTechnicianExpertForJob(
     Map<String, dynamic> techData,
     Map<String, dynamic> jobData,
   ) {
+    // 0. Concurrency & Availability check: Must be online and not currently busy on a job
+    if (!isTechnicianAvailable(techData)) {
+      return false;
+    }
+
     // 1. Extract explicitly enabled skills array
     final List<dynamic> skillsRaw =
         (techData['skills'] as List<dynamic>?) ?? [];

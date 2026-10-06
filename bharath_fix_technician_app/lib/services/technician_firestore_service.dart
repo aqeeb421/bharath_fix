@@ -99,6 +99,13 @@ class TechnicianFirestoreService {
         return true;
       });
 
+      if (claimed) {
+        await _db.collection('providers').doc(techId).set({
+          'isBusy': true,
+          'activeBookingId': bookingId,
+        }, SetOptions(merge: true));
+      }
+
       return claimed;
     } catch (e) {
       return false;
@@ -111,10 +118,22 @@ class TechnicianFirestoreService {
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    if (status == 'WORK_COMPLETED') {
+    if (status == 'WORK_COMPLETED' || status.toUpperCase().contains('CANCEL')) {
       data['completedAt'] = FieldValue.serverTimestamp();
-      data['isFinalBillPaid'] = true;
-      data['isVisitingFeePaid'] = true;
+      if (status == 'WORK_COMPLETED') {
+        data['isFinalBillPaid'] = true;
+        data['isVisitingFeePaid'] = true;
+      }
+      try {
+        final bSnap = await _db.collection('bookings').doc(bookingId).get();
+        final techId = bSnap.data()?['technicianId'] ?? bSnap.data()?['providerId'];
+        if (techId != null && techId.toString().isNotEmpty) {
+          await _db.collection('providers').doc(techId.toString()).set({
+            'isBusy': false,
+            'activeBookingId': null,
+          }, SetOptions(merge: true));
+        }
+      } catch (_) {}
     }
     await _updateBookingDual(bookingId, data);
   }
@@ -135,6 +154,13 @@ class TechnicianFirestoreService {
     final validOtp = (storedOtp != null && storedOtp.trim().isNotEmpty) ? storedOtp.trim() : '1234';
     if (enteredOtp.trim() == validOtp) {
       await updateJobStatus(bookingId, 'WORK_IN_PROGRESS');
+      final techId = doc.data()?['technicianId'] ?? doc.data()?['providerId'];
+      if (techId != null && techId.toString().isNotEmpty) {
+        await _db.collection('providers').doc(techId.toString()).set({
+          'isBusy': true,
+          'activeBookingId': bookingId,
+        }, SetOptions(merge: true));
+      }
       return true;
     }
     return false;
@@ -156,6 +182,13 @@ class TechnicianFirestoreService {
     final validOtp = (storedOtp != null && storedOtp.trim().isNotEmpty) ? storedOtp.trim() : '5678';
     if (enteredOtp.trim() == validOtp) {
       await updateJobStatus(bookingId, 'WORK_COMPLETED');
+      final techId = doc.data()?['technicianId'] ?? doc.data()?['providerId'];
+      if (techId != null && techId.toString().isNotEmpty) {
+        await _db.collection('providers').doc(techId.toString()).set({
+          'isBusy': false,
+          'activeBookingId': null,
+        }, SetOptions(merge: true));
+      }
       return true;
     }
     return false;
@@ -183,7 +216,16 @@ class TechnicianFirestoreService {
     try {
       final doc = await _db.collection('bookings').doc(bookingId).get();
       final userId = doc.data()?['userId']?.toString();
-      // Local push notifications removed - now handled centrally by Node.js fcm_engine.js
+      if (userId != null && userId.isNotEmpty) {
+        await _db.collection('users').doc(userId).collection('notifications').add({
+          'title': 'New Quotation Received 📋',
+          'body': 'Technician has submitted a repair quote for your review & approval.',
+          'type': 'QUOTATION_SUBMITTED',
+          'bookingId': bookingId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     } catch (_) {}
   }
 
