@@ -625,6 +625,24 @@ class ProfileTab extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Account Deactivation / Deletion for Google Play Policy Compliance
+            Center(
+              child: TextButton.icon(
+                onPressed: () => _showAccountDeactivationDialog(context),
+                icon: Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey.shade600),
+                label: Text(
+                  "Request Account Deactivation / Deletion",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         );
@@ -724,6 +742,135 @@ class ProfileTab extends StatelessWidget {
                     ),
                     child: const Text(
                       'Yes, Sign Out',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAccountDeactivationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.person_off_rounded,
+                  size: 36,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Partner Account Deactivation',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: const Text(
+            'In accordance with Google Play data safety and partner standards, you may request account deactivation.\n\n'
+            'Please ensure you have no pending repairs, active deliveries, or uncleared cash settlements before deactivating.',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 13,
+              color: Colors.grey,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.title,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(dialogContext);
+                      final uid = _authService.currentUser?.uid;
+                      if (uid != null) {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('providers')
+                              .doc(uid)
+                              .update({
+                            'isOnline': false,
+                            'isDeactivated': true,
+                            'deactivationRequestedAt': FieldValue.serverTimestamp(),
+                          });
+                        } catch (_) {}
+                      }
+                      await _authService.signOut();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Account deactivated and offline. To permanently purge your partner records, please contact BharathFix Support.'),
+                            backgroundColor: Colors.black87,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Deactivate',
                       style: TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         fontWeight: FontWeight.bold,

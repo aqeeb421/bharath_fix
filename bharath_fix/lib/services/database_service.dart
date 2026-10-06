@@ -960,6 +960,58 @@ class DatabaseService {
     }
   }
 
+  /// Permanently deletes user data from Firestore, local DB, and Firebase Auth
+  /// Required for Google Play Store Data Safety & Account Deletion compliance
+  Future<bool> deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    final uid = user.uid;
+
+    try {
+      if (_isFirebaseAvailable) {
+        // 1. Delete user addresses subcollection in Firestore
+        final addressesSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('addresses')
+            .get();
+        for (var doc in addressesSnap.docs) {
+          await doc.reference.delete();
+        }
+
+        // 2. Delete user notifications subcollection in Firestore
+        final notifSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('notifications')
+            .get();
+        for (var doc in notifSnap.docs) {
+          await doc.reference.delete();
+        }
+
+        // 3. Delete user document in Firestore
+        await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting user Firestore data: $e');
+    }
+
+    // 4. Clear local SQLite databases
+    await logoutUser();
+
+    // 5. Delete Firebase Auth user
+    try {
+      await user.delete();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuthException during account deletion: $e');
+      rethrow;
+    } catch (e) {
+      debugPrint('Error deleting FirebaseAuth user: $e');
+      return false;
+    }
+  }
+
   Future<void> clearProfile() async {
     try {
       final db = await database;

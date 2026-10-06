@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/foundation.dart';
 import 'technician_firestore_service.dart';
 
 class LocationService {
@@ -10,7 +10,94 @@ class LocationService {
   String? _currentTechId;
   DateTime? _lastLocationUpdate;
 
-  Future<bool> checkAndRequestPermissions() async {
+  /// Prominent disclosure required by Google Play Developer Policy for location data
+  static Future<bool> showProminentDisclosureDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.location_on_rounded, color: Color(0xFF1565C0)),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Location Access',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'BharathFix Partner collects device location data to:',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Match and dispatch repair service bookings near your current operating area.\n'
+                '• Provide customers with accurate real-time transit updates while delivering retail appliances or en-route to service visits.',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  color: Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Location tracking is only active while you are marked ONLINE and actively fulfilling customer orders.',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Deny', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Agree & Continue'),
+            ),
+          ],
+        );
+      },
+    );
+    return result == true;
+  }
+
+  Future<bool> checkAndRequestPermissions({BuildContext? context}) async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       debugPrint('Location services are disabled.');
@@ -19,6 +106,10 @@ class LocationService {
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      if (context != null && context.mounted) {
+        final agreed = await showProminentDisclosureDialog(context);
+        if (!agreed) return false;
+      }
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         debugPrint('Location permissions are denied');

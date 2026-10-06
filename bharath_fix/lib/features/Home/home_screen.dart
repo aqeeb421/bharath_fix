@@ -207,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final id = doc.id;
           final name = data['name'] as String? ?? '';
           final iconName = data['iconName'] as String? ?? 'settings';
+          final imageUrl = (data['imageUrl'] ?? data['image']) as String?;
           final subCatsRaw = data['subCategories'] as List<dynamic>? ?? [];
 
           final subCategories = subCatsRaw.map((sub) {
@@ -214,13 +215,13 @@ class _HomeScreenState extends State<HomeScreen> {
             return SubCategoryModel.fromMap(Map<String, dynamic>.from(subMap));
           }).toList();
 
-
           fetchedCategories.add(
             MainCategoryModel(
               id: id,
               name: name,
               iconData: _resolveIconFromString(iconName),
               assetPath: _resolveAssetIconFromString(name, iconName),
+              imageUrl: imageUrl,
               subCategories: subCategories,
             ),
           );
@@ -972,11 +973,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(AppRadius.large),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: Image.asset(
-                    category.assetPath ??
-                        _resolveAssetIconFromString(category.name, ''),
-                    fit: BoxFit.contain,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: (category.imageUrl != null && category.imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          category.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            category.assetPath ??
+                                _resolveAssetIconFromString(category.name, ''),
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                      : Image.asset(
+                          category.assetPath ??
+                              _resolveAssetIconFromString(category.name, ''),
+                          fit: BoxFit.contain,
+                        ),
                 ),
               ),
               SizedBox(height: AppSpacing.small),

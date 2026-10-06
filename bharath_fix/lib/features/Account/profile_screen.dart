@@ -332,6 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildThemeSwitchTile(),
               _buildLanguageSelectorTile(),
               _buildLogoutTile(context),
+              if (!_isGuest) _buildDeleteAccountTile(context),
             ],
           ),
         ),
@@ -527,6 +528,211 @@ class _ProfileScreenState extends State<ProfileScreen> {
         AppRoutes.login,
         (route) => false,
       );
+    }
+  }
+
+  Widget _buildDeleteAccountTile(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.large),
+      child: InkWell(
+        onTap: () => _showDeleteAccountConfirmationDialog(context),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_forever_rounded,
+                color: Colors.red.shade400,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: Colors.red.shade400,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: Colors.red.shade300,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: AppColors.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x33D32F2F) : Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_forever_rounded,
+                  size: 36,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Permanently Delete Account?',
+                style: AppTextStyle.sectionHeader,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          content: Text(
+            'This action is irreversible. Deleting your account will immediately remove your profile data, saved addresses, wallet balance, and notification history from BharathFix servers.',
+            style: AppTextStyle.subtitle,
+            textAlign: TextAlign.center,
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      'Keep Account',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.title,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(dialogContext);
+                      await _performAccountDeletion(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Delete Account',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performAccountDeletion(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.red),
+      ),
+    );
+
+    try {
+      await DatabaseService().deleteAccount();
+      try {
+        final local = await LocalStorage.getInstance();
+        await local.clear();
+      } catch (_) {}
+
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account and associated data have been permanently deleted.'),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (e.code == 'requires-recent-login') {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Recent Login Required'),
+              content: const Text(
+                'For security, you must log in again before deleting your account. Please log out and sign back in to proceed with account deletion.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete account: ${e.message ?? e.code}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting account: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

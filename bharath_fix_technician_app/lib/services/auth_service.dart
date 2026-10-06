@@ -22,6 +22,15 @@ class AuthService {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } catch (e) {
+      debugPrint("Error sending password reset email: $e");
+      rethrow;
+    }
+  }
+
   Future<TechnicianModel?> fetchTechnicianProfile() async {
     final uid = currentUser?.uid;
     if (uid == null) return null;

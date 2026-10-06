@@ -42,6 +42,8 @@ dependencies:
   pdf: ^3.12.0
   printing: ^5.14.3
   fl_chart: ^0.70.2
+  firebase_storage: ^12.4.10
+  file_picker: ^11.0.3
 
 
 dev_dependencies:
@@ -67,6 +69,21 @@ flutter:
 
   assets:
     - assets/images/
+    - web/app_images/
+    - assets/app_images/
+    - assets/app_images/categories/refrigerator/
+    - assets/app_images/categories/washing_machine/
+    - assets/app_images/categories/water_purifier/
+    - assets/app_images/categories/ac_repair/
+    - assets/app_images/categories/kitchen_chimney/
+    - assets/app_images/categories/air_cooler/
+    - assets/app_images/categories/geyser/
+    - assets/app_images/categories/microwave_oven/
+    - assets/app_images/products/standard_ro/
+    - assets/app_images/products/uv_purifier/
+    - assets/app_images/products/alkaline_special/
+    - assets/app_images/banners/top_banner/
+    - assets/app_images/banners/bottom_banner/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

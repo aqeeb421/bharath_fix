@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firebase_service.dart';
+import '../../services/image_storage_service.dart';
 
 class CatalogTab extends StatefulWidget {
   const CatalogTab({super.key});
@@ -28,6 +29,113 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  bool _isMigrating = false;
+
+  void _handleMigrationToFirebaseStorage() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cloud_upload_rounded, color: Color(0xFF00C853)),
+            SizedBox(width: 8),
+            Text('Upload All Images to Storage?'),
+          ],
+        ),
+        content: const Text(
+          'This will upload all 22 existing catalog and subcategory images to Firebase Storage (under app_images/) and update all Firestore collections (categories, products, banners, spare parts) to point permanently to Firebase Storage instead of Netlify.\n\n'
+          'Both your Customer App and Technician App will automatically show the updated Cloud Storage images in real time.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), foregroundColor: Colors.white),
+            child: const Text('Start Migration'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isMigrating = true);
+
+    String statusText = 'Starting migration...';
+    double progressValue = 0.0;
+    StateSetter? dialogSetter;
+
+    // Show persistent progress dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setProgressState) {
+          dialogSetter = setProgressState;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Syncing Images to Firebase Storage'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: progressValue > 0 ? progressValue : null, color: const Color(0xFF00C853)),
+                const SizedBox(height: 16),
+                Text(statusText, style: const TextStyle(fontSize: 13, color: Colors.black87), textAlign: TextAlign.center),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    try {
+      final result = await ImageStorageService.migrateNetlifyImagesToFirebaseStorage(
+        onProgress: (status, prog) {
+          statusText = status;
+          progressValue = prog;
+          dialogSetter?.call(() {});
+        },
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close progress dialog
+        setState(() => _isMigrating = false);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Color(0xFF00C853)),
+                SizedBox(width: 8),
+                Text('Migration Completed!'),
+              ],
+            ),
+            content: Text(
+              'Successfully uploaded ${result['imagesUploaded']} images to Firebase Storage.\n'
+              'Updated ${result['docsUpdated']} Firestore documents.\n\n'
+              'All images in your catalog and apps are now pulling directly from Firebase Storage!',
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Awesome!'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        setState(() => _isMigrating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Migration error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -35,21 +143,56 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'App Catalog & Rate Cards Control',
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF111111),
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Configure banners, service categories, spare part rate cards, and retail products dynamically.',
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF757575),
-              fontSize: 13,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'App Catalog & Rate Cards Control',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF111111),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Configure banners, service categories, spare part rate cards, and retail products dynamically.',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF757575),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: _isMigrating ? null : _handleMigrationToFirebaseStorage,
+                icon: _isMigrating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.cloud_sync_rounded, size: 18),
+                label: Text(
+                  _isMigrating ? 'Syncing to Storage...' : 'Sync All Images to Storage',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00C853),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 1,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           
@@ -91,32 +234,196 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
 
   // Helper: Image URL Live Preview Box
   Widget _buildImageUrlPreview(String url) {
-
     if (url.trim().isEmpty) return const SizedBox.shrink();
+    final cleanUrl = url.trim();
+    final isStorage = cleanUrl.contains('firebasestorage.googleapis.com');
+    final isNetlify = cleanUrl.contains('netlify.app');
+
     return Container(
       margin: const EdgeInsets.only(top: 10),
-      height: 80,
+      height: 90,
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white24),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.network(
-        url.trim(),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: 80,
-        errorBuilder: (_, __, ___) => const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.broken_image_rounded, color: Colors.orangeAccent, size: 24),
-            SizedBox(height: 4),
-            Text('Invalid or unreachable Image URL', style: TextStyle(color: Colors.white70, fontSize: 11)),
-          ],
-        ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.network(
+              cleanUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image_rounded, color: Colors.orangeAccent, size: 24),
+                    SizedBox(height: 4),
+                    Text('Unreachable Image URL', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                  ],
+                ),
+              ),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.indigoAccent),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isStorage
+                    ? const Color(0xFF00C853).withValues(alpha: 0.85)
+                    : isNetlify
+                        ? const Color(0xFF1E88E5).withValues(alpha: 0.85)
+                        : Colors.black54,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                isStorage ? 'Cloud Storage' : isNetlify ? 'Netlify CDN' : 'Web URL',
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  // Helper: Reusable Image Upload and URL Input Field
+  Widget _buildImageUploadField({
+    required BuildContext context,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+    required String subFolder,
+    String? itemName,
+    String Function()? getItemName,
+    String? categoryName,
+    bool isDark = true,
+    String label = 'Image Web URL',
+    bool isRequired = false,
+  }) {
+    bool isUploading = false;
+    return StatefulBuilder(
+      builder: (context, setFieldState) {
+        final resolvedItemName = getItemName != null ? getItemName() : itemName;
+        final previewPath = resolvedItemName != null && resolvedItemName.isNotEmpty
+            ? ImageStorageService.formatItemStoragePath(
+                subFolder: subFolder,
+                itemName: resolvedItemName,
+                categoryName: categoryName,
+              )
+            : null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFA29EB6) : const Color(0xFF111111),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (previewPath != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          '📁 $previewPath',
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: isUploading
+                      ? null
+                      : () async {
+                          final currentItem = getItemName != null ? getItemName() : itemName;
+                          final downloadUrl = await ImageStorageService.pickAndUploadImage(
+                            context: context,
+                            subFolder: subFolder,
+                            itemName: currentItem,
+                            categoryName: categoryName,
+                            onLoadingChanged: (loading) {
+                              setFieldState(() => isUploading = loading);
+                              setDialogState(() {});
+                            },
+                          );
+                          if (downloadUrl != null && downloadUrl.isNotEmpty) {
+                            controller.text = downloadUrl;
+                            setFieldState(() {});
+                            setDialogState(() {});
+                          }
+                        },
+                  icon: isUploading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.cloud_upload_rounded, size: 15),
+                  label: Text(
+                    isUploading ? 'Uploading...' : 'Upload Image',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: controller,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              onChanged: (_) => setDialogState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Upload image above or paste image URL',
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                suffixIcon: controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          controller.clear();
+                          setFieldState(() {});
+                          setDialogState(() {});
+                        },
+                      )
+                    : null,
+              ),
+              validator: isRequired ? (v) => v == null || v.trim().isEmpty ? 'Image is required' : null : null,
+            ),
+            _buildImageUrlPreview(controller.text),
+          ],
+        );
+      },
     );
   }
 
@@ -255,21 +562,73 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                   final title = data['title'] as String? ?? '';
                   final subtitle = data['subtitle'] as String? ?? '';
                   final image = data['image'] as String? ?? '';
+                  final placement = data['placement'] as String? ?? 'top_banner';
+                  final placementLabel = placement == 'bottom_banner' ? 'Bottom Banner' : 'Top Banner';
+                  final titleSlug = ImageStorageService.sanitizeSlug(title);
+                  final pathTag = 'banners/$placement/$titleSlug.png';
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: image.isNotEmpty
-                          ? Image.network(
-                              image,
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 20),
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(
+                                image,
+                                width: 55,
+                                height: 55,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 24),
+                              ),
                             )
                           : const Icon(Icons.image_not_supported_rounded, color: Colors.grey),
-                      title: Text(title, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
-                      subtitle: Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                      title: Row(
+                        children: [
+                          Flexible(
+                            child: Text(title, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: placement == 'bottom_banner' ? const Color(0xFFFEF3C7) : const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: placement == 'bottom_banner' ? const Color(0xFFFCD34D) : const Color(0xFFC7D2FE),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Text(
+                              placementLabel,
+                              style: TextStyle(
+                                color: placement == 'bottom_banner' ? const Color(0xFFB45309) : const Color(0xFF4338CA),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (subtitle.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(subtitle, style: GoogleFonts.plusJakartaSans(fontSize: 12)),
+                            ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '📁 $pathTag',
+                            style: const TextStyle(
+                              color: Color(0xFF4B5563),
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -307,6 +666,12 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     final titleController = TextEditingController(text: doc != null ? doc['title'] : '');
     final subtitleController = TextEditingController(text: doc != null ? doc['subtitle'] : '');
     final imageController = TextEditingController(text: doc != null ? doc['image'] : '');
+    String bannerPlacement = 'top_banner';
+    try {
+      if (doc != null && doc['placement'] != null) {
+        bannerPlacement = doc['placement'].toString();
+      }
+    } catch (_) {}
 
     showDialog(
       context: context,
@@ -322,6 +687,25 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      DropdownButtonFormField<String>(
+                        value: bannerPlacement,
+                        dropdownColor: const Color(0xFF161230),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
+                          labelText: 'Banner Placement / Location',
+                          labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'top_banner', child: Text('Top Banner (Hero Slider)')),
+                          DropdownMenuItem(value: 'bottom_banner', child: Text('Bottom Banner (Promotional Strip)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => bannerPlacement = val);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: titleController,
                         style: const TextStyle(color: Colors.white),
@@ -333,14 +717,17 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                         style: const TextStyle(color: Colors.white),
                         decoration: const InputDecoration(labelText: 'Subtitle', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
                       ),
-                      TextFormField(
+                      _buildImageUploadField(
+                        context: context,
                         controller: imageController,
-                        style: const TextStyle(color: Colors.white),
-                        onChanged: (_) => setDialogState(() {}),
-                        decoration: const InputDecoration(labelText: 'Banner Image Web URL', labelStyle: TextStyle(color: Color(0xFFA29EB6))),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                        setDialogState: setDialogState,
+                        subFolder: 'banners',
+                        categoryName: bannerPlacement,
+                        getItemName: () => titleController.text.trim(),
+                        label: 'Banner Image',
+                        isRequired: true,
+                        isDark: true,
                       ),
-                      _buildImageUrlPreview(imageController.text),
                     ],
                   ),
                 ),
@@ -355,6 +742,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                       'title': titleController.text.trim(),
                       'subtitle': subtitleController.text.trim(),
                       'image': imageController.text.trim(),
+                      'placement': bannerPlacement,
                     };
                     final id = doc != null ? doc.id : 'banner_${DateTime.now().millisecondsSinceEpoch}';
                     await _service.saveBanner(id, data);
@@ -503,9 +891,13 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                                         final sMap = subCats[sIdx] as Map<dynamic, dynamic>;
                                         final subName = sMap['name'] as String? ?? '';
                                         final subImg = (sMap['image'] ?? sMap['placeholderImage']) as String? ?? '';
+                                        final catName = doc['name'] as String? ?? '';
+                                        final catSlug = ImageStorageService.sanitizeSlug(catName);
+                                        final subSlug = ImageStorageService.sanitizeSlug(subName);
+                                        final imagePathTag = '$catSlug/$subSlug.png';
 
                                         return Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFF9F9FB),
                                             borderRadius: BorderRadius.circular(8),
@@ -518,28 +910,52 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                                                   borderRadius: BorderRadius.circular(6),
                                                   child: Image.network(
                                                     subImg,
-                                                    width: 32,
-                                                    height: 32,
+                                                    width: 36,
+                                                    height: 36,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 20, color: Colors.grey),
+                                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 22, color: Colors.grey),
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
+                                                const SizedBox(width: 10),
                                               ] else ...[
-                                                const Icon(Icons.image_outlined, size: 20, color: Colors.grey),
-                                                const SizedBox(width: 8),
+                                                const Icon(Icons.image_outlined, size: 24, color: Colors.grey),
+                                                const SizedBox(width: 10),
                                               ],
                                               Expanded(
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    Text(
-                                                      subName,
-                                                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFF222222), fontSize: 13, fontWeight: FontWeight.w600),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                    Row(
+                                                      children: [
+                                                        Flexible(
+                                                          child: Text(
+                                                            subName,
+                                                            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF222222), fontSize: 13, fontWeight: FontWeight.w600),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(0xFFEEF2FF),
+                                                            borderRadius: BorderRadius.circular(4),
+                                                            border: Border.all(color: const Color(0xFFC7D2FE), width: 0.5),
+                                                          ),
+                                                          child: Text(
+                                                            '📁 $imagePathTag',
+                                                            style: const TextStyle(
+                                                              color: Color(0xFF4338CA),
+                                                              fontSize: 9.5,
+                                                              fontFamily: 'monospace',
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                    const SizedBox(height: 2),
+                                                    const SizedBox(height: 3),
                                                     _buildInstallationBadge(
                                                       isNeeded: sMap['isInstallationNeeded'] as bool? ?? false,
                                                       isFree: sMap['isInstallationFree'] as bool? ?? true,
@@ -658,20 +1074,17 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                           ),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Name is required' : null,
                         ),
-                        const SizedBox(height: 12),
-                        TextFormField(
+                        _buildImageUploadField(
+                          context: context,
                           controller: imageController,
-                          style: const TextStyle(color: Colors.white),
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Image Web URL',
-                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                            hintText: 'https://images.unsplash.com/...',
-                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Image URL is required' : null,
+                          setDialogState: setDialogState,
+                          subFolder: 'categories',
+                          categoryName: catDoc != null ? (catDoc['name']?.toString() ?? '') : '',
+                          getItemName: () => nameController.text.trim(),
+                          label: 'Subcategory Image',
+                          isRequired: true,
+                          isDark: true,
                         ),
-                        _buildImageUrlPreview(imageController.text),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: descriptionController,
@@ -861,19 +1274,15 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                             hintText: '₹19',
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        TextFormField(
+                        _buildImageUploadField(
+                          context: context,
                           controller: imageController,
-                          style: const TextStyle(color: Colors.white),
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Main Category Image Web URL (Optional)',
-                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                            hintText: 'https://images.unsplash.com/...',
-                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
+                          setDialogState: setDialogState,
+                          subFolder: 'categories',
+                          label: 'Main Category Image',
+                          isRequired: false,
+                          isDark: true,
                         ),
-                        _buildImageUrlPreview(imageController.text),
                       ],
                     ),
                   ),
@@ -1046,13 +1455,56 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(child: Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                      stockBadge,
+                                      if (data['imageUrl'] != null || data['image'] != null) ...[
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            (data['imageUrl'] ?? data['image']).toString(),
+                                            width: 44,
+                                            height: 44,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 24, color: Colors.grey),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                      ],
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(child: Text(name, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                                stockBadge,
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFEFF6FF),
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: const Color(0xFFBFDBFE), width: 0.5),
+                                              ),
+                                              child: Text(
+                                                '📁 products/${ImageStorageService.sanitizeSlug(subCategory)}/${ImageStorageService.sanitizeSlug(name)}.png',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF1E40AF),
+                                                  fontSize: 9.5,
+                                                  fontFamily: 'monospace',
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text('Cat: $subCategory', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF757575), fontSize: 12)),
                                   const SizedBox(height: 6),
                                   _buildInstallationBadge(isNeeded: isInstallationNeeded, isFree: isInstallationFree, fee: installationFee),
                                   const SizedBox(height: 8),
@@ -1229,20 +1681,17 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        TextFormField(
+                        _buildImageUploadField(
+                          context: context,
                           controller: imageController,
-                          style: const TextStyle(color: Colors.white),
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Product Image Web URL',
-                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
-                            hintText: 'https://images.unsplash.com/...',
-                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                          setDialogState: setDialogState,
+                          subFolder: 'products',
+                          categoryName: subCatController.text.trim(),
+                          getItemName: () => nameController.text.trim(),
+                          label: 'Product Image',
+                          isRequired: true,
+                          isDark: true,
                         ),
-                        _buildImageUrlPreview(imageController.text),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: descriptionController,
@@ -1991,15 +2440,16 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Text('Image Web URL', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      TextFormField(
+                      _buildImageUploadField(
+                        context: context,
                         controller: imageController,
-                        onChanged: (_) => setDialogState(() {}),
-                        decoration: const InputDecoration(hintText: 'https://images.unsplash.com/...', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                        setDialogState: setDialogState,
+                        subFolder: 'spare_parts',
+                        getItemName: () => '$selectedCategory ${partNameController.text.trim()}'.trim(),
+                        label: 'Part Image',
+                        isRequired: false,
+                        isDark: false,
                       ),
-                      _buildImageUrlPreview(imageController.text),
                       const SizedBox(height: 12),
                       Text('Part Description / Notes', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF111111), fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),

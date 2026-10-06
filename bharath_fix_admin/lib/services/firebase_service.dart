@@ -20,50 +20,9 @@ class FirebaseService {
     await _auth.signOut();
   }
 
-  // Streams all bookings uniquely from both root collections and subcollections
+  // Streams all bookings directly from the bookings collection
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getBookingsCombinedStream() {
-    final controller = StreamController<List<QueryDocumentSnapshot<Map<String, dynamic>>>>();
-    
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> groupDocs = [];
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> rootDocs = [];
-
-    void emit() {
-      final List<QueryDocumentSnapshot<Map<String, dynamic>>> combined = [];
-      final Set<String> ids = {};
-
-      for (var doc in groupDocs) {
-        if (ids.add(doc.id)) combined.add(doc);
-      }
-      for (var doc in rootDocs) {
-        if (ids.add(doc.id)) combined.add(doc);
-      }
-      if (!controller.isClosed) {
-        controller.add(combined);
-      }
-    }
-
-    final sub1 = _db.collectionGroup('bookings').snapshots().listen((snap) {
-      groupDocs = snap.docs;
-      emit();
-    }, onError: (e) {
-      // Fail silently if collectionGroup requires setup indexes
-      print('Group query check: $e');
-    });
-
-    final sub2 = _db.collection('bookings').snapshots().listen((snap) {
-      rootDocs = snap.docs;
-      emit();
-    }, onError: (e) {
-      print('Root query error: $e');
-    });
-
-    controller.onCancel = () {
-      sub1.cancel();
-      sub2.cancel();
-      controller.close();
-    };
-
-    return controller.stream;
+    return _db.collection('bookings').snapshots().map((snap) => snap.docs);
   }
 
   // Updates booking status directly in its exact Firestore path and syncs counterpart document
@@ -210,7 +169,7 @@ class FirebaseService {
   }
 
   Future<void> reseedData() async {
-    final String hostOrigin = Uri.base.origin;
+    const String storageBase = 'https://firebasestorage.googleapis.com/v0/b/bharathfix-735c5.firebasestorage.app/o/app_images%2F';
 
     final defaultCategories = [
       {
@@ -218,11 +177,11 @@ class FirebaseService {
         'name': 'Refrigerator',
         'iconName': 'kitchen_rounded',
         'subCategories': [
-          {'id': 's1_1', 'name': 'Single Door', 'image': '$hostOrigin/app_images/s1_1.png'},
-          {'id': 's1_2', 'name': 'Double Door', 'image': '$hostOrigin/app_images/s1_2.png'},
-          {'id': 's1_3', 'name': 'Bottom Freezer', 'image': '$hostOrigin/app_images/s1_3.png'},
-          {'id': 's1_4', 'name': 'Triple Door', 'image': '$hostOrigin/app_images/s1_4.png'},
-          {'id': 's1_5', 'name': 'Deep Freezer', 'image': '$hostOrigin/app_images/s1_5.png'},
+          {'id': 's1_1', 'name': 'Single Door', 'image': '${storageBase}categories%2Frefrigerator%2Fsingle_door.png?alt=media'},
+          {'id': 's1_2', 'name': 'Double Door', 'image': '${storageBase}categories%2Frefrigerator%2Fdouble_door.png?alt=media'},
+          {'id': 's1_3', 'name': 'Bottom Freezer', 'image': '${storageBase}categories%2Frefrigerator%2Fbottom_freezer.png?alt=media'},
+          {'id': 's1_4', 'name': 'Triple Door', 'image': '${storageBase}categories%2Frefrigerator%2Ftriple_door.png?alt=media'},
+          {'id': 's1_5', 'name': 'Deep Freezer', 'image': '${storageBase}categories%2Frefrigerator%2Fdeep_freezer.png?alt=media'},
         ]
       },
       {
@@ -230,10 +189,10 @@ class FirebaseService {
         'name': 'Washing Machine',
         'iconName': 'local_laundry_service_rounded',
         'subCategories': [
-          {'id': 's2_1', 'name': 'Top Load', 'image': '$hostOrigin/app_images/s2_1.png'},
-          {'id': 's2_2', 'name': 'Front Load', 'image': '$hostOrigin/app_images/s2_2.png'},
-          {'id': 's2_3', 'name': 'Semi-Automatic', 'image': '$hostOrigin/app_images/s2_3.png'},
-          {'id': 's2_4', 'name': 'Fully Automatic', 'image': '$hostOrigin/app_images/s2_4.png'},
+          {'id': 's2_1', 'name': 'Top Load', 'image': '${storageBase}categories%2Fwashing_machine%2Ftop_load.png?alt=media'},
+          {'id': 's2_2', 'name': 'Front Load', 'image': '${storageBase}categories%2Fwashing_machine%2Ffront_load.png?alt=media'},
+          {'id': 's2_3', 'name': 'Semi-Automatic', 'image': '${storageBase}categories%2Fwashing_machine%2Fsemi_automatic.png?alt=media'},
+          {'id': 's2_4', 'name': 'Fully Automatic', 'image': '${storageBase}categories%2Fwashing_machine%2Ffully_automatic.png?alt=media'},
         ]
       },
       {
@@ -241,9 +200,9 @@ class FirebaseService {
         'name': 'Water Purifier',
         'iconName': 'water_drop_rounded',
         'subCategories': [
-          {'id': 's3_1', 'name': 'Hot and Cool RO', 'image': '$hostOrigin/app_images/s3_1.png'},
-          {'id': 's3_2', 'name': 'UV RO Purifier', 'image': '$hostOrigin/app_images/s3_2.png'},
-          {'id': 's3_3', 'name': 'Commercial Plant', 'image': '$hostOrigin/app_images/s3_3.png'},
+          {'id': 's3_1', 'name': 'Hot and Cool RO', 'image': '${storageBase}categories%2Fwater_purifier%2Fhot_cool_ro.png?alt=media'},
+          {'id': 's3_2', 'name': 'UV RO Purifier', 'image': '${storageBase}categories%2Fwater_purifier%2Fuv_ro_purifier.png?alt=media'},
+          {'id': 's3_3', 'name': 'Commercial Plant', 'image': '${storageBase}categories%2Fwater_purifier%2Fcommercial_plant.png?alt=media'},
         ]
       },
       {
@@ -251,8 +210,8 @@ class FirebaseService {
         'name': 'AC Repair',
         'iconName': 'ac_unit_rounded',
         'subCategories': [
-          {'id': 's4_1', 'name': 'Split AC', 'image': '$hostOrigin/app_images/s4_1.png'},
-          {'id': 's4_2', 'name': 'Ductable AC', 'image': '$hostOrigin/app_images/s4_2.png'},
+          {'id': 's4_1', 'name': 'Split AC', 'image': '${storageBase}categories%2Fac_repair%2Fsplit_ac.png?alt=media'},
+          {'id': 's4_2', 'name': 'Ductable AC', 'image': '${storageBase}categories%2Fac_repair%2Fductable_ac.png?alt=media'},
         ]
       },
       {
@@ -260,8 +219,8 @@ class FirebaseService {
         'name': 'Kitchen Chimney',
         'iconName': 'blender_rounded',
         'subCategories': [
-          {'id': 's5_1', 'name': 'Analog Control', 'image': '$hostOrigin/app_images/s5_1.png'},
-          {'id': 's5_2', 'name': 'Digital Touch', 'image': '$hostOrigin/app_images/s5_2.png'},
+          {'id': 's5_1', 'name': 'Analog Control', 'image': '${storageBase}categories%2Fkitchen_chimney%2Fanalog_control.png?alt=media'},
+          {'id': 's5_2', 'name': 'Digital Touch', 'image': '${storageBase}categories%2Fkitchen_chimney%2Fdigital_touch.png?alt=media'},
         ]
       },
       {
@@ -269,8 +228,8 @@ class FirebaseService {
         'name': 'Air Cooler',
         'iconName': 'wind_power_rounded',
         'subCategories': [
-          {'id': 's6_1', 'name': 'Desert Cooler', 'image': '$hostOrigin/app_images/s6_1.png'},
-          {'id': 's6_2', 'name': 'Personal Tower Cooler', 'image': '$hostOrigin/app_images/s6_2.png'},
+          {'id': 's6_1', 'name': 'Desert Cooler', 'image': '${storageBase}categories%2Fair_cooler%2Fdesert_cooler.png?alt=media'},
+          {'id': 's6_2', 'name': 'Personal Tower Cooler', 'image': '${storageBase}categories%2Fair_cooler%2Fpersonal_tower_cooler.png?alt=media'},
         ]
       },
       {
@@ -278,8 +237,8 @@ class FirebaseService {
         'name': 'Geyser',
         'iconName': 'hot_tub_rounded',
         'subCategories': [
-          {'id': 's7_1', 'name': 'Instant Geyser', 'image': '$hostOrigin/app_images/s7_1.png'},
-          {'id': 's7_2', 'name': 'Storage Tank Geyser', 'image': '$hostOrigin/app_images/s7_2.png'},
+          {'id': 's7_1', 'name': 'Instant Geyser', 'image': '${storageBase}categories%2Fgeyser%2Finstant_geyser.png?alt=media'},
+          {'id': 's7_2', 'name': 'Storage Tank Geyser', 'image': '${storageBase}categories%2Fgeyser%2Fstorage_tank_geyser.png?alt=media'},
         ]
       },
       {
@@ -287,8 +246,8 @@ class FirebaseService {
         'name': 'Microwave Oven',
         'iconName': 'microwave_rounded',
         'subCategories': [
-          {'id': 's8_1', 'name': 'Convection Oven', 'image': '$hostOrigin/app_images/s8_1.png'},
-          {'id': 's8_2', 'name': 'Solo / Grill Microwave', 'image': '$hostOrigin/app_images/s8_2.png'},
+          {'id': 's8_1', 'name': 'Convection Oven', 'image': '${storageBase}categories%2Fmicrowave_oven%2Fconvection_oven.png?alt=media'},
+          {'id': 's8_2', 'name': 'Solo / Grill Microwave', 'image': '${storageBase}categories%2Fmicrowave_oven%2Fsolo_grill_microwave.png?alt=media'},
         ]
       }
     ];
@@ -306,17 +265,20 @@ class FirebaseService {
       {
         'title': '20% OFF on Chimney Cleaning',
         'subtitle': 'Use code CLEAN15 • Sparkling homes await',
-        'image': '$hostOrigin/app_images/s5_2.png'
+        'image': '${storageBase}banners%2Ftop_banner%2Fchimney_cleaning.png?alt=media',
+        'placement': 'top_banner',
       },
       {
         'title': 'Washing Machine Service Special',
         'subtitle': 'Flat ₹150 OFF on Front Load servicing',
-        'image': '$hostOrigin/app_images/s2_2.png'
+        'image': '${storageBase}banners%2Ftop_banner%2Fwashing_machine_service.png?alt=media',
+        'placement': 'top_banner',
       },
       {
         'title': 'RO Water Purifier Servicing',
         'subtitle': 'Free TDS Check with filter replacement',
-        'image': '$hostOrigin/app_images/s3_2.png'
+        'image': '${storageBase}banners%2Fbottom_banner%2Fwater_purifier_servicing.png?alt=media',
+        'placement': 'bottom_banner',
       }
     ];
 
@@ -330,42 +292,42 @@ class FirebaseService {
         'name': 'AquaPure Economic RO',
         'subCategory': 'Standard RO',
         'price': '₹6,999',
-        'image': '$hostOrigin/app_images/s3_1.png'
+        'image': '${storageBase}products%2Fstandard_ro%2Faquapure_economic_ro.png?alt=media'
       },
       {
         'id': 'p2',
         'name': 'LivPure UV Compact',
         'subCategory': 'UV Purifier',
         'price': '₹8,499',
-        'image': '$hostOrigin/app_images/s3_2.png'
+        'image': '${storageBase}products%2Fuv_purifier%2Flivpure_uv_compact.png?alt=media'
       },
       {
         'id': 'p3',
         'name': 'AquaShield Copper RO',
         'subCategory': 'Standard RO',
         'price': '₹12,999',
-        'image': '$hostOrigin/app_images/s3_3.png'
+        'image': '${storageBase}products%2Fstandard_ro%2Faquashield_copper_ro.png?alt=media'
       },
       {
         'id': 'p4',
         'name': 'HydroAlkaline Premium',
         'subCategory': 'Alkaline Special',
         'price': '₹16,500',
-        'image': '$hostOrigin/app_images/s8_1.png'
+        'image': '${storageBase}products%2Falkaline_special%2Fhydroalkaline_premium.png?alt=media'
       },
       {
         'id': 'p5',
         'name': 'Kent Maxima Pro RO+UV',
         'subCategory': 'UV Purifier',
         'price': '₹19,999',
-        'image': '$hostOrigin/app_images/s1_3.png'
+        'image': '${storageBase}products%2Fuv_purifier%2Fkent_maxima_pro_ro_uv.png?alt=media'
       },
       {
         'id': 'p6',
         'name': 'AquaGrand Luxury Custom',
         'subCategory': 'Alkaline Special',
         'price': '₹29,999',
-        'image': '$hostOrigin/app_images/s5_1.png'
+        'image': '${storageBase}products%2Falkaline_special%2Faquagrand_luxury_custom.png?alt=media'
       }
     ];
 

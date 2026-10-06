@@ -6,6 +6,7 @@ class MainCategoryModel {
   final String name;
   final IconData iconData;
   final String? assetPath;
+  final String? imageUrl;
   final List<SubCategoryModel> subCategories;
 
   const MainCategoryModel({
@@ -13,6 +14,7 @@ class MainCategoryModel {
     required this.name,
     required this.iconData,
     this.assetPath,
+    this.imageUrl,
     required this.subCategories,
   });
 }
