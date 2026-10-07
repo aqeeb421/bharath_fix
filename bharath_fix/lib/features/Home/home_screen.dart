@@ -3,11 +3,9 @@ import '../../services/theme_service.dart';
 import 'package:flutter/services.dart';
 import 'package:bharath_fix/features/Home/subcategory_selection_screen.dart';
 import 'package:bharath_fix/features/Account/wallet_screen.dart';
+import 'package:bharath_fix/features/Market/market_screen.dart';
 import 'package:lottie/lottie.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../models/MainCategoryModel.dart';
-import '../../models/SubCategoryModel.dart';
 import 'package:flutter/material.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -19,6 +17,8 @@ import '../../services/database_service.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/notification_service.dart';
+import '../../services/catalog_cache_service.dart';
+import '../../ui/widgets/app_cached_image.dart';
 
 class HomeScreen extends StatefulWidget {
   final String detectedLocation;
@@ -50,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Dynamic collections variables loaded from Firestore
   List<MainCategoryModel> _categoriesList = [];
-  List<Map<String, dynamic>> _bannerList = [];
   List<Map<String, dynamic>> _offersList = [];
   int _activeOfferPage = 0;
 
@@ -59,7 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
     {
       'id': 'offer_mega_flash_01',
       'title': 'Save Flat ₹500 On First Appliance',
-      'subtitle': 'Water Purifiers, CCTV & Inverters with bundled same-day installation.',
+      'subtitle':
+          'Water Purifiers, CCTV & Inverters with bundled same-day installation.',
       'badge': 'MEGA SALE • 40% OFF',
       'expiry': '⏳ Ends Midnight',
       'couponCode': 'ROOFFER500',
@@ -72,7 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
     {
       'id': 'offer_combo_service_02',
       'title': 'Dual Appliance Deep Clean Combo',
-      'subtitle': 'Save ₹100 on AC & Refrigerator 24-point inspection & sanitization.',
+      'subtitle':
+          'Save ₹100 on AC & Refrigerator 24-point inspection & sanitization.',
       'badge': 'FESTIVE PACK • ₹100 OFF',
       'expiry': '🔥 Popular Deal',
       'couponCode': 'FIXFIRST',
@@ -85,7 +86,8 @@ class _HomeScreenState extends State<HomeScreen> {
     {
       'id': 'offer_install_guarantee_03',
       'title': '100% Free Same-Day Doorstep Setup',
-      'subtitle': 'Technicians deliver, mount, test & demo on the exact same visit.',
+      'subtitle':
+          'Technicians deliver, mount, test & demo on the exact same visit.',
       'badge': 'BHARATHFIX ASSURED',
       'expiry': '🛡️ Zero Waiting',
       'couponCode': 'STORE100',
@@ -182,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Future<void> _loadUserProfile() async {
     final profile = await DatabaseService().fetchProfile();
     if (profile != null && mounted) {
@@ -194,88 +195,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFirestoreHomeData() async {
+  Future<void> _loadFirestoreHomeData({bool forceRefresh = false}) async {
     try {
-      // 1. Fetch categories dynamically from Firestore
-      final categoriesSnapshot = await FirebaseFirestore.instance
-          .collection('categories')
-          .get();
-      if (categoriesSnapshot.docs.isNotEmpty) {
-        final List<MainCategoryModel> fetchedCategories = [];
-        for (var doc in categoriesSnapshot.docs) {
-          final data = doc.data();
-          final id = doc.id;
-          final name = data['name'] as String? ?? '';
-          final iconName = data['iconName'] as String? ?? 'settings';
-          final imageUrl = (data['imageUrl'] ?? data['image']) as String?;
-          final subCatsRaw = data['subCategories'] as List<dynamic>? ?? [];
+      final cacheService = CatalogCacheService();
 
-          final subCategories = subCatsRaw.map((sub) {
-            final subMap = sub as Map<dynamic, dynamic>;
-            return SubCategoryModel.fromMap(Map<String, dynamic>.from(subMap));
-          }).toList();
+      final categoriesFuture = cacheService.getCategories(
+        forceRefresh: forceRefresh,
+      );
+      final offersFuture = cacheService.getOffers(forceRefresh: forceRefresh);
 
-          fetchedCategories.add(
-            MainCategoryModel(
-              id: id,
-              name: name,
-              iconData: _resolveIconFromString(iconName),
-              assetPath: _resolveAssetIconFromString(name, iconName),
-              imageUrl: imageUrl,
-              subCategories: subCategories,
-            ),
-          );
-        }
+      final results = await Future.wait([categoriesFuture, offersFuture]);
 
-        if (mounted) {
-          setState(() {
-            _categoriesList = fetchedCategories;
-          });
-        }
-      }
-
-      // 2. Fetch promo banners dynamically from Firestore
-      final bannersSnapshot = await FirebaseFirestore.instance
-          .collection('banners')
-          .get();
-      if (bannersSnapshot.docs.isNotEmpty) {
-        final List<Map<String, dynamic>> fetchedBanners = [];
-        for (var doc in bannersSnapshot.docs) {
-          final data = doc.data();
-          fetchedBanners.add({
-            'title': data['title'] as String? ?? '',
-            'subtitle': data['subtitle'] as String? ?? '',
-            'image': data['image'] as String? ?? '',
-          });
-        }
-
-        if (mounted) {
-          setState(() {
-            _bannerList = fetchedBanners;
-          });
-        }
-      }
-
-      // 3. Fetch marketing offers dynamically from Firestore
-      final offersSnapshot = await FirebaseFirestore.instance
-          .collection('offers')
-          .get();
-      if (offersSnapshot.docs.isNotEmpty) {
-        final List<Map<String, dynamic>> fetchedOffers = [];
-        for (var doc in offersSnapshot.docs) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          fetchedOffers.add(data);
-        }
-
-        if (mounted) {
-          setState(() {
-            _offersList = fetchedOffers;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _categoriesList = results[0] as List<MainCategoryModel>;
+          final offers = results[1] as List<Map<String, dynamic>>;
+          if (offers.isNotEmpty) {
+            _offersList = offers;
+          } else {
+            _offersList = List<Map<String, dynamic>>.from(_defaultOffers);
+          }
+        });
       }
     } catch (e) {
-      debugPrint("Error loading dynamic Firestore Home data: $e");
+      debugPrint("Error loading cached Firestore Home data: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -314,34 +257,6 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return Icons.settings_rounded;
     }
-  }
-
-  String _resolveAssetIconFromString(String name, String iconName) {
-    final lowerName = name.toLowerCase().trim();
-
-    if (lowerName.contains('purifier') ||
-        lowerName.contains('water purifier')) {
-      return 'assets/icons/water_purifer.png';
-    } else if (lowerName.contains('washing') ||
-        lowerName.contains('laundry') ||
-        lowerName.contains('machine')) {
-      return 'assets/icons/washing_machine.png';
-    } else if (lowerName.contains('ac') ||
-        lowerName.contains('air condition')) {
-      return 'assets/icons/air_condition.png';
-    } else if (lowerName.contains('cooler')) {
-      return 'assets/icons/air_cooler.png';
-    } else if (lowerName.contains('heater') || lowerName.contains('geyser')) {
-      return 'assets/icons/water_heater.png';
-    } else if (lowerName.contains('chimney')) {
-      return 'assets/icons/chimney.png';
-    } else if (lowerName.contains('microwave') || lowerName.contains('oven')) {
-      return 'assets/icons/microwave.png';
-    } else if (lowerName.contains('refrigerator') ||
-        lowerName.contains('fridge')) {
-      return 'assets/icons/refrigerator.png';
-    }
-    return 'assets/icons/air_condition.png';
   }
 
   @override
@@ -387,8 +302,75 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               _buildAISearchBar(),
                               SizedBox(height: AppSpacing.medium),
-                              _buildPromoBannerCarousel(),
-                              SizedBox(height: AppSpacing.large),
+                              _buildMarketSectionHeader(),
+                              // SizedBox(height: AppSpacing.large),
+                              // Row(
+                              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              //   crossAxisAlignment: CrossAxisAlignment.end,
+                              //   children: [
+                              //     Expanded(
+                              //       child: Column(
+                              //         crossAxisAlignment: CrossAxisAlignment.start,
+                              //         children: [
+                              //           Row(
+                              //             children: [
+                              //               const Icon(
+                              //                 Icons.local_fire_department_rounded,
+                              //                 color: Colors.deepOrange,
+                              //                 size: 20,
+                              //               ),
+                              //               const SizedBox(width: 6),
+                              //               Flexible(
+                              //                 child: Text(
+                              //                   'Special Offers & Deals',
+                              //                   style: AppTextStyle.sectionHeader,
+                              //                   overflow: TextOverflow.ellipsis,
+                              //                 ),
+                              //               ),
+                              //             ],
+                              //           ),
+                              //           const SizedBox(height: 3),
+                              //           Text(
+                              //             'Exclusive discounts, coupons & bundled savings',
+                              //             style: AppTextStyle.subtitle,
+                              //             maxLines: 1,
+                              //             overflow: TextOverflow.ellipsis,
+                              //           ),
+                              //         ],
+                              //       ),
+                              //     ),
+                              //     const SizedBox(width: 8),
+                              //     Container(
+                              //       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              //       decoration: BoxDecoration(
+                              //         color: Colors.red.shade50,
+                              //         borderRadius: BorderRadius.circular(6),
+                              //         border: Border.all(color: Colors.red.shade200),
+                              //       ),
+                              //       child: Row(
+                              //         mainAxisSize: MainAxisSize.min,
+                              //         children: [
+                              //           Icon(Icons.timer_outlined, size: 12, color: Colors.red.shade800),
+                              //           const SizedBox(width: 4),
+                              //           Text(
+                              //             'LIMITED TIME',
+                              //             style: TextStyle(
+                              //               fontFamily: 'Plus Jakarta Sans',
+                              //               fontSize: 9.5,
+                              //               fontWeight: FontWeight.bold,
+                              //               color: Colors.red.shade800,
+                              //               letterSpacing: 0.3,
+                              //             ),
+                              //           ),
+                              //         ],
+                              //       ),
+                              //     ),
+                              //   ],
+                              // ),
+                              const SizedBox(height: AppSpacing.medium),
+                              _buildDynamicMarketingOffersSection(),
+                      
+                              SizedBox(height: AppSpacing.medium),
                               Text(
                                 'Service & Installation',
                                 style: AppTextStyle.sectionHeader,
@@ -396,71 +378,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               SizedBox(height: AppSpacing.medium),
                               _buildCategoryGrid(),
                               SizedBox(height: AppSpacing.large),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.local_fire_department_rounded,
-                                              color: Colors.deepOrange,
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Flexible(
-                                              child: Text(
-                                                'Special Offers & Deals',
-                                                style: AppTextStyle.sectionHeader,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'Exclusive discounts, coupons & bundled savings',
-                                          style: AppTextStyle.subtitle,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.red.shade200),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.timer_outlined, size: 12, color: Colors.red.shade800),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'LIMITED TIME',
-                                          style: TextStyle(
-                                            fontFamily: 'Plus Jakarta Sans',
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.red.shade800,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.medium),
-                              _buildDynamicMarketingOffersSection(),
                             ],
                           ),
                         ),
@@ -525,10 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -602,10 +516,11 @@ class _HomeScreenState extends State<HomeScreen> {
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
-          children: [Icon(Icons.auto_awesome, color: Colors.grey, size: 18),
+          children: [
+            Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
             SizedBox(width: AppSpacing.small),
             Text(
-              'Describe your problem — AI will help...',
+              'Search services, repairs or appliances...',
               style: AppTextStyle.subtitle,
             ),
           ],
@@ -655,10 +570,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+                        Icon(
+                          Icons.search_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        ),
                         SizedBox(width: 8),
                         Text(
-                          'Search & Instant AI Suggestions',
+                          'Search Services & Appliances',
                           style: AppTextStyle.sectionHeader,
                         ),
                       ],
@@ -673,12 +592,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       onChanged: (val) => setModalState(() {}),
                       decoration: InputDecoration(
-                        hintText: 'Search service e.g. "AC", "Purifier", "Fridge"...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
+                        hintText:
+                            'Search service e.g. "AC repair", "Purifier", "Fridge"...',
+                        hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: AppColors.primary,
                         ),
-                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.medium),
                           borderSide: BorderSide(color: AppColors.border),
@@ -708,7 +628,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           final match = matches[idx];
                           return ListTile(
                             dense: true,
-                            leading: Icon(Icons.build_circle_outlined, color: AppColors.primary, size: 22),
+                            leading: Icon(
+                              Icons.build_circle_outlined,
+                              color: AppColors.primary,
+                              size: 22,
+                            ),
                             title: Text(
                               match['title']!,
                               style: TextStyle(
@@ -717,18 +641,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontSize: 14,
                               ),
                             ),
-                            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                            trailing: Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: Colors.grey,
+                            ),
                             onTap: () {
                               Navigator.pop(context);
                               final category = _categoriesList.firstWhere(
                                 (cat) => cat.id == match['catId'],
-                                orElse: () => _categoriesList.isNotEmpty ? _categoriesList.first : MainCategoryModel(id: 'm1', name: 'Service', iconData: Icons.build, assetPath: '', subCategories: []),
+                                orElse: () => _categoriesList.isNotEmpty
+                                    ? _categoriesList.first
+                                    : MainCategoryModel(
+                                        id: 'm1',
+                                        name: 'Service',
+                                        iconData: Icons.build,
+                                        assetPath: '',
+                                        subCategories: [],
+                                      ),
                               );
                               if (_categoriesList.isNotEmpty) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => SubCategorySelectionScreen(mainCategory: category),
+                                    builder: (context) =>
+                                        SubCategorySelectionScreen(
+                                          mainCategory: category,
+                                        ),
                                   ),
                                 );
                               }
@@ -797,7 +736,8 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Row(
-            children: [Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+            children: [
+              Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
               SizedBox(width: 8),
               Text('AI Diagnostics', style: AppTextStyle.sectionHeader),
             ],
@@ -855,76 +795,119 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPromoBannerCarousel() {
-    if (_bannerList.isEmpty) return const SizedBox.shrink();
-
-    return SizedBox(
-      height: 130,
-      child: PageView.builder(
-        itemCount: _bannerList.length,
-        controller: PageController(viewportFraction: 0.95),
-        physics: const BouncingScrollPhysics(),
-        itemBuilder: (context, index) {
-          final banner = _bannerList[index];
-          final String title = banner['title'] as String? ?? '';
-          final String subtitle = banner['subtitle'] as String? ?? '';
-          final String image = banner['image'] as String? ?? '';
-
-          return Container(
-            margin: EdgeInsets.symmetric(horizontal: 4),
-            padding: EdgeInsets.all(0),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(AppRadius.large),
-              border: Border.all(color: AppColors.border),
+  Widget _buildMarketSectionHeader() {
+    return InkWell(
+      onTap: () {
+        if (widget.onSwitchTab != null) {
+          widget.onSwitchTab!(1);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MarketScreen()),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            child: Stack(
-              children: [
-                // Image frame loader with fallback error state
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.40,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.large - 1),
-                      child: Image.network(
-                        image,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Center(
-                              child: Icon(
-                                Icons.broken_image_rounded,
-                                color: Colors.grey,
-                                size: 32,
-                              ),
-                            ),
-                      ),
-                    ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkCard
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                'assets/icons/market.png',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Icon(
+                    Icons.storefront_rounded,
+                    color: AppColors.primary,
+                    size: 24,
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(title, style: AppTextStyle.cardTitle),
-                      SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: 12,
-                          color: AppColors.subtitle,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'BharathFix Market',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.title,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Buy water purifiers, retail appliances & spares',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 11.5,
+                      color: AppColors.subtitle,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Shop Now',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: AppColors.primary,
                 ),
               ],
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -938,7 +921,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 3,
         crossAxisSpacing: 12,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.95,
+        childAspectRatio: 0.88,
       ),
       itemBuilder: (context, index) {
         final category = _categoriesList[index];
@@ -968,26 +951,40 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Container(
                   width: double.infinity,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(AppRadius.large),
                     border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: (category.imageUrl != null && category.imageUrl!.isNotEmpty)
-                      ? Image.network(
-                          category.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Image.asset(
-                            category.assetPath ??
-                                _resolveAssetIconFromString(category.name, ''),
-                            fit: BoxFit.contain,
+                  child:
+                      (category.imageUrl != null &&
+                          category.imageUrl!.isNotEmpty)
+                      ? AppCachedImage(
+                          imageUrl: category.imageUrl!,
+                          fit: BoxFit.contain,
+                          errorWidget: const Center(
+                            child: Icon(
+                              Icons.broken_image_rounded,
+                              color: Colors.grey,
+                              size: 36,
+                            ),
                           ),
                         )
-                      : Image.asset(
-                          category.assetPath ??
-                              _resolveAssetIconFromString(category.name, ''),
-                          fit: BoxFit.contain,
+                      : const Center(
+                          child: Icon(
+                            Icons.category_rounded,
+                            color: Color(0xFF000062),
+                            size: 40,
+                          ),
                         ),
                 ),
               ),
@@ -1009,6 +1006,57 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Color _parseOfferColor(dynamic val, Color fallback) {
+    if (val == null) return fallback;
+    if (val is int) return Color(val);
+    if (val is String) {
+      String clean = val.trim().replaceAll('#', '').replaceAll('0x', '');
+      if (clean.length == 6) clean = 'FF$clean';
+      final parsed = int.tryParse(clean, radix: 16);
+      if (parsed != null) return Color(parsed);
+    }
+    return fallback;
+  }
+
+  IconData _resolveOfferIcon(dynamic iconVal) {
+    if (iconVal is IconData) return iconVal;
+    if (iconVal is String) {
+      switch (iconVal.toLowerCase()) {
+        case 'flash_on':
+        case 'flash':
+        case 'bolt':
+          return Icons.flash_on_rounded;
+        case 'handyman':
+        case 'tools':
+        case 'repair':
+          return Icons.handyman_rounded;
+        case 'verified':
+        case 'check':
+        case 'shield':
+          return Icons.verified_rounded;
+        case 'wallet':
+        case 'account_balance_wallet':
+          return Icons.account_balance_wallet_rounded;
+        case 'local_offer':
+        case 'discount':
+        case 'tag':
+          return Icons.local_offer_rounded;
+        case 'stars':
+        case 'star':
+          return Icons.stars_rounded;
+        case 'celebration':
+        case 'party':
+          return Icons.celebration_rounded;
+        case 'local_fire_department':
+        case 'fire':
+          return Icons.local_fire_department_rounded;
+        default:
+          return Icons.local_fire_department_rounded;
+      }
+    }
+    return Icons.local_fire_department_rounded;
+  }
+
   Widget _buildDynamicMarketingOffersSection() {
     final offers = _offersList.isNotEmpty ? _offersList : _defaultOffers;
 
@@ -1023,7 +1071,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPageChanged: (idx) => setState(() => _activeOfferPage = idx),
             itemBuilder: (context, index) {
               final offer = offers[index];
-              final title = (offer['title'] ?? 'Special Festive Offer').toString();
+              final title = (offer['title'] ?? 'Special Festive Offer')
+                  .toString();
               final subtitle = (offer['subtitle'] ?? '').toString();
               final badge = (offer['badge'] ?? 'DEAL OF THE DAY').toString();
               final expiry = (offer['expiry'] ?? 'Limited Period').toString();
@@ -1031,15 +1080,15 @@ class _HomeScreenState extends State<HomeScreen> {
               final cta = (offer['cta'] ?? 'Explore Now').toString();
               final actionType = (offer['actionType'] ?? 'market').toString();
 
-              final Color colorStart = offer['gradientStart'] is int
-                  ? Color(offer['gradientStart'] as int)
-                  : const Color(0xFFE65100);
-              final Color colorEnd = offer['gradientEnd'] is int
-                  ? Color(offer['gradientEnd'] as int)
-                  : const Color(0xFFFF8F00);
-              final IconData iconData = offer['icon'] is IconData
-                  ? offer['icon'] as IconData
-                  : Icons.local_fire_department_rounded;
+              final Color colorStart = _parseOfferColor(
+                offer['gradientStart'],
+                const Color(0xFFE65100),
+              );
+              final Color colorEnd = _parseOfferColor(
+                offer['gradientEnd'],
+                const Color(0xFFFF8F00),
+              );
+              final IconData iconData = _resolveOfferIcon(offer['icon']);
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -1161,15 +1210,25 @@ class _HomeScreenState extends State<HomeScreen> {
                               if (coupon.isNotEmpty)
                                 InkWell(
                                   onTap: () {
-                                    Clipboard.setData(ClipboardData(text: coupon));
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    Clipboard.setData(
+                                      ClipboardData(text: coupon),
+                                    );
+                                    ScaffoldMessenger.of(
+                                      context,
+                                    ).hideCurrentSnackBar();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Row(
                                           children: [
-                                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                            const Icon(
+                                              Icons.check_circle_rounded,
+                                              color: Colors.white,
+                                              size: 18,
+                                            ),
                                             const SizedBox(width: 8),
-                                            Text('Coupon code "$coupon" copied to clipboard!'),
+                                            Text(
+                                              'Coupon code "$coupon" copied to clipboard!',
+                                            ),
                                           ],
                                         ),
                                         backgroundColor: AppColors.primary,
@@ -1180,16 +1239,29 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                   borderRadius: BorderRadius.circular(6),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.copy_rounded, size: 11, color: Colors.white),
+                                        const Icon(
+                                          Icons.copy_rounded,
+                                          size: 11,
+                                          color: Colors.white,
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           'Code: $coupon',
@@ -1209,13 +1281,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox.shrink(),
 
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1234,7 +1311,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 3),
-                                    Icon(Icons.arrow_forward_rounded, size: 12, color: colorStart),
+                                    Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 12,
+                                      color: colorStart,
+                                    ),
                                   ],
                                 ),
                               ),

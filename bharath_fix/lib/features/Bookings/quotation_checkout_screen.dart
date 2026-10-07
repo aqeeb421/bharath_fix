@@ -132,10 +132,26 @@ class _QuotationCheckoutScreenState extends State<QuotationCheckoutScreen> {
         },
       );
 
+      if (orderCreation == null || orderCreation['key'] == null || (orderCreation['key'] as String).isEmpty) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Online payment service is temporarily unavailable. Please try again or pay cash directly to the technician.'),
+              backgroundColor: Color(0xFF000062),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.all(16),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       var options = {
-        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'key': orderCreation['key'],
         'amount': amountInPaise,
-        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+        if (orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
           'order_id': orderCreation['id'],
         'name': 'BharathFix',
         'description': 'Payment for Repair Quotation #${widget.bookingId}',

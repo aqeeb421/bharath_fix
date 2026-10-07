@@ -4,6 +4,7 @@ import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
+import '../../ui/widgets/app_cached_image.dart';
 import 'checkout_screen.dart';
 
 class ServiceDetailsScreen extends StatefulWidget {
@@ -162,10 +163,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         Container(
           height: 240,
           width: double.infinity,
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: NetworkImage(widget.bannerImage),
-              fit: BoxFit.cover,
+          color: AppColors.card,
+          child: AppCachedImage(
+            imageUrl: widget.bannerImage,
+            fit: BoxFit.cover,
+            errorWidget: const Center(
+              child: Icon(Icons.handyman_rounded, color: Colors.grey, size: 48),
             ),
           ),
         ),

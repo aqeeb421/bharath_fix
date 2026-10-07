@@ -1,0 +1,267 @@
+﻿==================================================
+SLIDE: slide1.xml
+==================================================
+BHARATHFIX
+Smart Home Services & Hyperlocal Appliance Marketplace
+Connecting 500M+ Indians with certified on-demand technicians and direct-to-consumer home appliances with bundled doorstep delivery, installation, and demo.
+On-Demand Repairs
+10+ Appliance Categories with Rate Card & OTP
+BharathFix Market
+Direct Sale of Water Purifiers, CCTV, Inverters
+Unified Fleet
+Technicians Deliver, Install & Demo in 1 Visit
+==================================================
+SLIDE: slide2.xml
+==================================================
+The Dual-Engine Business Model
+Transforming a seasonal repair service into a high-frequency, high-value commerce platform
+BharathFix • Confidential Client Presentation • 2026
+ENGINE 1: ON-DEMAND SERVICES
+• Appliance Repairs:
+Washing machines, fridges, ACs, microwave ovens, geysers.
+• Essential Utilities:
+Certified plumbing & electrical diagnostics.
+• High Frequency:
+Year-round recurring service visits across households.
+• Transparent Pricing:
+₹19 visiting fee + pre-approved rate-card quotations.
+• Trust Mechanism:
+Start OTP & Completion OTP to eliminate disputes.
+ENGINE 2: BHARATHFIX MARKET (SALES)
+• Curated Appliances:
+RO water purifiers, CCTV security systems, inverters, stabilizers.
+• Bundled Installation:
+Free same-day doorstep delivery, mounting & demo.
+• High Basket Size:
+₹3,500 – ₹18,000 average order value.
+• Upsell Synergies:
+When old appliance repair cost is high, tech suggests new unit.
+• Stock Assurance:
+Admin maintains real-time inventory and supplier stocks.
+==================================================
+SLIDE: slide3.xml
+==================================================
+Customer Onboarding & Address Architecture
+Eliminating drop-offs while guaranteeing complete, geo-tagged delivery addresses
+BharathFix • Confidential Client Presentation • 2026
+01
+Mobile OTP Login
+User enters 10-digit number. Instant Firebase SMS verification. Zero passwords required.
+02
+Firebase Auth Identity
+Secure Firebase UID generated. Encrypted session token preserved on local device.
+03
+Mandatory Profile Setup
+New users complete: Full Name, Email (for GST invoices), and WhatsApp number.
+04
+Geo-Address Capture
+Auto-detects GPS coordinates + flat/house #, landmark & taluk (e.g., Hassan, Belur).
+Operational Rule: Strict Address Enforcement
+Customers cannot place an appliance order or request a repair visit until their default delivery address and landmarks are saved. This completely eliminates delivery rejections and lost technician visits.
+==================================================
+SLIDE: slide4.xml
+==================================================
+Customer App: "BharathFix Market" Tab
+A dedicated storefront for certified home appliances with bundled installation
+BharathFix • Confidential Client Presentation • 2026
+Marketplace Categories
+💧 Water Purifiers (RO+UV)
+Domestic 10L-15L purifiers with free installation kit
+📹 CCTV Security Systems
+Wi-Fi & wired 4K outdoor cameras with mobile app pairing
+⚡ Inverters & Stabilizers
+Voltage protectors for fridges, ACs & complete homes
+🍳 Kitchen Chimneys
+Filterless auto-clean hoods with ducting setup
+❄️ Air Coolers & Appliances
+Desert & personal coolers for semi-urban climate
+Why Buy on BharathFix vs. General E-Commerce?
+✔ Zero Waiting for Installation
+Amazon/Flipkart deliver on Day 1, install on Day 4. BharathFix delivers and installs on the exact same visit.
+✔ Live Technician Demo
+Technician unpacks, mounts, tests, and teaches the family how to operate the product before taking completion OTP.
+✔ Local Warranty Support
+Any issue under warranty is serviced by the same certified BharathFix local technician team.
+✔ Live Stock Visibility
+Real-time stock indicators ("In Stock", "Only 2 Left") controlled dynamically by Admin.
+==================================================
+SLIDE: slide5.xml
+==================================================
+Customer App: "Bookings" vs. "Orders" Tab Split
+Clean separation of service visits and physical merchandise to prevent user confusion
+BharathFix • Confidential Client Presentation • 2026
+Feature Dimension
+📋 Bookings Tab (Repairs)
+📦 Orders Tab (Market)
+Purpose
+On-demand repair & diagnostic visit
+Physical appliance purchase & delivery
+Scheduling
+Exact user-selected time slot (e.g. 11 AM)
+Delivery slot (e.g. Same-Day or Next-Day)
+Payment Flow
+₹19 visiting fee upfront + Quote on visit
+Full product price via Razorpay / COD
+Tracking Stages
+Booked ➔ Tech Assigned ➔ In Progress ➔ Done
+Placed ➔ Hub Pickup ➔ Out for Install ➔ Completed
+Security Verification
+Start OTP + Completion OTP
+Delivery & Demonstration OTP
+Invoice Type
+Service & Labor Tax Invoice
+Appliance Retail GST Invoice with Serial #
+==================================================
+SLIDE: slide6.xml
+==================================================
+Technician App: Service Expert + Delivery Executive
+Empowering local handymen into certified delivery and installation entrepreneurs
+BharathFix • Confidential Client Presentation • 2026
+Role A: Service & Repair Technician
+1. Receive skill-matched job alert via push notification
+2. Review customer address & launch Google Maps navigation
+3. Arrive at doorstep & verify 4-digit Start OTP
+4. Inspect machine & build digital quote (spares + labor)
+5. Customer approves quote on their own phone
+6. Complete repair, verify Completion OTP, collect fee
+Role B: Delivery & Installation Executive
+1. Receive new appliance delivery & installation order
+2. Navigate to BharathFix hub/store to collect boxed item
+3. Mark "Picked Up" & drive to customer location
+4. Unpack, mount (wall/pipe/socket), and install appliance
+5. Power on, test, and conduct live customer demonstration
+6. Customer inputs Delivery & Demo OTP to close order
+==================================================
+SLIDE: slide7.xml
+==================================================
+Admin Console: Orders, Bookings & Inventory Control
+Centralized dashboard for tracking operations, stock counts, and partner payouts
+BharathFix • Confidential Client Presentation • 2026
+📦 Orders & Dispatch
+• Dedicated tab for product sales
+• Assign deliveries to nearest certified technician
+• Real-time status tracking (Hub ➔ Transit ➔ Installed)
+• Automated customer GST invoice emission
+📋 Bookings Dispatch
+• Separate tab for repair visits
+• Smart auto-matching by appliance skill
+• Manual admin override & emergency re-assignment
+• Quotation audit & dispute management
+🏪 Inventory & Stock Hub
+• Add/Edit appliance SKUs with specs & photos
+• Real-time stock count & buffer levels
+• Low-stock automated warning triggers
+• Supplier cost vs. Customer selling price tracking
+==================================================
+SLIDE: slide8.xml
+==================================================
+End-to-End Operational Lifecycle
+Chronological journey for both Service Calls and Product Order Installations
+BharathFix • Confidential Client Presentation • 2026
+1. TRIGGER
+🔧 Repair: Customer selects service + date/time + ₹19 fee
+📦 Market: Customer selects appliance + payment mode (UPI/COD)
+2. DISPATCH
+🔧 Repair: FCM push notifies matching local technician
+📦 Market: Order alert assigned to certified installation technician
+3. FULFILLMENT
+🔧 Repair: Tech reaches home & validates Start OTP
+📦 Market: Tech collects unit from hub & delivers to customer
+4. COMPLETION
+🔧 Repair: Tech quotes spares, finishes repair & verifies OTP
+📦 Market: Tech completes wall installation, conducts demo & verifies OTP
+5. SETTLEMENT
+🔧 Repair: Platform earns commission; tech gets payout
+📦 Market: Platform earns product margin; tech gets install fee
+==================================================
+SLIDE: slide9.xml
+==================================================
+Production Readiness & Technical Safeguards
+Audited technical improvements to ensure high availability and financial security
+BharathFix • Confidential Client Presentation • 2026
+🛡️ Server-Side Razorpay Order Creation
+Vulnerability: Client-side mock order IDs cause immediate payment rejections in live mode.
+Production Fix: Backend Node.js API creates genuine Razorpay order IDs with live currency and secret keys.
+🛡️ HMAC-SHA256 Webhook Verification
+Vulnerability: Public webhook could allow bad actors to spoof payment success callbacks.
+Production Fix: Cryptographic signature verification ensures only verified Razorpay payment webhooks update order status.
+🛡️ Localized Database Query Scoping
+Vulnerability: Global query fetched all bookings across entire database on every date selection.
+Production Fix: Filtered queries scoped by city/taluk and service category. Saves 99% Firestore read costs.
+🛡️ 24/7 Always-On Push Engine
+Vulnerability: Free-tier backend server sleeping caused missed push notifications for technicians.
+Production Fix: Production cloud host (AWS/DigitalOcean/Paid Render) with FCM v1 daemon keeps alerts active 24/7.
+==================================================
+SLIDE: slide10.xml
+==================================================
+Customer Trust & Localization in Tier-2/3 India
+Designing for regional adoption across Karnataka and Hassan district
+BharathFix • Confidential Client Presentation • 2026
+💰
+Visiting Fee Clarity
+• Dispel the assumption that ₹19 covers the entire repair.
+• Clear in-app disclaimer: "₹19 covers doorstep inspection. Parts & labor as per verified rate card."
+• Customer must approve quotation before technician opens toolbox.
+🌐
+Native Kannada Localization
+• Prompt English vs. ಕನ್ನಡ on first app launch.
+• High conversion boost: 60%+ Tier-2/3 users prefer native Kannada UI.
+• Covers audio/visual prompts for low-literacy users.
+🔒
+Customer Safety & Verification
+• Technician profile shows photo ID, police verification status, and ratings.
+• Two-factor OTP prevents unauthorized service claims.
+• Dedicated SOS & direct WhatsApp support button on live jobs.
+==================================================
+SLIDE: slide11.xml
+==================================================
+Monetization Architecture & Unit Economics
+Diversified revenue streams with compounding lifetime customer value (LTV)
+BharathFix • Confidential Client Presentation • 2026
+Revenue Stream
+Avg. Transaction (AOV)
+BharathFix Margin
+Platform Take per Order
+Service Visiting Fee
+₹19 – ₹49
+20% Platform Fee
+₹4 – ₹10
+Appliance Repair Spares/Labor
+₹850
+20% Commission
+₹170
+Water Purifier Direct Sale
+₹8,999
+25% Product Margin
+₹2,250
+CCTV 4-Cam Security Kit
+₹12,499
+28% Product Margin
+₹3,500
+Annual Filter AMC Contract
+₹2,499 / year
+35% Recurring Margin
+₹875 / year
+==================================================
+SLIDE: slide12.xml
+==================================================
+Go-To-Market Roadmap & Next Milestones
+A structured 6-week execution plan to launch commercial operations in Hassan district
+PHASE 1 (WEEKS 1-2)
+Core Hardening & Market UI
+• Razorpay backend order integration & live keys
+• Deploy dedicated Market tab & separated Orders tab
+• Admin inventory catalog & stock control module
+• Enable Kannada localization toggle
+PHASE 2 (WEEKS 3-4)
+Hub Setup & Partner Cohort
+• Setup Hassan central stock hub (Water purifiers & CCTV)
+• Onboard first cohort of 25 certified technicians
+• Run 50 live end-to-end test orders and simulated installs
+• Publish Google Play Store production builds
+PHASE 3 (WEEKS 5-6)
+Commercial Scale & Marketing
+• Launch ₹19 visiting fee campaign across Hassan
+• WhatsApp direct order bot for older demographics
+• Tie-ups with local appliance dealer showrooms
+• Target: 500 bookings & 50 appliance sales in Month 1

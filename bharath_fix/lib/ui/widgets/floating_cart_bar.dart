@@ -86,7 +86,7 @@ class FloatingCartBar extends StatelessWidget {
                       builder: (context) => CheckoutScreen(
                         serviceTitle: firstItem['title'] ?? 'Selected Services',
                         priceString: '₹${totalPrice.toStringAsFixed(0)}',
-                        bannerImage: 'assets/icons/air_condition.png',
+                        bannerImage: (firstItem['image'] ?? firstItem['imageUrl'] ?? firstItem['bannerImage'])?.toString() ?? '',
                       ),
                     ),
                   );

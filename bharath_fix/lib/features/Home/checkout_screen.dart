@@ -19,6 +19,7 @@ import '../../services/payment_service.dart';
 import '../../utils/app_routes.dart';
 import '../Account/offers_screen.dart';
 import '../Account/wallet_screen.dart';
+import '../../ui/widgets/app_cached_image.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String serviceTitle;
@@ -252,10 +253,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         },
       );
 
+      if (orderCreation == null || orderCreation['key'] == null || (orderCreation['key'] as String).isEmpty) {
+        if (mounted) {
+          setState(() => _isProcessingPayment = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Online payment service is temporarily unavailable. Please try again or select Cash on Service.'),
+              backgroundColor: Color(0xFF000062),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.all(16),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       var options = {
-        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'key': orderCreation['key'],
         'amount': amountInPaise,
-        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+        if (orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
           'order_id': orderCreation['id'],
         'name': 'BharathFix',
         'description': widget.serviceTitle,
@@ -503,13 +520,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.large)),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+            child: Container(
+              width: 56,
+              height: 56,
               color: AppColors.border,
-              borderRadius: BorderRadius.circular(AppRadius.medium),
-              image: DecorationImage(image: NetworkImage(widget.bannerImage), fit: BoxFit.cover),
+              child: AppCachedImage(
+                imageUrl: widget.bannerImage,
+                fit: BoxFit.cover,
+                errorWidget: const Center(
+                  child: Icon(Icons.handyman_rounded, color: Colors.grey, size: 28),
+                ),
+              ),
             ),
           ),
           SizedBox(width: AppSpacing.medium),

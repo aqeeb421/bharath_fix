@@ -4,11 +4,18 @@ import 'package:http/http.dart' as http;
 import 'fcm_direct_service.dart';
 
 class PaymentService {
-  static const String razorpayKey = 'rzp_test_TkFIUiWC9HaAbf';
+  // Debug / Sandbox testing key. Commented out for production safety.
+  // To re-enable manual test sandbox mode in the future, uncomment the line below:
+  // static const String? _debugTestKey = 'rzp_test_TkFIUiWC9HaAbf';
+  static const String? _debugTestKey = null;
+
+  /// Returns the active Razorpay key (null in production when relying on Render backend)
+  static String? get razorpayKey => _debugTestKey;
 
   /// Calls the backend Node.js server to create an official Razorpay order ID.
-  /// If the server is reachable and Razorpay credentials are set, this returns
-  /// a genuine order ID (e.g. `order_M9q2...`), preventing live mode checkout rejections.
+  /// The server dynamically injects the live RAZORPAY_KEY_ID configured on Render.com.
+  /// If the server is unreachable or offline, this returns null so the app can display
+  /// a graceful "Service temporarily unavailable" message.
   static Future<Map<String, dynamic>?> createOrder({
     required int amountInPaise,
     required String currency,
@@ -28,36 +35,44 @@ class PaymentService {
               'notes': notes ?? {},
             }),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded['success'] == true && decoded['order'] != null) {
           final order = decoded['order'];
-          return {
-            'id': order['id'],
-            'amount': order['amount'],
-            'currency': order['currency'],
-            'key': order['keyId'] ?? razorpayKey,
-            'status': order['status'] ?? 'created',
-            'isLiveOrder': decoded['isLiveOrder'] == true,
-          };
+          final String? keyId = order['keyId'] as String? ?? _debugTestKey;
+          if (keyId != null && keyId.isNotEmpty) {
+            return {
+              'id': order['id'],
+              'amount': order['amount'],
+              'currency': order['currency'],
+              'key': keyId,
+              'status': order['status'] ?? 'created',
+              'isLiveOrder': decoded['isLiveOrder'] == true,
+            };
+          }
         }
       }
     } catch (e) {
-      debugPrint('⚠️ Warning: Backend order creation unreachable ($e). Using local fallback order.');
+      debugPrint('⚠️ Payment backend order creation unreachable: $e');
     }
 
-    // Local sandbox fallback for offline or development resilience
-    final String fallbackOrderId = 'order_sim_${DateTime.now().millisecondsSinceEpoch}';
-    return {
-      'id': fallbackOrderId,
-      'amount': amountInPaise,
-      'currency': currency,
-      'key': razorpayKey,
-      'status': 'created',
-      'isLiveOrder': false,
-    };
+    // If sandbox debug test key is explicitly enabled:
+    if (_debugTestKey != null) {
+      final String fallbackOrderId = 'order_sim_${DateTime.now().millisecondsSinceEpoch}';
+      return {
+        'id': fallbackOrderId,
+        'amount': amountInPaise,
+        'currency': currency,
+        'key': _debugTestKey,
+        'status': 'created',
+        'isLiveOrder': false,
+      };
+    }
+
+    // In production, return null if backend order creation was not successful
+    return null;
   }
 
   /// Verifies client-side payment success with the backend server via HMAC-SHA256

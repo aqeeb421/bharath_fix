@@ -151,10 +151,16 @@ class _WalletScreenState extends State<WalletScreen> {
       },
     );
 
+    if (orderCreation == null || orderCreation['key'] == null || (orderCreation['key'] as String).isEmpty) {
+      setState(() => _isProcessing = false);
+      _showErrorSnackBar('Online payment gateway is temporarily unavailable. Please try again later.');
+      return;
+    }
+
     var options = {
-      'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+      'key': orderCreation['key'],
       'amount': amountInPaise,
-      if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+      if (orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
         'order_id': orderCreation['id'],
       'name': 'BharathFix Wallet',
       'description': 'Add ₹${amount.toStringAsFixed(0)} to Wallet',

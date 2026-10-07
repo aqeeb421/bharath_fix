@@ -5,6 +5,7 @@ import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
+import '../../ui/widgets/app_cached_image.dart';
 import 'service_details_screen.dart';
 
 class SubCategorySelectionScreen extends StatelessWidget {
@@ -55,29 +56,16 @@ class SubCategorySelectionScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppRadius.medium),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Image.network(
-                        subCategory.placeholderImage,
+                      child: AppCachedImage(
+                        imageUrl: subCategory.placeholderImage.isNotEmpty ? subCategory.placeholderImage : subCategory.image,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Center(
+                        errorWidget: const Center(
                           child: Icon(
                             Icons.broken_image_outlined,
                             color: Colors.grey,
                             size: 28,
                           ),
                         ),
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          );
-                        },
                       ),
                     ),
                     SizedBox(width: AppSpacing.medium),

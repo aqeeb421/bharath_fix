@@ -17,6 +17,7 @@ import '../../services/notification_service.dart';
 import '../../utils/app_routes.dart';
 import '../../models/ProductSaleModel.dart';
 import '../../services/payment_service.dart';
+import '../../ui/widgets/app_cached_image.dart';
 
 class ProductCheckoutScreen extends StatefulWidget {
   final String productName;
@@ -649,10 +650,26 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
         },
       );
 
+      if (orderCreation == null || orderCreation['key'] == null || (orderCreation['key'] as String).isEmpty) {
+        if (mounted) {
+          setState(() => _isProcessingPayment = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Online payment service is temporarily unavailable. Please try again or select Cash on Delivery.'),
+              backgroundColor: Color(0xFF000062),
+              behavior: SnackBarBehavior.floating,
+              margin: EdgeInsets.all(16),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       var options = {
-        'key': orderCreation?['key'] ?? PaymentService.razorpayKey,
+        'key': orderCreation['key'],
         'amount': amountInPaise,
-        if (orderCreation != null && orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
+        if (orderCreation['isLiveOrder'] == true && orderCreation['id'] != null)
           'order_id': orderCreation['id'],
         'name': 'BharathFix Retail Store',
         'description': widget.productName,
@@ -812,10 +829,20 @@ class _ProductCheckoutScreenState extends State<ProductCheckoutScreen> {
       decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.large), border: Border.all(color: AppColors.border)),
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.medium), image: DecorationImage(image: NetworkImage(widget.productImage), fit: BoxFit.contain)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+            child: Container(
+              width: 64,
+              height: 64,
+              color: AppColors.card,
+              child: AppCachedImage(
+                imageUrl: widget.productImage,
+                fit: BoxFit.contain,
+                errorWidget: const Center(
+                  child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 28),
+                ),
+              ),
+            ),
           ),
           SizedBox(width: AppSpacing.medium),
           Expanded(

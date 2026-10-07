@@ -8,6 +8,7 @@ import 'package:bharath_fix/services/notification_service.dart';
 import 'package:bharath_fix/services/theme_service.dart';
 import 'package:bharath_fix/services/language_service.dart';
 import 'package:bharath_fix/services/auth_enforcement_service.dart';
+import 'package:bharath_fix/services/catalog_cache_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -27,6 +28,8 @@ void main() async {
   } catch (e) {
     debugPrint("Firebase initialization failed: $e. Operating in SQLite offline mode.");
   }
+
+  await CatalogCacheService().initialize();
 
   final dbService = DatabaseService();
   dbService.setFirebaseAvailable(firebaseAvailable);

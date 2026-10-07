@@ -6,6 +6,7 @@ import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
+import '../../ui/widgets/app_cached_image.dart';
 import '../Home/product_details_screen.dart';
 
 class MarketScreen extends StatefulWidget {
@@ -508,16 +509,14 @@ class _MarketScreenState extends State<MarketScreen> {
                             top: Radius.circular(AppRadius.large - 1),
                           ),
                         ),
-                        child: ClipRRect(
+                        child: AppCachedImage(
+                          imageUrl: prod.image,
+                          fit: BoxFit.cover,
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(AppRadius.large - 1),
                           ),
-                          child: Image.network(
-                            prod.image,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.image_not_supported_rounded, color: Colors.grey),
-                            ),
+                          errorWidget: const Center(
+                            child: Icon(Icons.image_not_supported_rounded, color: Colors.grey),
                           ),
                         ),
                       ),

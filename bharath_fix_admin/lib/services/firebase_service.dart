@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'fcm_direct_service.dart';
 
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -123,18 +123,32 @@ class FirebaseService {
     return _db.collection('categories').snapshots();
   }
 
+  Future<void> _bumpCatalogVersion() async {
+    try {
+      await _db.collection('app_config').doc('catalog_metadata').set({
+        'version': FieldValue.increment(1),
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error bumping catalog version: $e');
+    }
+  }
+
   Future<void> saveCategory(String docId, Map<String, dynamic> data) async {
     await _db.collection('categories').doc(docId).set(data, SetOptions(merge: true));
+    await _bumpCatalogVersion();
   }
 
   Future<void> updateCategorySubcategories(String docId, List<dynamic> subCategories) async {
     await _db.collection('categories').doc(docId).update({
       'subCategories': subCategories,
     });
+    await _bumpCatalogVersion();
   }
 
   Future<void> deleteCategory(String docId) async {
     await _db.collection('categories').doc(docId).delete();
+    await _bumpCatalogVersion();
   }
 
   // 2. Banners
@@ -144,10 +158,27 @@ class FirebaseService {
 
   Future<void> saveBanner(String docId, Map<String, dynamic> data) async {
     await _db.collection('banners').doc(docId).set(data);
+    await _bumpCatalogVersion();
   }
 
   Future<void> deleteBanner(String docId) async {
     await _db.collection('banners').doc(docId).delete();
+    await _bumpCatalogVersion();
+  }
+
+  // 2b. Special Marketing Offers & Deals
+  Stream<QuerySnapshot<Map<String, dynamic>>> getOffersStream() {
+    return _db.collection('offers').snapshots();
+  }
+
+  Future<void> saveOffer(String docId, Map<String, dynamic> data) async {
+    await _db.collection('offers').doc(docId).set(data, SetOptions(merge: true));
+    await _bumpCatalogVersion();
+  }
+
+  Future<void> deleteOffer(String docId) async {
+    await _db.collection('offers').doc(docId).delete();
+    await _bumpCatalogVersion();
   }
 
   // 3. Products
@@ -157,10 +188,12 @@ class FirebaseService {
 
   Future<void> saveProduct(String docId, Map<String, dynamic> data) async {
     await _db.collection('products').doc(docId).set(data);
+    await _bumpCatalogVersion();
   }
 
   Future<void> deleteProduct(String docId) async {
     await _db.collection('products').doc(docId).delete();
+    await _bumpCatalogVersion();
   }
 
   // 4. Product Orders & Retail Sales

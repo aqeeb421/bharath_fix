@@ -66,7 +66,7 @@ class ProductSaleModel {
       name: map['name'] ?? '',
       subCategory: map['subCategory'] ?? '',
       price: map['price'] ?? '',
-      image: map['image'] ?? '',
+      image: (map['image'] ?? map['imageUrl'])?.toString() ?? '',
       description: map['description'] ?? '',
       specifications: parsedSpecs,
       stockQuantity: (map['stockQuantity'] as num?)?.toInt() ?? 10,

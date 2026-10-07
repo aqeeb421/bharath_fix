@@ -6,6 +6,7 @@ import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
+import '../../ui/widgets/app_cached_image.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final String productName;
@@ -237,11 +238,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         Container(
           height: 260,
           width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            image: DecorationImage(
-              image: NetworkImage(widget.productImage),
-              fit: BoxFit.contain,
+          color: AppColors.card,
+          child: AppCachedImage(
+            imageUrl: widget.productImage,
+            fit: BoxFit.contain,
+            errorWidget: const Center(
+              child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 48),
             ),
           ),
         ),

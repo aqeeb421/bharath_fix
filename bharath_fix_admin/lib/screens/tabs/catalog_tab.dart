@@ -12,6 +12,13 @@ class CatalogTab extends StatefulWidget {
   State<CatalogTab> createState() => _CatalogTabState();
 }
 
+class _AdminGradientPreset {
+  final String name;
+  final int start;
+  final int end;
+  const _AdminGradientPreset(this.name, this.start, this.end);
+}
+
 class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseService _service = FirebaseService();
@@ -20,7 +27,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -207,6 +214,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
             labelStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.bold),
             tabs: const [
               Tab(text: 'Promo Banners'),
+              Tab(text: 'Special Offers'),
               Tab(text: 'Service Categories'),
               Tab(text: 'Retail Products'),
               Tab(text: 'Spare Parts & Rate Cards'),
@@ -220,10 +228,10 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
               controller: _tabController,
               children: [
                 _buildBannersPanel(),
+                _buildOffersPanel(),
                 _buildCategoriesPanel(),
                 _buildProductsPanel(),
                 _buildRateCardsPanel(),
-
               ],
             ),
           ),
@@ -666,7 +674,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
     final titleController = TextEditingController(text: doc != null ? doc['title'] : '');
     final subtitleController = TextEditingController(text: doc != null ? doc['subtitle'] : '');
     final imageController = TextEditingController(text: doc != null ? doc['image'] : '');
-    String bannerPlacement = 'top_banner';
+    String bannerPlacement = 'bottom_banner';
     try {
       if (doc != null && doc['placement'] != null) {
         bannerPlacement = doc['placement'].toString();
@@ -696,8 +704,8 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                           labelStyle: TextStyle(color: Color(0xFFA29EB6)),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'top_banner', child: Text('Top Banner (Hero Slider)')),
-                          DropdownMenuItem(value: 'bottom_banner', child: Text('Bottom Banner (Promotional Strip)')),
+                          DropdownMenuItem(value: 'bottom_banner', child: Text('Bottom Banner (Promotional Strip below categories)')),
+                          DropdownMenuItem(value: 'top_banner', child: Text('Top Banner (Legacy)')),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -749,6 +757,837 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                   },
                   child: const Text('Save'),
                 )
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==================== SPECIAL OFFERS & DEALS SUB-PANEL ====================
+
+  static const List<_AdminGradientPreset> _adminGradientPresets = [
+    _AdminGradientPreset('Sunset Orange', 0xFFE65100, 0xFFFF8F00),
+    _AdminGradientPreset('Royal Sapphire', 0xFF0D47A1, 0xFF0288D1),
+    _AdminGradientPreset('Emerald Mint', 0xFF1B5E20, 0xFF43A047),
+    _AdminGradientPreset('Purple Orchid', 0xFF4A148C, 0xFF7B1FA2),
+    _AdminGradientPreset('Crimson Ruby', 0xFFB71C1C, 0xFFE53935),
+    _AdminGradientPreset('Midnight Indigo', 0xFF1A237E, 0xFF3F51B5),
+    _AdminGradientPreset('Ocean Teal', 0xFF004D40, 0xFF00897B),
+    _AdminGradientPreset('Rose Magenta', 0xFF880E4F, 0xFFD81B60),
+    _AdminGradientPreset('Amber Gold', 0xFFD84315, 0xFFFFB300),
+    _AdminGradientPreset('Charcoal Dark', 0xFF212121, 0xFF424242),
+    _AdminGradientPreset('Electric Cyan', 0xFF006064, 0xFF00ACC1),
+    _AdminGradientPreset('Neon Violet', 0xFF311B92, 0xFF6200EA),
+  ];
+
+  int _parseOfferAdminColor(dynamic val, int fallback) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is String) {
+      String clean = val.trim().replaceAll('#', '').replaceAll('0x', '');
+      if (clean.length == 6) clean = 'FF$clean';
+      final parsed = int.tryParse(clean, radix: 16);
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  IconData _resolveOfferAdminIcon(dynamic iconVal) {
+    if (iconVal is IconData) return iconVal;
+    if (iconVal is String) {
+      switch (iconVal.toLowerCase()) {
+        case 'flash_on':
+        case 'flash':
+        case 'bolt':
+          return Icons.flash_on_rounded;
+        case 'handyman':
+        case 'tools':
+        case 'repair':
+          return Icons.handyman_rounded;
+        case 'verified':
+        case 'check':
+        case 'shield':
+          return Icons.verified_rounded;
+        case 'wallet':
+        case 'account_balance_wallet':
+          return Icons.account_balance_wallet_rounded;
+        case 'local_offer':
+        case 'discount':
+        case 'tag':
+          return Icons.local_offer_rounded;
+        case 'stars':
+        case 'star':
+          return Icons.stars_rounded;
+        case 'celebration':
+        case 'party':
+          return Icons.celebration_rounded;
+        case 'local_fire_department':
+        case 'fire':
+          return Icons.local_fire_department_rounded;
+        default:
+          return Icons.local_fire_department_rounded;
+      }
+    }
+    return Icons.local_fire_department_rounded;
+  }
+
+  Widget _buildOffersPanel() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Special Offers & Deals',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: const Color(0xFF111111),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Live promotional deal cards with custom gradient backgrounds shown on customer home screen.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: const Color(0xFF757575),
+                  ),
+                ),
+              ],
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _showOfferFormDialog(null),
+              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 16),
+              label: const Text('Add Special Offer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF000062),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _service.getOffersStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.local_offer_outlined, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No Special Offers Yet',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Create dynamic offer cards with gradient color background cards for the home screen.',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => _showOfferFormDialog(null),
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: const Text('Add First Offer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF000062),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  final data = doc.data();
+                  final title = data['title'] as String? ?? 'Untitled Offer';
+                  final subtitle = data['subtitle'] as String? ?? '';
+                  final badge = data['badge'] as String? ?? 'DEAL';
+                  final expiry = data['expiry'] as String? ?? 'Limited Period';
+                  final coupon = data['couponCode'] as String? ?? '';
+                  final cta = data['cta'] as String? ?? 'Explore Now';
+                  final actionType = data['actionType'] as String? ?? 'market';
+                  final iconName = data['icon'] as String? ?? 'flash_on';
+                  final colorStart = _parseOfferAdminColor(data['gradientStart'], 0xFFE65100);
+                  final colorEnd = _parseOfferAdminColor(data['gradientEnd'], 0xFFFF8F00);
+                  final iconData = _resolveOfferAdminIcon(iconName);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(colorStart), Color(colorEnd)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(colorStart).withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(iconData, size: 13, color: Color(colorStart)),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          badge,
+                                          style: TextStyle(
+                                            fontFamily: 'Plus Jakarta Sans',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(colorStart),
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      expiry,
+                                      style: const TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+                                    tooltip: 'Edit Offer & Gradient',
+                                    onPressed: () => _showOfferFormDialog(doc),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.white.withValues(alpha: 0.25),
+                                      padding: const EdgeInsets.all(6),
+                                      minimumSize: const Size(32, 32),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 18),
+                                    tooltip: 'Delete Offer',
+                                    onPressed: () async {
+                                      final confirmed = await _showDeleteConfirmationDialog(
+                                        title: 'Delete Special Offer',
+                                        itemLabel: title,
+                                      );
+                                      if (confirmed) {
+                                        await _service.deleteOffer(doc.id);
+                                      }
+                                    },
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.redAccent.withValues(alpha: 0.7),
+                                      padding: const EdgeInsets.all(6),
+                                      minimumSize: const Size(32, 32),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if (subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontSize: 12.5,
+                                color: Colors.white70,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  if (coupon.isNotEmpty) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.copy_rounded, size: 12, color: Colors.white),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Code: $coupon',
+                                            style: const TextStyle(
+                                              fontFamily: 'Plus Jakarta Sans',
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Target: $actionType',
+                                      style: const TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontSize: 10.5,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      cta,
+                                      style: TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(colorStart),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_rounded, size: 12, color: Color(colorStart)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showOfferFormDialog(dynamic doc) {
+    final formKey = GlobalKey<FormState>();
+    final titleController = TextEditingController(text: doc != null ? doc['title'] : '');
+    final subtitleController = TextEditingController(text: doc != null ? doc['subtitle'] : '');
+    final badgeController = TextEditingController(text: doc != null ? doc['badge'] : 'SPECIAL OFFER');
+    final expiryController = TextEditingController(text: doc != null ? doc['expiry'] : 'Limited Period');
+    final couponController = TextEditingController(text: doc != null ? (doc['couponCode'] ?? '') : '');
+    final ctaController = TextEditingController(text: doc != null ? (doc['cta'] ?? 'Explore Now') : 'Explore Now');
+    String actionType = doc != null ? (doc['actionType'] ?? 'market') : 'market';
+    String iconName = doc != null ? (doc['icon'] ?? 'flash_on') : 'flash_on';
+
+    int selectedStart = doc != null ? _parseOfferAdminColor(doc['gradientStart'], 0xFFE65100) : 0xFFE65100;
+    int selectedEnd = doc != null ? _parseOfferAdminColor(doc['gradientEnd'], 0xFFFF8F00) : 0xFFFF8F00;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF161230),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  const Icon(Icons.style_rounded, color: Colors.amberAccent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    doc == null ? 'Create Special Offer Card' : 'Edit Special Offer Card',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 580,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Live Card Preview
+                        const Text(
+                          'LIVE APP CARD PREVIEW',
+                          style: TextStyle(
+                            color: Color(0xFFA29EB6),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(selectedStart), Color(selectedEnd)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(selectedStart).withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(_resolveOfferAdminIcon(iconName), size: 12, color: Color(selectedStart)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          badgeController.text.isNotEmpty ? badgeController.text : 'SPECIAL DEAL',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(selectedStart),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      expiryController.text.isNotEmpty ? expiryController.text : 'Limited Period',
+                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                titleController.text.isNotEmpty ? titleController.text : 'Offer Headline Title',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitleController.text.isNotEmpty ? subtitleController.text : 'Short description detailing discount savings...',
+                                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  if (couponController.text.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        'Code: ${couponController.text.toUpperCase()}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox.shrink(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          ctaController.text.isNotEmpty ? ctaController.text : 'Explore Now',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(selectedStart),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Icon(Icons.arrow_forward_rounded, size: 11, color: Color(selectedStart)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Gradient background picker section
+                        const Text(
+                          'PICK GRADIENT BACKGROUND COLOR THEME',
+                          style: TextStyle(
+                            color: Color(0xFFA29EB6),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _adminGradientPresets.map((preset) {
+                            final isSelected = selectedStart == preset.start && selectedEnd == preset.end;
+                            return InkWell(
+                              onTap: () {
+                                setDialogState(() {
+                                  selectedStart = preset.start;
+                                  selectedEnd = preset.end;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(preset.start), Color(preset.end)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected ? Colors.white : Colors.white24,
+                                    width: isSelected ? 2.2 : 0.8,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.white.withValues(alpha: 0.3),
+                                            blurRadius: 6,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isSelected) ...[
+                                      const Icon(Icons.check_circle_rounded, size: 13, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Text(
+                                      preset.name,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Form Inputs
+                        TextFormField(
+                          controller: titleController,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Offer Title *',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. Save Flat ₹500 On First Appliance',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Title is required' : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: subtitleController,
+                          style: const TextStyle(color: Colors.white),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Subtitle / Description',
+                            labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                            hintText: 'e.g. Water Purifiers, CCTV & Inverters with bundled installation.',
+                            hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: badgeController,
+                                style: const TextStyle(color: Colors.white),
+                                onChanged: (_) => setDialogState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Badge Tag',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: 'e.g. MEGA SALE • 40% OFF',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextFormField(
+                                controller: expiryController,
+                                style: const TextStyle(color: Colors.white),
+                                onChanged: (_) => setDialogState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Expiry / Urgency Label',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: 'e.g. ⏳ Ends Midnight',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: couponController,
+                                style: const TextStyle(color: Colors.white),
+                                onChanged: (_) => setDialogState(() {}),
+                                textCapitalization: TextCapitalization.characters,
+                                decoration: const InputDecoration(
+                                  labelText: 'Coupon Promo Code (Optional)',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: 'e.g. ROOFFER500',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextFormField(
+                                controller: ctaController,
+                                style: const TextStyle(color: Colors.white),
+                                onChanged: (_) => setDialogState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Button CTA Text',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                  hintText: 'e.g. Claim in Market',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: actionType,
+                                dropdownColor: const Color(0xFF161230),
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Click Action Target',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'market', child: Text('Store / Market Tab')),
+                                  DropdownMenuItem(value: 'booking', child: Text('Bookings Tab')),
+                                  DropdownMenuItem(value: 'wallet', child: Text('Customer Wallet')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setDialogState(() => actionType = val);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: iconName,
+                                dropdownColor: const Color(0xFF161230),
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  labelText: 'Badge Icon',
+                                  labelStyle: TextStyle(color: Color(0xFFA29EB6)),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'flash_on', child: Text('⚡ Flash Deal')),
+                                  DropdownMenuItem(value: 'handyman', child: Text('🔧 Service & Repair')),
+                                  DropdownMenuItem(value: 'verified', child: Text('🛡️ Verified / Assured')),
+                                  DropdownMenuItem(value: 'wallet', child: Text('💳 Wallet Perk')),
+                                  DropdownMenuItem(value: 'local_offer', child: Text('🏷️ Discount Offer')),
+                                  DropdownMenuItem(value: 'stars', child: Text('⭐ Star Special')),
+                                  DropdownMenuItem(value: 'celebration', child: Text('🎉 Festive Pack')),
+                                  DropdownMenuItem(value: 'local_fire_department', child: Text('🔥 Hot Deal')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setDialogState(() => iconName = val);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    Navigator.pop(dialogCtx);
+
+                    final data = {
+                      'title': titleController.text.trim(),
+                      'subtitle': subtitleController.text.trim(),
+                      'badge': badgeController.text.trim().isNotEmpty ? badgeController.text.trim() : 'SPECIAL OFFER',
+                      'expiry': expiryController.text.trim().isNotEmpty ? expiryController.text.trim() : 'Limited Period',
+                      'couponCode': couponController.text.trim().toUpperCase(),
+                      'cta': ctaController.text.trim().isNotEmpty ? ctaController.text.trim() : 'Explore Now',
+                      'actionType': actionType,
+                      'icon': iconName,
+                      'gradientStart': selectedStart,
+                      'gradientEnd': selectedEnd,
+                    };
+                    final id = doc != null ? doc.id : 'offer_${DateTime.now().millisecondsSinceEpoch}';
+                    await _service.saveOffer(id, data);
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(doc == null ? 'Special Offer created!' : 'Special Offer updated!'),
+                          backgroundColor: const Color(0xFF00C853),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00C853),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: Text(doc == null ? 'Create Offer' : 'Save Changes'),
+                ),
               ],
             );
           },
@@ -1226,7 +2065,7 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
 
     final nameController = TextEditingController(text: docData['name']?.toString() ?? '');
     final iconController = TextEditingController(text: docData['iconName']?.toString() ?? 'kitchen_rounded');
-    final imageController = TextEditingController(text: docData['image']?.toString() ?? '');
+    final imageController = TextEditingController(text: (docData['iconUrl'] ?? docData['imageUrl'] ?? docData['image'])?.toString() ?? '');
     final defaultVisitingFeeController = TextEditingController(
       text: (docData['defaultVisitingFee'] ?? docData['visitingFee'] ?? '₹19').toString(),
     );
@@ -1278,8 +2117,9 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                           context: context,
                           controller: imageController,
                           setDialogState: setDialogState,
-                          subFolder: 'categories',
-                          label: 'Main Category Image',
+                          subFolder: 'category_icons',
+                          getItemName: () => nameController.text.trim(),
+                          label: 'Category Icon (Firebase Storage)',
                           isRequired: false,
                           isDark: true,
                         ),
@@ -1306,6 +2146,8 @@ class _CatalogTabState extends State<CatalogTab> with SingleTickerProviderStateM
                       'name': name,
                       'iconName': icon.isNotEmpty ? icon : 'kitchen_rounded',
                       'image': image,
+                      'imageUrl': image,
+                      'iconUrl': image,
                       'defaultVisitingFee': visitingFee,
                       'isActive': true,
                       'updatedAt': FieldValue.serverTimestamp(),
