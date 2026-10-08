@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isLoggedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ── USERS (Customers) ──
+    match /users/{userId} {
+      allow read: if isLoggedIn();
+      allow write: if isOwner(userId) || isAdmin();
+
+      match /notifications/{notifId} {
+        allow read, write: if isLoggedIn();
+      }
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ── PROVIDERS (Technicians) ──
+    match /providers/{techId} {
+      allow read: if isLoggedIn();
+      allow write: if isOwner(techId) || isAdmin();
+
+      match /notifications/{notifId} {
+        allow read, write: if isLoggedIn();
+      }
+      match /{allPaths=**} {
+        allow read, write: if isOwner(techId) || isAdmin();
+      }
+    }
+
+    // ── BOOKINGS ──
+    match /bookings/{bookingId} {
+      allow read, write: if isLoggedIn();
+      match /{allPaths=**} {
+        allow read, write: if isLoggedIn();
+      }
+    }
+
+    // ── PRODUCT ORDERS ──
+    match /orders/{orderId} {
+      allow read, write: if isLoggedIn();
+      match /{allPaths=**} {
+        allow read, write: if isLoggedIn();
+      }
+    }
+
+    // ── CATALOGS & PRODUCTS ──
+    match /categories/{id}/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /banners/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /offers/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /spare_parts_catalog/{id} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /coupons/{id} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /mainCategories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /market_categories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /app_config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /appConfig/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── ADMIN RBAC & NOTIFICATIONS ──
+    // LOCKED: Normal users cannot write their UID to get admin privileges
+    match /admins/{uid} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /admin_notifications/{id} {
+      allow read, write: if isLoggedIn();
+    }
+    match /broadcast_notifications/{id} {
+      allow read, write: if isLoggedIn();
+    }
+  }
+}

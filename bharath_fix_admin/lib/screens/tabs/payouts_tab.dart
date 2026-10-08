@@ -65,7 +65,7 @@ class _PayoutsTabState extends State<PayoutsTab> {
     final bytes = utf8.encode(csvContent);
     final blob = html.Blob([bytes], 'text/csv');
     final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
+    html.AnchorElement(href: url)
       ..setAttribute('download', 'bharathfix_payouts_${DateTime.now().toIso8601String().substring(0, 10)}.csv')
       ..click();
     html.Url.revokeObjectUrl(url);

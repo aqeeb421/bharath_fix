@@ -1,6 +1,7 @@
 import '../../services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../ui/theme/app_colors.dart';
 import '../../ui/theme/app_radius.dart';
 import '../../ui/theme/app_spacing.dart';
@@ -28,6 +29,39 @@ class CouponModel {
     required this.isPercentage,
     required this.discountValue,
   });
+
+  factory CouponModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    final code = (data['code'] ?? doc.id).toString();
+    final discountType = (data['discountType'] ?? data['type'] ?? 'percentage').toString();
+    final isPercentage = discountType == 'percentage' || data['isPercentage'] == true;
+    final discountVal = (data['discountValue'] as num? ?? data['value'] as num? ?? 0.0).toDouble();
+    final minOrder = (data['minOrderValue'] as num? ?? 0.0).toDouble();
+    final maxDisc = (data['maxDiscount'] as num? ?? discountVal).toDouble();
+    final desc = (data['description'] ?? 'Special discount coupon').toString();
+
+    String formattedExpiry = 'Limited Period';
+    if (data['expiryDate'] is Timestamp) {
+      final date = (data['expiryDate'] as Timestamp).toDate();
+      formattedExpiry = 'Valid till ${date.day}/${date.month}/${date.year}';
+    } else if (data['expiryDate'] is String && data['expiryDate'].toString().isNotEmpty) {
+      formattedExpiry = data['expiryDate'].toString();
+    }
+
+    final tag = isPercentage ? '${discountVal.toInt()}% OFF' : 'FLAT ₹${discountVal.toInt()} OFF';
+
+    return CouponModel(
+      code: code,
+      title: data['title']?.toString() ?? '$tag on BharathFix Services',
+      description: desc,
+      discountTag: tag,
+      expiryDate: formattedExpiry,
+      minOrderValue: minOrder,
+      maxDiscount: maxDisc,
+      isPercentage: isPercentage,
+      discountValue: discountVal,
+    );
+  }
 }
 
 class OffersScreen extends StatefulWidget {
@@ -136,9 +170,18 @@ class _OffersScreenState extends State<OffersScreen> {
     }
   }
 
-  void _handleCustomApply() {
+  Future<void> _handleCustomApply() async {
     final text = _codeController.text.trim().toUpperCase();
     if (text.isEmpty) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('coupons').doc(text).get();
+      if (doc.exists && doc.data() != null) {
+        final coupon = CouponModel.fromFirestore(doc);
+        _applyCoupon(coupon);
+        return;
+      }
+    } catch (_) {}
 
     final matched = OffersScreen.availableCoupons.firstWhere(
       (c) => c.code == text,
@@ -227,14 +270,33 @@ class _OffersScreenState extends State<OffersScreen> {
             ),
             SizedBox(height: AppSpacing.medium),
 
-            // 2. Coupon Cards List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: OffersScreen.availableCoupons.length,
-              itemBuilder: (context, index) {
-                final coupon = OffersScreen.availableCoupons[index];
-                return _buildCouponCard(coupon);
+            // 2. Real-Time Coupon Cards List from Firestore
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance.collection('coupons').snapshots(),
+              builder: (context, snapshot) {
+                List<CouponModel> coupons = [];
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  final activeDocs = snapshot.data!.docs.where((doc) {
+                    final data = doc.data();
+                    return data['isActive'] == null || data['isActive'] == true;
+                  }).toList();
+
+                  coupons = activeDocs.map((doc) => CouponModel.fromFirestore(doc)).toList();
+                }
+
+                if (coupons.isEmpty) {
+                  coupons = OffersScreen.availableCoupons;
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: coupons.length,
+                  itemBuilder: (context, index) {
+                    final coupon = coupons[index];
+                    return _buildCouponCard(coupon);
+                  },
+                );
               },
             ),
           ],

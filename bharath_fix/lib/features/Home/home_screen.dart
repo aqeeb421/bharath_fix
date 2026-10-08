@@ -119,14 +119,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+    CatalogCacheService().catalogVersionNotifier.addListener(_onCatalogVersionChanged);
     _loadUserProfile();
     _loadFirestoreHomeData();
     _setupNotificationListener();
   }
 
+  void _onCatalogVersionChanged() {
+    if (mounted) {
+      debugPrint('[HomeScreen] Realtime catalog update detected from Admin! Refreshing home screen...');
+      _loadFirestoreHomeData(forceRefresh: true);
+    }
+  }
+
   @override
   void dispose() {
     ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    CatalogCacheService().catalogVersionNotifier.removeListener(_onCatalogVersionChanged);
     _notifSub?.cancel();
     super.dispose();
   }

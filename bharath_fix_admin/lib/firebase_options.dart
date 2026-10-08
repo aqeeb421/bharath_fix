@@ -1,17 +1,11 @@
 // lib/firebase_options.dart
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Default [FirebaseOptions] for use in initializing Firebase.
 /// Fill in your web configuration keys below.
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
-    }
-    throw UnsupportedError(
-      'DefaultFirebaseOptions are not supported for this platform.',
-    );
+    return web;
   }
 
   static const FirebaseOptions web = FirebaseOptions(

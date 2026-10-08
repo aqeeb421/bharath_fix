@@ -43,17 +43,21 @@ class _DashboardShellState extends State<DashboardShell> {
     }
   }
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 950;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0C20),
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: !isDesktop
           ? AppBar(
               backgroundColor: const Color(0xFF000062),
               elevation: 0,
+              centerTitle: false,
               title: Row(
                 children: [
                   ClipRRect(
@@ -64,7 +68,7 @@ class _DashboardShellState extends State<DashboardShell> {
                   Expanded(
                     child: Text(
                       _navigationItems[_selectedTabIndex]['title'],
-                      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -72,9 +76,69 @@ class _DashboardShellState extends State<DashboardShell> {
                 ],
               ),
               iconTheme: const IconThemeData(color: Colors.white),
+              actions: [
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF00E676),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Live',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Log Out',
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Confirm Logout'),
+                        content: const Text('Are you sure you want to sign out of the Admin Console?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF000062),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Log Out'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      _handleLogout();
+                    }
+                  },
+                ),
+              ],
             )
           : null,
       drawer: !isDesktop ? Drawer(child: _buildSidebarContent()) : null,
+      bottomNavigationBar: !isDesktop ? _buildMobileBottomBar() : null,
       body: Row(
         children: [
           if (isDesktop)
@@ -96,6 +160,86 @@ class _DashboardShellState extends State<DashboardShell> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMobileBottomBar() {
+    int currentBottomIndex;
+    if (_selectedTabIndex == 0) {
+      currentBottomIndex = 0;
+    } else if (_selectedTabIndex == 1) {
+      currentBottomIndex = 1;
+    } else if (_selectedTabIndex == 2) {
+      currentBottomIndex = 2;
+    } else if (_selectedTabIndex == 5) {
+      currentBottomIndex = 3;
+    } else {
+      currentBottomIndex = 4; // Clients, Providers, or Payouts maps to More
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: const Color(0xFFEAEAEA), width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: NavigationBar(
+          height: 64,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFF000062).withValues(alpha: 0.12),
+          selectedIndex: currentBottomIndex,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          onDestinationSelected: (index) {
+            if (index == 0) {
+              setState(() => _selectedTabIndex = 0);
+            } else if (index == 1) {
+              setState(() => _selectedTabIndex = 1);
+            } else if (index == 2) {
+              setState(() => _selectedTabIndex = 2);
+            } else if (index == 3) {
+              setState(() => _selectedTabIndex = 5); // Catalog
+            } else if (index == 4) {
+              _scaffoldKey.currentState?.openDrawer();
+            }
+          },
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.space_dashboard_outlined, size: 22),
+              selectedIcon: const Icon(Icons.space_dashboard_rounded, color: Color(0xFF000062), size: 22),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.local_shipping_outlined, size: 22),
+              selectedIcon: const Icon(Icons.local_shipping_rounded, color: Color(0xFF000062), size: 22),
+              label: 'Orders',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.assignment_outlined, size: 22),
+              selectedIcon: const Icon(Icons.assignment_rounded, color: Color(0xFF000062), size: 22),
+              label: 'Bookings',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.collections_bookmark_outlined, size: 22),
+              selectedIcon: const Icon(Icons.collections_bookmark_rounded, color: Color(0xFF000062), size: 22),
+              label: 'Catalog',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.menu_rounded, size: 22),
+              selectedIcon: const Icon(Icons.menu_open_rounded, color: Color(0xFF000062), size: 22),
+              label: 'More',
+            ),
+          ],
+        ),
       ),
     );
   }

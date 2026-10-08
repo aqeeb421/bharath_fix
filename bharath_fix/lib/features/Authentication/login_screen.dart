@@ -8,6 +8,7 @@ import 'package:bharath_fix/ui/widgets/title_section.dart';
 import 'package:bharath_fix/utils/app_routes.dart';
 import 'package:bharath_fix/utils/app_strings.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'auth_service.dart';
 
@@ -92,6 +93,32 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _openUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      try {
+        await launchUrl(Uri.parse(url));
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Unable to open link. Visit: $url'),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,9 +172,51 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 SizedBox(height: AppSpacing.md),
-                Text(
-                  "By continuing you agree to our Terms & Privacy Policy.",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                Wrap(
+                  alignment: WrapAlignment.start,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      "By continuing you agree to our ",
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _openUrl("https://bharathfix.netlify.app/terms.html"),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          "Terms",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      " & ",
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _openUrl("https://bharathfix.netlify.app/privacy.html"),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          "Privacy Policy",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 40),
                 _isLoading

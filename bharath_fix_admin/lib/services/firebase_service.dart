@@ -35,7 +35,6 @@ class FirebaseService {
     if (docSnap.exists) {
       final docId = docSnap.id;
       final userId = docSnap.data()?['userId']?.toString() ?? docSnap.data()?['customerId']?.toString();
-      final providerId = docSnap.data()?['providerId']?.toString();
 
       if (path.startsWith('users/')) {
         final rootRef = _db.collection('bookings').doc(docId);
@@ -124,13 +123,26 @@ class FirebaseService {
   }
 
   Future<void> _bumpCatalogVersion() async {
+    final payload = {
+      'version': FieldValue.increment(1),
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    };
     try {
-      await _db.collection('app_config').doc('catalog_metadata').set({
-        'version': FieldValue.increment(1),
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _db.collection('banners').doc('catalog_metadata').set(
+        payload,
+        SetOptions(merge: true),
+      );
     } catch (e) {
-      debugPrint('Error bumping catalog version: $e');
+      debugPrint('Error updating banners metadata: $e');
+    }
+
+    try {
+      await _db.collection('app_config').doc('catalog_metadata').set(
+        payload,
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // app_config may not be added in Firestore security rules; banners handles sync seamlessly.
     }
   }
 
@@ -193,6 +205,21 @@ class FirebaseService {
 
   Future<void> deleteProduct(String docId) async {
     await _db.collection('products').doc(docId).delete();
+    await _bumpCatalogVersion();
+  }
+
+  // 3b. Market Categories
+  Stream<QuerySnapshot<Map<String, dynamic>>> getMarketCategoriesStream() {
+    return _db.collection('market_categories').orderBy('order').snapshots();
+  }
+
+  Future<void> saveMarketCategory(String docId, Map<String, dynamic> data) async {
+    await _db.collection('market_categories').doc(docId).set(data, SetOptions(merge: true));
+    await _bumpCatalogVersion();
+  }
+
+  Future<void> deleteMarketCategory(String docId) async {
+    await _db.collection('market_categories').doc(docId).delete();
     await _bumpCatalogVersion();
   }
 

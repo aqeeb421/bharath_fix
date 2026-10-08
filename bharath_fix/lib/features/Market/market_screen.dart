@@ -8,6 +8,7 @@ import '../../ui/theme/app_spacing.dart';
 import '../../ui/theme/app_text_style.dart';
 import '../../ui/widgets/app_cached_image.dart';
 import '../Home/product_details_screen.dart';
+import 'market_category_products_screen.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -17,24 +18,80 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   void _onThemeChanged() {
     if (mounted) setState(() {});
   }
 
-  String _selectedCategory = 'All';
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  @override
+  void initState() {
+    super.initState();
+    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  }
 
-  final List<Map<String, dynamic>> _categories = [
-    {'id': 'All', 'label': 'All Appliances', 'icon': Icons.apps_rounded},
-    {'id': 'Water Purifier', 'label': 'Water Purifiers', 'icon': Icons.water_drop_rounded},
-    {'id': 'CCTV', 'label': 'CCTV Security', 'icon': Icons.videocam_rounded},
-    {'id': 'Inverter', 'label': 'Inverters & Power', 'icon': Icons.bolt_rounded},
-    {'id': 'Chimney', 'label': 'Kitchen Chimneys', 'icon': Icons.soup_kitchen_rounded},
-    {'id': 'Cooler', 'label': 'Air Coolers', 'icon': Icons.ac_unit_rounded},
+  @override
+  void dispose() {
+    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Fallback categories list (in case offline or before initial sync)
+  final List<Map<String, dynamic>> _defaultCategories = const [
+    {
+      'id': 'water_purifier',
+      'name': 'Water Purifier',
+      'icon': 'water_drop_rounded',
+      'description': 'Advanced RO, UV & Copper alkaline purification systems',
+      'accent': Color(0xFF0284C7),
+    },
+    {
+      'id': 'cctv_security_cameras',
+      'name': 'CCTV Security Cameras',
+      'icon': 'videocam_rounded',
+      'description': 'Smart Wi-Fi outdoor, indoor & multi-camera kits',
+      'accent': Color(0xFF7C3AED),
+    },
+    {
+      'id': 'chimney',
+      'name': 'Chimney',
+      'icon': 'soup_kitchen_rounded',
+      'description': 'Auto-clean, motion-sensor filterless kitchen chimneys',
+      'accent': Color(0xFFEA580C),
+    },
+    {
+      'id': 'voltage_stabilizers',
+      'name': 'Voltage Stabilizers',
+      'icon': 'electric_bolt_rounded',
+      'description': 'Digital cutoff stabilizers for ACs & mainline protection',
+      'accent': Color(0xFFD97706),
+    },
+    {
+      'id': 'water_purifier_spare_parts',
+      'name': 'Water Purifier Spare Parts',
+      'icon': 'build_circle_rounded',
+      'description': 'Certified RO membranes, filters, booster pumps & kits',
+      'accent': Color(0xFF0D9488),
+    },
+    {
+      'id': 'geysers',
+      'name': 'Geysers (Gas & Electric)',
+      'icon': 'whatshot_rounded',
+      'description': 'Instant & storage water heaters for high-pressure flats',
+      'accent': Color(0xFFDC2626),
+    },
+    {
+      'id': 'solars',
+      'name': 'Solar Solutions',
+      'icon': 'solar_power_rounded',
+      'description': 'Rooftop on-grid/off-grid solar inverters & panels',
+      'accent': Color(0xFFCA8A04),
+    },
   ];
 
-  // Curated catalog fallback aligned with Client Presentation Slide 4
+  // Curated catalog fallback aligned with presentation overview
   final List<ProductSaleModel> _fallbackProducts = const [
     ProductSaleModel(
       id: 'prod_ro_01',
@@ -55,30 +112,14 @@ class _MarketScreenState extends State<MarketScreen> {
     ProductSaleModel(
       id: 'prod_cctv_01',
       name: 'Guardian 4K Wi-Fi Outdoor CCTV Camera (Dual Lens)',
-      subCategory: 'CCTV',
+      subCategory: 'CCTV Security Cameras',
       price: '₹2,499',
       originalPrice: '₹3,999',
       discountPercentage: 37,
       image: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=500',
       description: 'Full-color night vision, 360-degree pan-tilt, AI human motion detection with 2-way talk. Certified technician installs & pairs with family smartphones.',
-      stockQuantity: 2, // "Only 2 Left" tag as per Slide 4
+      stockQuantity: 2,
       warrantyPeriod: '1 Year Doorstep Replacement Warranty',
-      deliveryDays: 1,
-      isInstallationNeeded: true,
-      isInstallationFree: true,
-      installationFee: 'FREE',
-    ),
-    ProductSaleModel(
-      id: 'prod_inv_01',
-      name: 'PowerVolt 1100VA Pure Sine Wave Home Inverter',
-      subCategory: 'Inverter',
-      price: '₹5,799',
-      originalPrice: '₹7,999',
-      discountPercentage: 27,
-      image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=500',
-      description: 'Heavy duty copper transformer with intelligent bypass switch for complete home backup. Certified technician unboxing & battery mounting included.',
-      stockQuantity: 5,
-      warrantyPeriod: '2 Years Manufacturer Warranty',
       deliveryDays: 1,
       isInstallationNeeded: true,
       isInstallationFree: true,
@@ -101,49 +142,110 @@ class _MarketScreenState extends State<MarketScreen> {
       installationFee: 'FREE',
     ),
     ProductSaleModel(
-      id: 'prod_cooler_01',
-      name: 'DesertStorm 65L Heavy Air Cooler with Honeycomb Pads',
-      subCategory: 'Cooler',
-      price: '₹6,299',
-      originalPrice: '₹8,999',
+      id: 'prod_stab_01',
+      name: 'VoltGuard 4kVA Heavy Digital Voltage Stabilizer',
+      subCategory: 'Voltage Stabilizers',
+      price: '₹2,799',
+      originalPrice: '₹3,999',
       discountPercentage: 30,
-      image: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=500',
-      description: 'Powerful 4-way air deflection with ice chamber for semi-urban climate. Unboxed, filled, and tested on delivery by our technician team.',
-      stockQuantity: 6,
-      warrantyPeriod: '1 Year Doorstep Warranty',
+      image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=500',
+      description: 'Microcontroller-based intelligent high/low voltage cutoff for 1.5-ton ACs and mainline appliances.',
+      stockQuantity: 12,
+      warrantyPeriod: '3 Years Comprehensive Warranty',
+      deliveryDays: 2,
+      isInstallationNeeded: true,
+      isInstallationFree: true,
+      installationFee: 'FREE',
+    ),
+    ProductSaleModel(
+      id: 'prod_spares_01',
+      name: 'Universal 80 GPD RO Membrane & Pre-Filter Complete Kit',
+      subCategory: 'Water Purifier Spare Parts',
+      price: '₹1,299',
+      originalPrice: '₹1,999',
+      discountPercentage: 35,
+      image: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=500',
+      description: 'Certified 80 GPD TFC Membrane + Sediment + Carbon Block filter cartridges. Includes verified technician replacement visit.',
+      stockQuantity: 25,
+      warrantyPeriod: '6 Months Replacement Warranty',
       deliveryDays: 1,
-      isInstallationNeeded: false,
+      isInstallationNeeded: true,
+      isInstallationFree: true,
+      installationFee: 'FREE',
+    ),
+    ProductSaleModel(
+      id: 'prod_geyser_01',
+      name: 'ThermaFlow 15L 5-Star Storage Electric Geyser',
+      subCategory: 'Geysers (Gas & Electric)',
+      price: '₹5,999',
+      originalPrice: '₹8,499',
+      discountPercentage: 29,
+      image: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?w=500',
+      description: 'Glass-lined corrosion proof tank with whirl-flow heat retention and 8-bar pressure capability for high-rise buildings.',
+      stockQuantity: 6,
+      warrantyPeriod: '2 Years Comprehensive + 7 Years Tank Warranty',
+      deliveryDays: 2,
+      isInstallationNeeded: true,
+      isInstallationFree: true,
+      installationFee: 'FREE',
+    ),
+    ProductSaleModel(
+      id: 'prod_solar_01',
+      name: 'SunPower 1kW Rooftop On-Grid Solar Power Inverter Kit',
+      subCategory: 'Solar Solutions',
+      price: '₹38,999',
+      originalPrice: '₹52,000',
+      discountPercentage: 25,
+      image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=500',
+      description: 'High-efficiency mono-perc solar setup with smart grid feed meter and certified engineer mounting & net-metering assistance.',
+      stockQuantity: 2,
+      warrantyPeriod: '5 Years Inverter + 25 Years Performance Warranty',
+      deliveryDays: 3,
+      isInstallationNeeded: true,
       isInstallationFree: true,
       installationFee: 'FREE',
     ),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    ThemeService().themeModeNotifier.addListener(_onThemeChanged);
+  IconData _resolveCategoryIcon(String? iconName, String categoryName) {
+    switch (iconName) {
+      case 'water_drop_rounded':
+        return Icons.water_drop_rounded;
+      case 'videocam_rounded':
+        return Icons.videocam_rounded;
+      case 'soup_kitchen_rounded':
+        return Icons.soup_kitchen_rounded;
+      case 'electric_bolt_rounded':
+        return Icons.electric_bolt_rounded;
+      case 'build_circle_rounded':
+        return Icons.build_circle_rounded;
+      case 'whatshot_rounded':
+        return Icons.whatshot_rounded;
+      case 'solar_power_rounded':
+        return Icons.solar_power_rounded;
+    }
+    final lower = categoryName.toLowerCase();
+    if (lower.contains('water') && lower.contains('spare')) return Icons.build_circle_rounded;
+    if (lower.contains('water') || lower.contains('purifier') || lower.contains('ro')) return Icons.water_drop_rounded;
+    if (lower.contains('cctv') || lower.contains('camera')) return Icons.videocam_rounded;
+    if (lower.contains('chimney')) return Icons.soup_kitchen_rounded;
+    if (lower.contains('stabilizer') || lower.contains('voltage') || lower.contains('inverter')) return Icons.electric_bolt_rounded;
+    if (lower.contains('geyser') || lower.contains('water heater')) return Icons.whatshot_rounded;
+    if (lower.contains('solar')) return Icons.solar_power_rounded;
+    if (lower.contains('cooler') || lower.contains('ac')) return Icons.ac_unit_rounded;
+    return Icons.widgets_rounded;
   }
 
-  @override
-  void dispose() {
-    ThemeService().themeModeNotifier.removeListener(_onThemeChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  List<ProductSaleModel> _filterProducts(List<ProductSaleModel> allProducts) {
-    return allProducts.where((p) {
-      final matchesCategory = _selectedCategory == 'All' ||
-          p.subCategory.toLowerCase().contains(_selectedCategory.toLowerCase()) ||
-          p.name.toLowerCase().contains(_selectedCategory.toLowerCase());
-
-      final matchesQuery = _searchQuery.isEmpty ||
-          p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.subCategory.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.description.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      return matchesCategory && matchesQuery;
-    }).toList();
+  Color _resolveCategoryAccent(String categoryName) {
+    final lower = categoryName.toLowerCase();
+    if (lower.contains('water') && lower.contains('spare')) return const Color(0xFF0D9488);
+    if (lower.contains('water') || lower.contains('purifier')) return const Color(0xFF0284C7);
+    if (lower.contains('cctv') || lower.contains('camera')) return const Color(0xFF7C3AED);
+    if (lower.contains('chimney')) return const Color(0xFFEA580C);
+    if (lower.contains('stabilizer') || lower.contains('voltage')) return const Color(0xFFD97706);
+    if (lower.contains('geyser')) return const Color(0xFFDC2626);
+    if (lower.contains('solar')) return const Color(0xFFCA8A04);
+    return const Color(0xFF2563EB);
   }
 
   @override
@@ -158,114 +260,228 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance.collection('products').snapshots(),
-        builder: (context, snapshot) {
+        builder: (context, prodSnapshot) {
+          // Parse products
           List<ProductSaleModel> products = [];
-
-          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            products = snapshot.data!.docs.map((doc) {
+          if (prodSnapshot.hasData && prodSnapshot.data!.docs.isNotEmpty) {
+            products = prodSnapshot.data!.docs.map((doc) {
               final data = doc.data();
               data['id'] = doc.id;
               return ProductSaleModel.fromMap(data);
             }).toList();
           }
-
-          // Merge Firestore products with fallback catalog to guarantee rich UI
           if (products.isEmpty) {
             products = _fallbackProducts;
           }
 
-          final filtered = _filterProducts(products);
+          // Count products per category
+          final Map<String, int> productCounts = {};
+          for (var p in products) {
+            final key = p.subCategory.trim();
+            productCounts[key] = (productCounts[key] ?? 0) + 1;
+          }
 
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.medium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Certified Appliances • Same-Visit Bundled Installation',
-                  style: AppTextStyle.subtitle,
-                ),
-                const SizedBox(height: AppSpacing.medium),
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('market_categories')
+                .where('isActive', isEqualTo: true)
+                .snapshots(),
+            builder: (context, catSnapshot) {
+              // Parse categories
+              List<Map<String, dynamic>> categories = [];
+              if (catSnapshot.hasData && catSnapshot.data!.docs.isNotEmpty) {
+                // Sort by 'order'
+                final docs = catSnapshot.data!.docs.toList();
+                docs.sort((a, b) {
+                  final orderA = (a.data()['order'] as num?)?.toInt() ?? 99;
+                  final orderB = (b.data()['order'] as num?)?.toInt() ?? 99;
+                  return orderA.compareTo(orderB);
+                });
 
-                // 1. Search Bar
-                _buildSearchBar(),
-                const SizedBox(height: AppSpacing.medium),
+                categories = docs.map((doc) {
+                  final data = doc.data();
+                  final name = (data['name'] ?? doc.id).toString();
+                  return {
+                    'id': doc.id,
+                    'name': name,
+                    'icon': data['icon']?.toString(),
+                    'description': data['description']?.toString() ?? '$name appliances and accessories',
+                    'accent': _resolveCategoryAccent(name),
+                  };
+                }).toList();
+              }
 
-                // 2. Value Proposition Banner (Slide 4)
-                _buildValuePropsBanner(),
-                const SizedBox(height: AppSpacing.large),
+              // Fallback if collection is empty
+              if (categories.isEmpty) {
+                categories = _defaultCategories;
+              }
 
-                // 3. Category Section Header & Horizontal Pills
-                Text(
-                  'Browse Categories',
-                  style: AppTextStyle.sectionHeader,
-                ),
-                const SizedBox(height: AppSpacing.small),
-                _buildCategoryPills(),
-                const SizedBox(height: AppSpacing.large),
+              // Search filtering
+              final query = _searchQuery.toLowerCase().trim();
+              final filteredCategories = categories.where((c) {
+                if (query.isEmpty) return true;
+                final name = (c['name'] ?? '').toString().toLowerCase();
+                final desc = (c['description'] ?? '').toString().toLowerCase();
+                return name.contains(query) || desc.contains(query);
+              }).toList();
 
-                // 4. Products Header with Live Count & Same-Day badge
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              // Filtered products for quick search preview
+              final filteredProducts = query.isNotEmpty
+                  ? products.where((p) {
+                      return p.name.toLowerCase().contains(query) ||
+                          p.subCategory.toLowerCase().contains(query) ||
+                          p.description.toLowerCase().contains(query);
+                    }).toList()
+                  : <ProductSaleModel>[];
+
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(AppSpacing.medium),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Text(
+                      'Certified Appliances • Same-Visit Bundled Installation',
+                      style: AppTextStyle.subtitle,
+                    ),
+                    const SizedBox(height: AppSpacing.medium),
+
+                    // 1. Search Bar
+                    _buildSearchBar(),
+                    const SizedBox(height: AppSpacing.medium),
+
+                    // 2. Value Proposition Banner
+                    _buildValuePropsBanner(),
+                    const SizedBox(height: AppSpacing.large),
+
+                    // If user is actively searching and there are direct product matches
+                    if (query.isNotEmpty && filteredProducts.isNotEmpty) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _selectedCategory == 'All'
-                                ? 'Available Appliances'
-                                : _selectedCategory,
-                            style: AppTextStyle.sectionHeader,
+                          Expanded(
+                            child: Text(
+                              'Direct Product Matches',
+                              style: AppTextStyle.sectionHeader,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${filtered.length} products available for doorstep setup',
-                            style: AppTextStyle.subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          const SizedBox(width: 8),
+                          Text('${filteredProducts.length} Found', style: AppTextStyle.subtitle),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bolt_rounded, size: 14, color: Colors.orange.shade800),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Same-Day Install',
+                      const SizedBox(height: AppSpacing.small),
+                      _buildQuickProductGrid(filteredProducts),
+                      const SizedBox(height: AppSpacing.large),
+                    ],
+
+                    // 3. Category Hub Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Shop By Category',
+                                style: AppTextStyle.sectionHeader,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Select a category to browse appliances & spare parts',
+                                style: AppTextStyle.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${filteredCategories.length} Categories',
                             style: TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Colors.orange.shade800,
+                              color: AppColors.primary,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: AppSpacing.medium),
+
+                    // 4. Category Grid (Tier 1 Hub)
+                    if (filteredCategories.isEmpty)
+                      _buildNoCategoriesFound()
+                    else
+                      _buildCategoryHubGrid(filteredCategories, productCounts),
+
+                    const SizedBox(height: AppSpacing.large),
+
+                    // 5. Featured Appliances & Overview (Sample Overview)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Featured Appliances Overview',
+                            style: AppTextStyle.sectionHeader,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_rounded, size: 12, color: Colors.green.shade800),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Certified Doorstep Setup',
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Explore sample top-tier appliances across each category',
+                      style: AppTextStyle.subtitle,
+                    ),
+                    const SizedBox(height: AppSpacing.medium),
+                    _buildOverviewProductList(products),
+                    const SizedBox(height: 30),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.medium),
-
-                // 5. Product Grid
-                if (filtered.isEmpty)
-                  _buildEmptyState()
-                else
-                  _buildProductGrid(filtered),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -282,8 +498,9 @@ class _MarketScreenState extends State<MarketScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: (val) => setState(() => _searchQuery = val.trim()),
+        style: TextStyle(color: AppColors.title, fontSize: 13),
         decoration: InputDecoration(
-          hintText: 'Search RO, CCTV, inverters, chimneys...',
+          hintText: 'Search RO, CCTV, chimney, stabilizer, solar, geysers...',
           hintStyle: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 13,
@@ -313,7 +530,7 @@ class _MarketScreenState extends State<MarketScreen> {
         gradient: LinearGradient(
           colors: [
             AppColors.primary,
-            AppColors.primary.withValues(alpha: 0.85),
+            AppColors.primary.withValues(alpha: 0.88),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -321,8 +538,8 @@ class _MarketScreenState extends State<MarketScreen> {
         borderRadius: BorderRadius.circular(AppRadius.large),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 12,
+            color: AppColors.primary.withValues(alpha: 0.2),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -335,41 +552,43 @@ class _MarketScreenState extends State<MarketScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.handyman_rounded, color: Color(0xFFFFD700), size: 18),
+                child: const Icon(Icons.verified_outlined, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Zero Waiting for Installation! ⚡',
+                  'BharathFix Certified Retail & Delivery',
                   style: TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
                     fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           const Text(
-            'Unlike other e-commerce apps that deliver on Day 1 and install on Day 4, BharathFix certified technicians deliver, mount, test & demo on the exact same visit!',
+            'Get 100% genuine brand appliances delivered with same-visit certified technician unboxing, mounting, and demo.',
             style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               color: Colors.white70,
-              fontSize: 11.5,
-              height: 1.4,
+              fontSize: 12,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              _buildMicroFeatureBadge('🛡️ 1-Yr Local Warranty'),
-              const SizedBox(width: 8),
-              _buildMicroFeatureBadge('📹 Live Demo & Handover'),
+              _buildValuePill('⚡ 1-2 Day Delivery'),
+              _buildValuePill('🛠️ Bundled Setup Kit'),
+              _buildValuePill('🛡️ Doorstep Warranty'),
             ],
           ),
         ],
@@ -377,11 +596,11 @@ class _MarketScreenState extends State<MarketScreen> {
     );
   }
 
-  Widget _buildMicroFeatureBadge(String label) {
+  Widget _buildValuePill(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -389,59 +608,319 @@ class _MarketScreenState extends State<MarketScreen> {
         style: const TextStyle(
           fontFamily: 'Plus Jakarta Sans',
           color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 
-  Widget _buildCategoryPills() {
-    return SizedBox(
-      height: 38,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final cat = _categories[index];
-          final isSelected = _selectedCategory == cat['id'];
+  // Tier 1 Category Hub Grid
+  Widget _buildCategoryHubGrid(
+    List<Map<String, dynamic>> categories,
+    Map<String, int> productCounts,
+  ) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: categories.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.88,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (context, index) {
+        final cat = categories[index];
+        final name = (cat['name'] ?? '').toString();
+        final iconStr = cat['icon']?.toString();
+        final desc = (cat['description'] ?? '').toString();
+        final accent = (cat['accent'] as Color?) ?? _resolveCategoryAccent(name);
+        final iconData = _resolveCategoryIcon(iconStr, name);
 
-          return Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              onTap: () => setState(() => _selectedCategory = cat['id']),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.border,
-                    width: 1,
-                  ),
+        // Calculate count by fuzzy/exact match
+        int count = productCounts[name] ?? 0;
+        if (count == 0) {
+          final catLower = name.toLowerCase();
+          for (var entry in productCounts.entries) {
+            final keyLower = entry.key.toLowerCase();
+            if (keyLower.contains(catLower) || catLower.contains(keyLower)) {
+              count += entry.value;
+            }
+          }
+        }
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MarketCategoryProductsScreen(
+                  categoryName: name,
+                  categoryDescription: desc,
+                  iconData: iconData,
+                  accentColor: accent,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(AppRadius.large),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(AppRadius.large),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Top row with Icon badge and Count
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      cat['icon'] as IconData,
-                      size: 16,
-                      color: isSelected ? Colors.white : AppColors.title,
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(iconData, size: 24, color: accent),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      cat['label'] as String,
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.title,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        count > 0 ? '$count Item${count > 1 ? 's' : ''}' : 'Explore',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: accent,
+                        ),
                       ),
                     ),
                   ],
                 ),
+
+                // Name and Description
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.title,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 10,
+                        color: AppColors.subtitle,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+
+                // Bottom action strip
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Browse items',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 11,
+                      color: accent,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewProductList(List<ProductSaleModel> items) {
+    return SizedBox(
+      height: 240,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final prod = items[index];
+          final accent = _resolveCategoryAccent(prod.subCategory);
+
+          return InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProductDetailsScreen(
+                    productName: prod.name,
+                    productPrice: prod.price,
+                    productImage: prod.image,
+                    productSubCategory: prod.subCategory,
+                    product: prod,
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            child: Container(
+              width: 160,
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(AppRadius.large),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image
+                  Expanded(
+                    flex: 11,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8F9FA),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.large - 1)),
+                          ),
+                          child: AppCachedImage(
+                            imageUrl: prod.image,
+                            fit: BoxFit.cover,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.large - 1)),
+                            errorWidget: const Center(
+                              child: Icon(Icons.image_not_supported_rounded, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                        if (prod.discountPercentage > 0)
+                          Positioned(
+                            top: 6,
+                            left: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE53935),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${prod.discountPercentage}% OFF',
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Info
+                  Expanded(
+                    flex: 10,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                prod.subCategory,
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: accent,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                prod.name,
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.title,
+                                  height: 1.2,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                prod.price,
+                                style: TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: accent,
+                                ),
+                              ),
+                              Icon(Icons.arrow_forward_rounded, size: 14, color: accent),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -450,20 +929,20 @@ class _MarketScreenState extends State<MarketScreen> {
     );
   }
 
-  Widget _buildProductGrid(List<ProductSaleModel> items) {
+  Widget _buildQuickProductGrid(List<ProductSaleModel> items) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.62,
+        childAspectRatio: 0.65,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
       itemBuilder: (context, index) {
         final prod = items[index];
-        final bool isLowStock = prod.stockQuantity <= 2 && prod.stockQuantity > 0;
+        final accent = _resolveCategoryAccent(prod.subCategory);
 
         return InkWell(
           onTap: () {
@@ -486,158 +965,49 @@ class _MarketScreenState extends State<MarketScreen> {
               color: AppColors.card,
               borderRadius: BorderRadius.circular(AppRadius.large),
               border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product Image Container with Stock Indicator
                 Expanded(
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF8F9FA),
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(AppRadius.large - 1),
-                          ),
-                        ),
-                        child: AppCachedImage(
-                          imageUrl: prod.image,
-                          fit: BoxFit.cover,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppRadius.large - 1),
-                          ),
-                          errorWidget: const Center(
-                            child: Icon(Icons.image_not_supported_rounded, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      // Stock Badge
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isLowStock ? Colors.red.shade700 : const Color(0xFF2E7D32),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isLowStock ? '🔥 Only ${prod.stockQuantity} Left' : '✓ In Stock',
-                            style: const TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Bundled Installation Tag
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.handyman_rounded, color: Color(0xFFFFD700), size: 10),
-                              SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  'Bundled Install',
-                                  style: TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                  flex: 10,
+                  child: AppCachedImage(
+                    imageUrl: prod.image,
+                    fit: BoxFit.cover,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.large - 1)),
+                    errorWidget: const Center(child: Icon(Icons.image_not_supported_rounded, color: Colors.grey)),
                   ),
                 ),
-
-                // Product Meta Information
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        prod.name,
-                        style: AppTextStyle.cardTitle.copyWith(
-                          fontSize: 12.5,
-                          height: 1.25,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            prod.price,
-                            style: AppTextStyle.mainTitle.copyWith(
-                              fontSize: 15,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          if (prod.originalPrice.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              prod.originalPrice,
-                              style: AppTextStyle.subtitle.copyWith(
-                                fontSize: 10,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Action Buy Button
-                      Container(
-                        width: double.infinity,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'View & Order',
+                Expanded(
+                  flex: 9,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          prod.name,
                           style: TextStyle(
                             fontFamily: 'Plus Jakarta Sans',
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
                             fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.title,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          prod.price,
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -648,41 +1018,33 @@ class _MarketScreenState extends State<MarketScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.large),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.large),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.search_off_rounded, size: 48, color: AppColors.subtitle),
-          const SizedBox(height: 12),
-          Text(
-            'No Appliances Found',
-            style: AppTextStyle.sectionHeader.copyWith(fontSize: 16),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Try searching another appliance category or clear your search query.',
-            textAlign: TextAlign.center,
-            style: AppTextStyle.subtitle,
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedCategory = 'All';
+  Widget _buildNoCategoriesFound() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              'No categories match "$_searchQuery"',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.title,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
                 _searchController.clear();
-                _searchQuery = '';
-              });
-            },
-            child: const Text('Reset Category Filter'),
-          ),
-        ],
+                setState(() => _searchQuery = '');
+              },
+              child: const Text('Clear search'),
+            ),
+          ],
+        ),
       ),
     );
   }

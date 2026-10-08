@@ -29,6 +29,13 @@ class AboutScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _launchWebUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await launchUrl(uri);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,6 +187,30 @@ class AboutScreen extends StatelessWidget {
                     title: 'Official Email',
                     subtitle: 'bharathfixservice@gmail.com',
                     onTap: () => _sendEmail('bharathfixservice@gmail.com'),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: AppSpacing.medium),
+
+            // Legal & Policies Card (Mandatory for Google Play)
+            _buildSectionCard(
+              title: 'Legal & Policies',
+              child: Column(
+                children: [
+                  _buildContactListTile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Privacy Policy',
+                    subtitle: 'bharathfix.netlify.app/privacy.html',
+                    onTap: () => _launchWebUrl('https://bharathfix.netlify.app/privacy.html'),
+                  ),
+                  const Divider(height: 16),
+                  _buildContactListTile(
+                    icon: Icons.gavel_rounded,
+                    title: 'Terms & Conditions',
+                    subtitle: 'bharathfix.netlify.app/terms.html',
+                    onTap: () => _launchWebUrl('https://bharathfix.netlify.app/terms.html'),
                   ),
                 ],
               ),

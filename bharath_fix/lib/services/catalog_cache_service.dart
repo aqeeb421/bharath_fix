@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,14 +12,18 @@ import '../models/ProductSaleModel.dart';
 /// Features:
 /// 1. Memory Cache + 15-Minute TTL: Zero network reads when switching tabs/screens.
 /// 2. Disk Persistence via SharedPreferences: Instant 0ms startup & full offline resilience.
-/// 3. Metadata Invalidation: Queries a single 1-read version document ('app_config/catalog_metadata')
-///    to check if an admin updated anything. If unchanged, bypasses all collection reads (95%+ cost reduction).
+/// 3. Realtime Metadata Watcher: Listens to a single 1-document stream ('app_config/catalog_metadata')
+///    to instantly detect when an admin updates anything, invalidating cache in real time with 99% cost reduction.
 class CatalogCacheService {
   static final CatalogCacheService _instance = CatalogCacheService._internal();
   factory CatalogCacheService() => _instance;
   CatalogCacheService._internal();
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  // Realtime update notifier & subscription
+  final ValueNotifier<int> catalogVersionNotifier = ValueNotifier<int>(0);
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _metadataSubscription;
 
   // In-memory cache
   List<MainCategoryModel>? _categories;
@@ -37,6 +42,40 @@ class CatalogCacheService {
   static const String _prefKeyLastFetch = 'bf_catalog_last_fetch_ms';
 
   bool _isInitialized = false;
+
+  /// Starts listening to the 1-document catalog_metadata stream to invalidate cache instantly.
+  void startRealtimeVersionWatcher() {
+    _metadataSubscription?.cancel();
+    try {
+      // Prioritize banners/catalog_metadata which is always permitted in Firestore security rules
+      _metadataSubscription = _db
+          .collection('banners')
+          .doc('catalog_metadata')
+          .snapshots()
+          .listen((snapshot) async {
+        if (snapshot.exists && snapshot.data() != null) {
+          final remoteVersion = (snapshot.data()!['version'] as num?)?.toInt() ?? 0;
+          final prefs = await SharedPreferences.getInstance();
+          final localVersion = prefs.getInt(_prefKeyVersion) ?? 0;
+
+          if (remoteVersion > localVersion && remoteVersion > 0) {
+            debugPrint('[CatalogCacheService] Remote catalog version changed ($localVersion -> $remoteVersion). Invalidating cache.');
+            _categories = null;
+            _offers = null;
+            _banners = null;
+            _products = null;
+            _lastFetchTime = null;
+            await prefs.setInt(_prefKeyVersion, remoteVersion);
+            catalogVersionNotifier.value = remoteVersion;
+          }
+        }
+      }, onError: (err) {
+        debugPrint('[CatalogCacheService] banners metadata watcher note: $err');
+      });
+    } catch (e) {
+      debugPrint('[CatalogCacheService] Error starting realtime watcher: $e');
+    }
+  }
 
   /// Initializes local disk cache on app startup.
   Future<void> initialize() async {
@@ -82,6 +121,7 @@ class CatalogCacheService {
       }
 
       _isInitialized = true;
+      startRealtimeVersionWatcher();
       debugPrint('[CatalogCacheService] Initialized from local disk storage. Categories: ${_categories?.length ?? 0}');
     } catch (e) {
       debugPrint('[CatalogCacheService] Error reading disk cache: $e');
@@ -231,6 +271,7 @@ class CatalogCacheService {
       final List<Map<String, dynamic>> list = [];
 
       for (var doc in snap.docs) {
+        if (doc.id == 'catalog_metadata') continue;
         final data = doc.data();
         list.add({
           'id': doc.id,
@@ -308,8 +349,13 @@ class CatalogCacheService {
       final prefs = await SharedPreferences.getInstance();
       final localVersion = prefs.getInt(_prefKeyVersion) ?? 0;
 
-      // Single read to app_config/catalog_metadata
-      final metaDoc = await _db.collection('app_config').doc('catalog_metadata').get();
+      // Single read to banners/catalog_metadata (fallback to app_config)
+      var metaDoc = await _db.collection('banners').doc('catalog_metadata').get();
+      if (!metaDoc.exists) {
+        try {
+          metaDoc = await _db.collection('app_config').doc('catalog_metadata').get();
+        } catch (_) {}
+      }
       if (!metaDoc.exists) return false;
 
       final remoteVersion = (metaDoc.data()?['version'] as num?)?.toInt() ?? 0;

@@ -51,6 +51,7 @@ const COLLECTIONS_TO_MIGRATE = [
   'services',
   'products',
   'banners',
+  'offers',
   'coupons',
   'mainCategories',
   'appConfig',
